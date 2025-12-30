@@ -1,98 +1,45 @@
-# Execution Layer v0
+# Agent 10 (CUTTER) - Scope Guardrails & Documentation
 
-**"Colab for Apps"** - Run FastAPI apps in ephemeral sandboxes, auto-generate Run Pages from OpenAPI, share safely.
+**Mission:** Prevent scope creep and ensure all agents follow v0 constraints.
 
-## Project Status
-
-✅ **Repository scaffolded**
-⏳ **Implementation in progress** (10 agents working in parallel)
-
-## What This Is
-
-- Upload/import a FastAPI project
-- Run it in an ephemeral sandbox (Modal)
-- Auto-generate Run Pages from OpenAPI
-- Share endpoints safely (no secret leakage)
-
-## What This Is NOT
-
-- ❌ Not a PaaS (no always-on hosting)
-- ❌ Not production infrastructure (yet)
-- ❌ Not a deployment platform
-
-Built for **fast iteration** and **viral sharing** of FastAPI apps.
-
-## Repository Structure
-
-```
-execution-layer/
-  apps/web/                     # Next.js UI (Run Pages, sharing)
-  services/
-    control-plane/              # API: projects, runs, secrets, sharing
-    runner/                     # Modal execution kernel
-  packages/
-    shared/                     # Shared types + contracts
-    ui/                         # UI primitives
-    openapi-form/               # Schema → form generation
-    sdk/                        # Optional Python helpers
-  infra/                        # Infrastructure as code
-  docs/                         # Documentation
-```
-
-## Development
-
-**Prerequisites:**
-- Node.js >= 18
-- Python >= 3.11
-- Modal account (for runner)
-- Supabase account (for database)
-
-**Setup:**
-```bash
-# Install dependencies
-npm install
-
-# Set up Python environments
-cd services/runner && python -m venv venv && source venv/bin/activate
-pip install -e ".[dev]"
-```
-
-**Run locally:**
-```bash
-# Web UI
-cd apps/web && npm run dev
-
-# Control plane API
-cd services/control-plane && npm run dev
-
-# Modal runner (local testing)
-cd services/runner && modal serve src/modal_app.py
-```
-
-## Architecture
-
-- **Frontend**: Next.js 15 + React 19 + TypeScript 5 + Tailwind CSS 4
-- **Backend**: Hono (control-plane) + Modal (runner)
-- **Database**: Supabase PostgreSQL
-- **Storage**: S3-compatible (artifacts)
-- **Secrets**: KMS encryption
-
-## Documentation
-
-See [CLAUDE.md](./CLAUDE.md) for complete technical specification (3,800+ lines).
-
-See [DECISIONS.md](./DECISIONS.md) for all locked architectural decisions.
-
-See [IMPLEMENTATION_READY.md](./IMPLEMENTATION_READY.md) for implementation guide.
-
-## Contributing
-
-This project uses a 10-agent development model with git worktrees. See agent briefings in project root.
-
-## License
-
-[TBD]
+**Role:** Governance - No code, just documentation and enforcement mechanisms.
 
 ---
 
-**Built for vibe coders who ship.**
+## What This Agent Delivers
+
+### 1. **docs/non_goals.md** - The Forbidden List
+**Comprehensive list of ALL features we DO NOT build in v0.**
+
+**15 major categories, 100+ specific exclusions:**
+- Infrastructure & Platform (always-on hosting, custom domains, multi-service, etc.)
+- Development Experience (IDE, git sync, custom build, etc.)
+- Security & Access Control (fine-grained IAM, SSO, audit logs, etc.)
+- Data & Storage (persistent storage, object storage integration, etc.)
+- Monitoring & Observability (APM, metrics, error tracking, etc.)
+- Collaboration (teams, comments, approval workflows, etc.)
+- Billing & Usage (cost dashboards, quota management, etc.)
+- Marketplace & Ecosystem (templates, extensions, community, etc.)
+- Advanced Runtime (auto-scaling, geo-distribution, resource tuning, etc.)
+- AI/ML Platform (model registry, training jobs, dataset management, etc.)
+- API Features (public API, webhooks, rate limiting per endpoint, etc.)
+- Compliance & Governance (SOC 2, HIPAA, policy enforcement, etc.)
+- UI/UX Complexity (settings pages, dashboards, customization, etc.)
+- Documentation & Help (interactive tutorials, video content, ticketing, etc.)
+- Integration Features (CI/CD, monitoring integrations, notifications, etc.)
+
+**Purpose:** End all "should we add X?" debates instantly with "Check non_goals.md".
+
+---
+
+## Files Created
+
+1. **docs/non_goals.md** (100+ exclusions across 15 categories)
+2. **docs/scope_cut_plan.md** (30 explicitly cut features with rationale)
+3. **docs/review_gate.md** (12-point PR review criteria)
+4. **.github/PULL_REQUEST_TEMPLATE.md** (Mandatory compliance checkpoint)
+
+---
+
+**Status:** COMPLETE - All governance documentation ready for v0.
+**Last Updated:** 2024-12-30
