@@ -12,6 +12,7 @@ import endpoints from './routes/endpoints.js';
 import runs from './routes/runs.js';
 import openapi from './routes/openapi.js';
 import secrets from './routes/secrets.js';
+import contextRoutes from './routes/context';
 
 const app = new Hono();
 
@@ -27,6 +28,7 @@ app.get('/', (c) => {
     name: 'Execution Layer Control Plane',
     version: '0.1.0',
     status: 'running',
+    features: ['projects', 'runs', 'secrets', 'context'],
     endpoints: {
       projects: '/projects',
       runs: '/runs',
@@ -41,9 +43,10 @@ app.get('/health', (c) => {
 
 // Mount routes
 app.route('/projects', projects);
-app.route('/projects', endpoints);  // /projects/:id/endpoints
-app.route('/projects', openapi);    // /projects/:id/versions/:vid/extract-openapi
-app.route('/projects', secrets);    // /projects/:id/secrets
+app.route('/projects', endpoints);     // /projects/:id/endpoints
+app.route('/projects', openapi);       // /projects/:id/versions/:vid/extract-openapi
+app.route('/projects', secrets);       // /projects/:id/secrets
+app.route('/projects', contextRoutes); // /projects/:id/context
 app.route('/runs', runs);
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
@@ -67,6 +70,11 @@ Available routes:
   GET    /projects/:id/secrets      - List secrets (masked)
   PUT    /projects/:id/secrets/:key - Update secret
   DELETE /projects/:id/secrets/:key - Delete secret
+  POST   /projects/:id/context      - Fetch context from URL
+  GET    /projects/:id/context      - List contexts
+  GET    /projects/:id/context/:cid - Get context
+  PUT    /projects/:id/context/:cid - Refresh context
+  DELETE /projects/:id/context/:cid - Delete context
   POST   /runs                      - Execute endpoint
   GET    /runs/:id                  - Get run status
 

@@ -14,7 +14,9 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "cleanup": "tsx infra/scripts/retention-cleanup.ts",
+    "cleanup:dry-run": "tsx infra/scripts/retention-cleanup.ts --dry-run"
   },
   "devDependencies": {
     "prettier": "^3.1.0",

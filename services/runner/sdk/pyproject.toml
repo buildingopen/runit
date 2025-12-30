@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "execution-layer"
+version = "0.1.0"
+description = "SDK for building FastAPI apps on Execution Layer"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Execution Layer", email = "support@executionlayer.com"}
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = ["fastapi", "execution-layer", "sdk", "runtime", "serverless"]
+
+[project.optional-dependencies]
+dataframe = [
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+]
+excel = [
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+    "openpyxl>=3.1.0",
+]
+
+[project.urls]
+Documentation = "https://docs.executionlayer.com"
+Source = "https://github.com/executionlayer/execution-layer"
+Tracker = "https://github.com/executionlayer/execution-layer/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+
+[tool.coverage.run]
+source = ["execution_layer"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
