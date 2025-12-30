@@ -13,6 +13,8 @@ import runs from './routes/runs.js';
 import openapi from './routes/openapi.js';
 import secrets from './routes/secrets.js';
 import contextRoutes from './routes/context';
+import { rateLimitMiddleware } from './middleware/rate-limit';
+import { quotaMiddleware } from './middleware/quota';
 
 const app = new Hono();
 
@@ -22,13 +24,19 @@ app.use('/*', cors({
   credentials: true,
 }));
 
+// Apply rate limiting (60/min auth, 10/min anon)
+app.use('/*', rateLimitMiddleware);
+
+// Apply quota enforcement on run endpoints
+app.use('/runs/*', quotaMiddleware);
+
 // Health check
 app.get('/', (c) => {
   return c.json({
     name: 'Execution Layer Control Plane',
     version: '0.1.0',
     status: 'operational',
-    features: ['projects', 'runs', 'secrets', 'context'],
+    features: ['projects', 'runs', 'secrets', 'context', 'rate-limiting', 'quotas'],
     endpoints: {
       projects: '/projects',
       runs: '/runs',
