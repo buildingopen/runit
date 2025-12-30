@@ -1,98 +1,185 @@
-# Execution Layer v0
+# Agent 6 (MEMORY) - Context System
 
-**"Colab for Apps"** - Run FastAPI apps in ephemeral sandboxes, auto-generate Run Pages from OpenAPI, share safely.
+## Quick Start
 
-## Project Status
+This directory contains the **Context system** implementation for Execution Layer v0.
 
-✅ **Repository scaffolded**
-⏳ **Implementation in progress** (10 agents working in parallel)
+### What is Context?
 
-## What This Is
+Context allows you to mount reusable metadata/data to runs without storing secrets.
 
-- Upload/import a FastAPI project
-- Run it in an ephemeral sandbox (Modal)
-- Auto-generate Run Pages from OpenAPI
-- Share endpoints safely (no secret leakage)
-
-## What This Is NOT
-
-- ❌ Not a PaaS (no always-on hosting)
-- ❌ Not production infrastructure (yet)
-- ❌ Not a deployment platform
-
-Built for **fast iteration** and **viral sharing** of FastAPI apps.
-
-## Repository Structure
-
-```
-execution-layer/
-  apps/web/                     # Next.js UI (Run Pages, sharing)
-  services/
-    control-plane/              # API: projects, runs, secrets, sharing
-    runner/                     # Modal execution kernel
-  packages/
-    shared/                     # Shared types + contracts
-    ui/                         # UI primitives
-    openapi-form/               # Schema → form generation
-    sdk/                        # Optional Python helpers
-  infra/                        # Infrastructure as code
-  docs/                         # Documentation
-```
-
-## Development
-
-**Prerequisites:**
-- Node.js >= 18
-- Python >= 3.11
-- Modal account (for runner)
-- Supabase account (for database)
-
-**Setup:**
+**Example:**
 ```bash
-# Install dependencies
-npm install
+# Fetch company info from URL
+curl -X POST http://localhost:3001/projects/proj-123/context \
+  -d '{"url": "https://example.com", "name": "company"}'
 
-# Set up Python environments
-cd services/runner && python -m venv venv && source venv/bin/activate
-pip install -e ".[dev]"
+# Your FastAPI app can now access it
+from executionlayer import get_context
+
+@app.post("/extract")
+def extract():
+    company = get_context("company")
+    return {"name": company["name"]}
 ```
-
-**Run locally:**
-```bash
-# Web UI
-cd apps/web && npm run dev
-
-# Control plane API
-cd services/control-plane && npm run dev
-
-# Modal runner (local testing)
-cd services/runner && modal serve src/modal_app.py
-```
-
-## Architecture
-
-- **Frontend**: Next.js 15 + React 19 + TypeScript 5 + Tailwind CSS 4
-- **Backend**: Hono (control-plane) + Modal (runner)
-- **Database**: Supabase PostgreSQL
-- **Storage**: S3-compatible (artifacts)
-- **Secrets**: KMS encryption
-
-## Documentation
-
-See [CLAUDE.md](./CLAUDE.md) for complete technical specification (3,800+ lines).
-
-See [DECISIONS.md](./DECISIONS.md) for all locked architectural decisions.
-
-See [IMPLEMENTATION_READY.md](./IMPLEMENTATION_READY.md) for implementation guide.
-
-## Contributing
-
-This project uses a 10-agent development model with git worktrees. See agent briefings in project root.
-
-## License
-
-[TBD]
 
 ---
 
-**Built for vibe coders who ship.**
+## Features
+
+✅ **Fetch from URL** - Extract metadata from any website
+✅ **Read-only mount** - Context files mounted at /context/*.json
+✅ **Secret protection** - Rejects API keys, tokens, passwords
+✅ **Size limits** - Max 1MB per context, 1MB per project
+✅ **SDK helpers** - Simple Python API for user code
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /projects/:id/context | Fetch from URL |
+| GET | /projects/:id/context | List all contexts |
+| GET | /projects/:id/context/:cid | Get specific context |
+| PUT | /projects/:id/context/:cid | Refresh from URL |
+| DELETE | /projects/:id/context/:cid | Delete context |
+
+---
+
+## File Structure
+
+```
+agent-6-memory/
+├── services/
+│   ├── control-plane/src/
+│   │   ├── routes/context.ts         # CRUD API
+│   │   ├── context-fetcher.ts        # URL scraper
+│   │   └── tests/context.test.ts     # Tests
+│   └── runner/src/
+│       ├── context/mounter.py        # Mount logic
+│       └── tests/test_*.py           # Tests
+├── packages/
+│   ├── shared/src/types/index.ts     # Types
+│   └── sdk/src/context.py            # SDK helpers
+├── test-context-api.sh               # Acceptance test
+├── CONTEXT_IMPLEMENTATION.md         # Full docs
+└── AGENT-6-COMPLETION-REPORT.md     # Completion report
+```
+
+---
+
+## Testing
+
+### Run Acceptance Test
+
+```bash
+# Start control plane
+cd services/control-plane
+npm run dev
+
+# Run test (in another terminal)
+./test-context-api.sh
+```
+
+### Run Unit Tests
+
+```bash
+# TypeScript tests
+cd services/control-plane
+npm test
+
+# Python tests
+cd services/runner
+pytest
+```
+
+---
+
+## Documentation
+
+- **[CONTEXT_IMPLEMENTATION.md](./CONTEXT_IMPLEMENTATION.md)** - Full implementation guide
+- **[AGENT-6-COMPLETION-REPORT.md](./AGENT-6-COMPLETION-REPORT.md)** - Completion report
+
+---
+
+## Status
+
+✅ **COMPLETE** - All acceptance criteria met
+
+Ready for integration with Agent 2 (KERNEL) runner implementation.
+
+---
+
+## Quick Examples
+
+### Fetch Context
+
+```bash
+curl -X POST http://localhost:3001/projects/test/context \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "name": "company"
+  }'
+```
+
+### Use in FastAPI App
+
+```python
+from executionlayer import get_context
+
+@app.post("/process")
+def process():
+    # Get mounted context
+    company = get_context("company")
+
+    # Use the data
+    return {
+        "company": company["name"],
+        "industry": company["industry"]
+    }
+```
+
+### List Available Contexts
+
+```python
+from executionlayer import list_contexts
+
+contexts = list_contexts()
+print(f"Available: {contexts}")
+# Output: ['company', 'user_prefs']
+```
+
+---
+
+## Security
+
+✅ **No secrets** - Validation rejects keys like `API_KEY`, `SECRET_TOKEN`
+✅ **Read-only** - All files mounted as read-only (chmod 444)
+✅ **Size limits** - Max 1MB per context, 1MB per project
+✅ **Timeout** - 10-second fetch timeout
+
+---
+
+## Integration
+
+For Agent 2 (KERNEL):
+
+```python
+from context import write_context_files
+from routes.context import get_project_contexts
+
+# Get contexts
+contexts = get_project_contexts(project_id)
+
+# Mount before execution
+write_context_files(contexts)
+os.environ["EL_CONTEXT_DIR"] = "/context"
+
+# Execute user code (context is now available)
+```
+
+---
+
+**Agent 6 (MEMORY) - Context System Implementation Complete** 🎯
