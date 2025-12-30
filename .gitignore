@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.venv/
+venv/
+ENV/
+env/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.production
+.env.*.local
+*.env
+
+# Secrets (CRITICAL - NEVER COMMIT)
+executionlayer.toml
+*.pem
+*.key
+*.crt
+*.p12
+credentials.json
+
+# Testing
+.coverage
+.pytest_cache/
+coverage/
+*.lcov
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+Thumbs.db
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Modal
+.modal/
+
+# TypeScript
+*.tsbuildinfo
+
+# Repro bundles (owner-only, not in repo)
+repro-bundles/
