@@ -23,6 +23,7 @@ interface ModalExecutionRequest {
       mime: string;
     }>;
   };
+  secrets_ref?: string;  // KMS-encrypted secrets bundle
   lane: 'cpu' | 'gpu';
   timeout_seconds: number;
 }

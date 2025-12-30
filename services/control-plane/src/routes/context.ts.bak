@@ -5,11 +5,11 @@
 
 import { Hono } from 'hono';
 import { fetchContextFromURL, validateContext } from '../context-fetcher';
-import type { ContextMetadata } from '../../../../packages/shared/src/types';
 import type {
+  ContextMetadata,
   FetchContextRequest,
   FetchContextResponse,
-} from '../../../../packages/shared/src/contracts/control-plane';
+} from '../../../../packages/shared/src/types';
 
 const context = new Hono();
 
@@ -20,7 +20,7 @@ const contextStore: Map<string, Map<string, ContextMetadata>> = new Map();
  * POST /projects/:id/context
  * Fetch context from URL
  */
-context.post('/:id/context', async (c) => {
+context.post('/projects/:id/context', async (c) => {
   const projectId = c.req.param('id');
   const body = await c.req.json<FetchContextRequest>();
 
@@ -100,7 +100,7 @@ context.post('/:id/context', async (c) => {
  * GET /projects/:id/context
  * List all context for a project
  */
-context.get('/:id/context', async (c) => {
+context.get('/projects/:id/context', async (c) => {
   const projectId = c.req.param('id');
 
   const projectContexts = contextStore.get(projectId);
@@ -126,7 +126,7 @@ context.get('/:id/context', async (c) => {
  * GET /projects/:id/context/:cid
  * Get specific context data
  */
-context.get('/:id/context/:cid', async (c) => {
+context.get('/projects/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
 
@@ -149,7 +149,7 @@ context.get('/:id/context/:cid', async (c) => {
  * PUT /projects/:id/context/:cid
  * Refresh context from URL
  */
-context.put('/:id/context/:cid', async (c) => {
+context.put('/projects/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
 
@@ -208,7 +208,7 @@ context.put('/:id/context/:cid', async (c) => {
  * DELETE /projects/:id/context/:cid
  * Delete context
  */
-context.delete('/:id/context/:cid', async (c) => {
+context.delete('/projects/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
 

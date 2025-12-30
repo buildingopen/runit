@@ -248,15 +248,8 @@ export interface FetchContextRequest {
 }
 
 export interface FetchContextResponse {
-  context_id: string;
-  url: string;
-  name?: string;
-  metadata: {
-    title?: string;
-    description?: string;
-    fetched_at: string;
-  };
-  size_bytes: number;
+  id: string;
+  data: Record<string, any>;
 }
 
 export interface ListContextRequest {

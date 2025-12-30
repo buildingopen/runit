@@ -22,21 +22,8 @@ export interface ContextMetadata {
   fetched_at?: string;
 }
 
-export interface FetchContextRequest {
-  url: string;
-  name: string;
-}
-
-export interface FetchContextResponse {
-  id: string;
-  name: string;
-  data: {
-    title?: string;
-    description?: string;
-    url: string;
-    fetched_at: string;
-  };
-}
+// FetchContextRequest and FetchContextResponse moved to contracts/control-plane.ts
+// to avoid duplicate exports
 
 export interface ContextValidationError {
   key: string;

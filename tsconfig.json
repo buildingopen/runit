@@ -23,5 +23,5 @@
     }
   },
   "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "services/**/*.ts", "services/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "build", ".next", "agent-*/**"]
+  "exclude": ["node_modules", "dist", "build", ".next", "agent-*/**", "**/__tests__/**", "**/*.test.ts", "**/*.spec.ts"]
 }

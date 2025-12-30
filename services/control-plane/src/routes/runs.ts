@@ -11,7 +11,7 @@ import type {
 } from '@execution-layer/shared';
 import { getProject } from './projects.js';
 import { executeOnModal } from '../modal-client.js';
-import { getDecryptedSecrets } from './secrets.js';
+import { getDecryptedSecretsForRun } from './secrets.js';
 import { encryptSecretsBundle } from '../encryption/kms.js';
 
 const runs = new Hono();
@@ -80,7 +80,7 @@ runs.post('/', async (c) => {
   // Get and encrypt secrets for this project
   let secretsRef: string | undefined;
   try {
-    const decryptedSecrets = await getDecryptedSecrets(body.project_id);
+    const decryptedSecrets = await getDecryptedSecretsForRun(body.project_id);
     if (Object.keys(decryptedSecrets).length > 0) {
       // Encrypt secrets bundle for runner
       secretsRef = await encryptSecretsBundle(decryptedSecrets);
@@ -164,11 +164,18 @@ runs.get('/:id', async (c) => {
     started_at: run.started_at,
     completed_at: run.completed_at,
     duration_ms: run.duration_ms,
+    created_by: 'anonymous',  // TODO: Get from auth context
     result: run.status === 'success' || run.status === 'error' || run.status === 'timeout' ? {
       http_status: run.http_status || 0,
-      response_body: run.response_body,
-      artifacts: run.artifacts || [],
-      logs: run.logs,
+      content_type: 'application/json',
+      json: run.response_body,
+      artifacts: (run.artifacts || []).map(a => ({
+        name: a.name || 'artifact',
+        size: a.size || 0,
+        mime_type: a.mime || 'application/octet-stream',
+        download_url: a.url || '',
+      })),
+      redactions_applied: false,
       error_class: run.error_class,
       error_message: run.error_message,
       suggested_fix: run.suggested_fix,

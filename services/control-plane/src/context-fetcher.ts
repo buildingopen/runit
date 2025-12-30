@@ -3,7 +3,7 @@
  * ABOUTME: Extracts metadata from URLs using static HTML parsing
  */
 
-import { FetchContextResponse } from '../../../packages/shared/src/types';
+import { FetchContextResponse } from '../../../packages/shared/src/contracts/control-plane';
 
 const FORBIDDEN_CONTEXT_KEYS = [
   /.*_KEY$/i,
@@ -103,7 +103,6 @@ export async function fetchContextFromURL(url: string, name: string): Promise<Fe
 
     return {
       id: crypto.randomUUID(),
-      name,
       data: {
         title: metadata.title,
         description: metadata.description,

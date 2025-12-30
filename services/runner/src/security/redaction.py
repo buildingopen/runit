@@ -35,15 +35,24 @@ def redact_secrets(text: str, secret_env_vars: Dict[str, str]) -> str:
     """
     redacted = text
 
-    # 1. Redact exact secret values
+    # 1. Redact common patterns FIRST (before exact values)
+    # This prevents partial matches from interfering with named redaction
+    for pattern in REDACT_PATTERNS[:-1]:  # All except generic pattern
+        redacted = re.sub(pattern, "[REDACTED]", redacted)
+
+    # 2. Redact exact secret values with key names
     for key, value in secret_env_vars.items():
         if value and len(value) > 0:
             # Replace exact value with [REDACTED:KEY_NAME]
             redacted = redacted.replace(value, f"[REDACTED:{key}]")
 
-    # 2. Redact common patterns
-    for pattern in REDACT_PATTERNS:
-        redacted = re.sub(pattern, "[REDACTED]", redacted)
+    # 3. Apply generic pattern last (as catch-all)
+    # But only to values not already redacted
+    redacted = re.sub(
+        REDACT_PATTERNS[-1],  # Generic pattern
+        lambda m: "[REDACTED]" if "REDACTED" not in m.group(0) else m.group(0),
+        redacted
+    )
 
     return redacted
 

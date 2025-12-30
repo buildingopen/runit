@@ -73,6 +73,7 @@ def error_endpoint():
 def use_context():
     import os
     import json
+    from pathlib import Path
     context_dir = Path(os.environ.get("EL_CONTEXT_DIR", "/context"))
     if (context_dir / "company.json").exists():
         return json.loads((context_dir / "company.json").read_text())
@@ -85,6 +86,12 @@ def create_artifact():
     artifacts_dir = Path(os.environ.get("EL_ARTIFACTS_DIR", "/artifacts"))
     (artifacts_dir / "output.txt").write_text("Test artifact")
     return {"artifact_created": True}
+
+@app.get("/slow")
+async def slow_endpoint():
+    import asyncio
+    await asyncio.sleep(5)  # Intentionally slow to trigger timeout
+    return {"message": "This should timeout"}
 """
     )
 
@@ -205,17 +212,21 @@ def test_context_mounting(sample_code_bundle, tmp_path):
         "context": {"company": {"name": "ACME Inc", "industry": "SaaS"}},
     }
 
-    with patch("execute.executor.Path") as mock_path:
-        workspace = tmp_path / "workspace"
-        workspace.mkdir(exist_ok=True)
-        context_dir = tmp_path / "context"
-        context_dir.mkdir(exist_ok=True)
+    result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
 
-        result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
+    # Debug: print result if not success
+    if result["status"] != "success":
+        print(f"\nStatus: {result['status']}")
+        print(f"Error class: {result.get('error_class')}")
+        print(f"Error message: {result.get('error_message')}")
+        print(f"Logs:\n{result.get('logs', '')}")
 
-        # Context should be available to the endpoint
-        assert result["status"] == "success"
-        # The endpoint reads from EL_CONTEXT_DIR
+    # Context should be available to the endpoint
+    assert result["status"] == "success", f"Expected success but got {result['status']}: {result.get('error_message')}"
+    # The endpoint reads from EL_CONTEXT_DIR and should return the context
+    assert result["http_status"] == 200
+    response_body = result.get("response_body", {})
+    assert "name" in response_body or "error" not in response_body
 
 
 def test_artifact_collection(sample_code_bundle, tmp_path):
@@ -230,31 +241,16 @@ def test_artifact_collection(sample_code_bundle, tmp_path):
         "context": {},
     }
 
-    with patch("execute.executor.Path") as mock_path:
-        workspace = tmp_path / "workspace"
-        workspace.mkdir(exist_ok=True)
-        artifacts_dir = tmp_path / "artifacts"
-        artifacts_dir.mkdir(exist_ok=True)
+    result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
 
-        # Mock artifact creation
-        (artifacts_dir / "output.txt").write_text("Test artifact")
-
-        with patch("artifacts.collector.collect_artifacts") as mock_collect:
-            mock_collect.return_value = [
-                {
-                    "name": "output.txt",
-                    "size": 14,
-                    "mime": "text/plain",
-                    "storage_ref": "artifacts/0/output.txt",
-                }
-            ]
-
-            result = execute_endpoint(
-                payload, max_timeout=60, max_memory_mb=4096, lane="cpu"
-            )
-
-            assert result["status"] == "success"
-            assert len(result["artifacts"]) > 0
+    # Endpoint should create artifact successfully
+    assert result["status"] == "success"
+    assert result["http_status"] == 200
+    # Artifacts should be collected
+    assert len(result.get("artifacts", [])) > 0
+    artifact = result["artifacts"][0]
+    assert "name" in artifact
+    assert "output.txt" in artifact["name"]
 
 
 def test_error_classification():

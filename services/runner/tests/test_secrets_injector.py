@@ -59,11 +59,13 @@ def test_redact_patterns():
     redacted, was_redacted = redact_secrets_from_text(text, {})
 
     assert was_redacted
-    assert "[REDACTED:API_KEY]" in redacted
-    assert "[REDACTED:GOOGLE_API_KEY]" in redacted
-    assert "[REDACTED:JWT_TOKEN]" in redacted
-    assert "[REDACTED:GITHUB_TOKEN]" in redacted
-    assert "[REDACTED:SLACK_TOKEN]" in redacted
+    # Pattern-based redaction uses generic [REDACTED] without key names
+    assert "[REDACTED]" in redacted
+    assert "sk-abcdefghijklmnopqrstuvwxyz123456789012345678" not in redacted
+    assert "AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ1234567" not in redacted
+    assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in redacted
+    assert "ghp_abcdefghijklmnopqrstuvwxyz123456" not in redacted
+    assert "xoxb-1234567890-abcdefghijklmnopqrstuvwxyz" not in redacted
 
 
 def test_redact_from_dict():

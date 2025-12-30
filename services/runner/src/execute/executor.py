@@ -50,6 +50,10 @@ def execute_endpoint(
     run_id = payload["run_id"]
     logs: list[str] = []
 
+    # Track injected env vars for cleanup
+    injected_env_keys: list[str] = []
+    temp_dir_to_cleanup = None
+
     def log(msg: str):
         logs.append(f"[{time.time() - start_time:.2f}s] {msg}")
 
@@ -58,12 +62,42 @@ def execute_endpoint(
         log(f"Timeout: {max_timeout}s, Memory: {max_memory_mb}MB")
 
         # 1. Setup workspace
-        workspace = Path("/workspace")
-        workspace.mkdir(parents=True, exist_ok=True)
-        artifacts_dir = Path("/artifacts")
-        artifacts_dir.mkdir(parents=True, exist_ok=True)
-        context_dir = Path("/context")
-        context_dir.mkdir(parents=True, exist_ok=True)
+        # Use /tmp for testing if /workspace doesn't exist
+        import tempfile
+        base_dir = os.environ.get("EL_BASE_DIR")
+        if base_dir:
+            log(f"Using base dir from EL_BASE_DIR: {base_dir}")
+            workspace = Path(base_dir) / "workspace"
+            artifacts_dir = Path(base_dir) / "artifacts"
+            context_dir = Path(base_dir) / "context"
+            workspace.mkdir(parents=True, exist_ok=True)
+            artifacts_dir.mkdir(parents=True, exist_ok=True)
+            context_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            # Try to create in root (production Modal env)
+            # Fall back to temp if permission denied
+            try:
+                log("Attempting to create workspace in root...")
+                workspace = Path("/workspace")
+                workspace.mkdir(parents=True, exist_ok=True)
+                artifacts_dir = Path("/artifacts")
+                artifacts_dir.mkdir(parents=True, exist_ok=True)
+                context_dir = Path("/context")
+                context_dir.mkdir(parents=True, exist_ok=True)
+                log(f"Created workspace: {workspace}")
+            except (PermissionError, OSError) as e:
+                # Development/testing environment - use temp dirs
+                log(f"Cannot create root dirs ({type(e).__name__}: {e}), using temp")
+                # Use unique suffix to prevent collisions
+                temp_base = Path(tempfile.mkdtemp(prefix=f"el-run-{run_id}-", suffix=f"-{int(time.time() * 1000000)}"))
+                temp_dir_to_cleanup = temp_base  # Track for cleanup
+                workspace = temp_base / "workspace"
+                artifacts_dir = temp_base / "artifacts"
+                context_dir = temp_base / "context"
+                workspace.mkdir(parents=True, exist_ok=True)
+                artifacts_dir.mkdir(parents=True, exist_ok=True)
+                context_dir.mkdir(parents=True, exist_ok=True)
+                log(f"Created temp workspace: {workspace}")
 
         # 2. Extract code bundle
         log("Extracting code bundle...")
@@ -88,8 +122,28 @@ def execute_endpoint(
 
         # 4. Decrypt and inject secrets as environment variables
         env_vars = {}
-        secrets_ref = payload.get("secrets_ref")
-        if secrets_ref:
+
+        # Dangerous environment variables that should never be overridden
+        FORBIDDEN_ENV_KEYS = {
+            "PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH",
+            "HOME", "USER", "SHELL", "SUDO_", "SSH_", "PWD"
+        }
+
+        # Support direct env dict (for testing) or encrypted secrets_ref (for production)
+        if "env" in payload and payload["env"]:
+            # Direct env vars (testing)
+            env_vars = payload["env"]
+            log(f"Injecting {len(env_vars)} environment variables (direct)")
+            for key, value in env_vars.items():
+                # Validate key is not forbidden
+                if key in FORBIDDEN_ENV_KEYS or any(key.startswith(prefix) for prefix in ["SUDO_", "SSH_"]):
+                    log(f"WARNING: Skipping forbidden env var: {key}")
+                    continue
+                os.environ[key] = value
+                injected_env_keys.append(key)  # Track for cleanup
+        elif "secrets_ref" in payload and payload["secrets_ref"]:
+            # Encrypted secrets (production)
+            secrets_ref = payload["secrets_ref"]
             log("Decrypting secrets bundle...")
             try:
                 # Import decryption function
@@ -99,11 +153,16 @@ def execute_endpoint(
                 from security.kms_client import decrypt_secrets_bundle
 
                 env_vars = decrypt_secrets_bundle(secrets_ref)
-                log(f"Injecting {len(env_vars)} secrets")
+                log(f"Injecting {len(env_vars)} secrets (encrypted)")
 
                 # Inject as environment variables
                 for key, value in env_vars.items():
+                    # Validate key is not forbidden
+                    if key in FORBIDDEN_ENV_KEYS or any(key.startswith(prefix) for prefix in ["SUDO_", "SSH_"]):
+                        log(f"WARNING: Skipping forbidden env var: {key}")
+                        continue
                     os.environ[key] = value
+                    injected_env_keys.append(key)  # Track for cleanup
             except Exception as e:
                 log(f"WARNING: Failed to decrypt secrets: {e}")
                 raise ExecutionError(
@@ -334,3 +393,17 @@ def execute_endpoint(
             "error_message": error_info["message"],
             "suggested_fix": error_info["suggested_fix"],
         }
+
+    finally:
+        # CRITICAL: Clean up injected environment variables to prevent test pollution
+        for key in injected_env_keys:
+            os.environ.pop(key, None)
+
+        # CRITICAL: Clean up temporary directory to prevent disk filling
+        if temp_dir_to_cleanup and temp_dir_to_cleanup.exists():
+            import shutil
+            try:
+                shutil.rmtree(temp_dir_to_cleanup)
+                log(f"Cleaned up temp directory: {temp_dir_to_cleanup}")
+            except Exception as cleanup_error:
+                log(f"WARNING: Failed to clean up temp directory: {cleanup_error}")

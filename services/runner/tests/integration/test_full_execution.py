@@ -191,6 +191,11 @@ def check_secrets():
 
     assert result["status"] == "success"
 
+    # Debug: print result if endpoint not found
+    if result["http_status"] == 404:
+        print(f"\nGot 404! Response body: {result['response_body']}")
+        print(f"Logs:\n{result.get('logs', '')}")
+
     # Secret should be available to app
     response = result["response_body"]
     assert response["has_api_key"] is True
