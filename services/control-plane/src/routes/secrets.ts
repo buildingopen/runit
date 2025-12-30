@@ -1,235 +1,117 @@
 /**
- * Secrets routes - Store and manage encrypted secrets per project
- *
- * SECURITY CONTRACT:
- * - Secrets encrypted at rest using KMS envelope encryption
- * - Decrypted only at run-time
- * - Never shared via links
- * - Owner-only visibility
+ * ABOUTME: Secrets management routes - encrypted storage and injection
+ * ABOUTME: Handles CRUD operations for project secrets (KMS encrypted at rest)
  */
 
 import { Hono } from 'hono';
-import { randomUUID } from 'crypto';
-import { encryptSecret, decryptSecret } from '../encryption/kms.js';
-import { getProject } from './projects.js';
+import { encryptSecret, decryptSecret } from '../crypto/kms';
+import { getProjectSecrets, storeSecret, deleteSecret, getSecret } from '../db/secrets-store';
 
 const secrets = new Hono();
 
-// In-memory secrets store (replace with database later)
-// Maps: project_id -> Map<key, encrypted_value>
-const secretsStore = new Map<string, Map<string, {
-  id: string;
-  key: string;
-  encrypted_value: string;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-}>>();
-
-// Forbidden context key patterns (prevent storing secrets as context)
-const FORBIDDEN_SECRET_KEYS = [
-  /.*_KEY$/i,
-  /.*_TOKEN$/i,
-  /.*_SECRET$/i,
-  /^PASSWORD/i,
-  /^API_KEY/i,
-  /^SECRET/i,
-];
-
-function validateSecretKey(key: string): void {
-  for (const pattern of FORBIDDEN_SECRET_KEYS) {
-    if (pattern.test(key)) {
-      // This is actually ALLOWED for secrets (not context)
-      // The validation is reversed - we WANT these patterns here
-      return;
-    }
-  }
-  // Allow all keys for secrets
-}
-
 /**
- * POST /projects/:id/secrets - Store encrypted secret
+ * Create or update a secret for a project
+ * POST /projects/:projectId/secrets
  */
-secrets.post('/:id/secrets', async (c) => {
-  const projectId = c.req.param('id');
-  const body = await c.req.json() as { key: string; value: string };
+secrets.post('/:projectId/secrets', async (c) => {
+  const { projectId } = c.req.param();
+  const body = await c.req.json();
 
-  // Validate request
-  if (!body.key || !body.value) {
-    return c.json({ error: 'Missing key or value' }, 400);
+  const { key, value } = body;
+
+  if (!key || !value) {
+    return c.json({ error: 'Missing required fields: key, value' }, 400);
   }
 
-  // Validate project exists
-  const project = getProject(projectId);
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  // Encrypt the secret value
-  let encryptedValue: string;
-  try {
-    encryptedValue = await encryptSecret(body.value);
-  } catch (error) {
-    console.error('Encryption failed:', error);
+  // Validate key name
+  if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) {
     return c.json({
-      error: 'Failed to encrypt secret',
-      error_class: 'SECRETS_ENCRYPTION_FAILED'
-    }, 500);
+      error: 'Invalid secret key format. Use UPPERCASE_SNAKE_CASE (A-Z, 0-9, _)'
+    }, 400);
   }
 
-  // Get or create project secrets map
-  let projectSecrets = secretsStore.get(projectId);
-  if (!projectSecrets) {
-    projectSecrets = new Map();
-    secretsStore.set(projectId, projectSecrets);
-  }
-
-  // Store encrypted secret
-  const secretId = randomUUID();
-  const now = new Date().toISOString();
-
-  projectSecrets.set(body.key, {
-    id: secretId,
-    key: body.key,
-    encrypted_value: encryptedValue,
-    created_by: 'mock-user-id',  // TODO: Get from auth
-    created_at: now,
-    updated_at: now,
-  });
-
-  return c.json({
-    id: secretId,
-    key: body.key,
-    created_at: now,
-    updated_at: now,
-  }, 201);
-});
-
-/**
- * GET /projects/:id/secrets - List secret keys (masked values)
- */
-secrets.get('/:id/secrets', async (c) => {
-  const projectId = c.req.param('id');
-
-  // Validate project exists
-  const project = getProject(projectId);
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  // Get project secrets
-  const projectSecrets = secretsStore.get(projectId);
-  if (!projectSecrets) {
-    return c.json({ secrets: [] });
-  }
-
-  // Return keys only (never values)
-  const secrets = Array.from(projectSecrets.values()).map(secret => ({
-    id: secret.id,
-    key: secret.key,
-    value: '***',  // Always masked
-    created_at: secret.created_at,
-    updated_at: secret.updated_at,
-  }));
-
-  return c.json({ secrets });
-});
-
-/**
- * PUT /projects/:id/secrets/:key - Update secret value
- */
-secrets.put('/:id/secrets/:key', async (c) => {
-  const projectId = c.req.param('id');
-  const secretKey = c.req.param('key');
-  const body = await c.req.json() as { value: string };
-
-  // Validate request
-  if (!body.value) {
-    return c.json({ error: 'Missing value' }, 400);
-  }
-
-  // Validate project exists
-  const project = getProject(projectId);
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  // Get project secrets
-  const projectSecrets = secretsStore.get(projectId);
-  if (!projectSecrets || !projectSecrets.has(secretKey)) {
-    return c.json({ error: 'Secret not found' }, 404);
-  }
-
-  // Encrypt new value
-  let encryptedValue: string;
-  try {
-    encryptedValue = await encryptSecret(body.value);
-  } catch (error) {
-    console.error('Encryption failed:', error);
+  // Reject reserved prefix
+  if (key.startsWith('EL_')) {
     return c.json({
-      error: 'Failed to encrypt secret',
-      error_class: 'SECRETS_ENCRYPTION_FAILED'
-    }, 500);
+      error: `Secret key '${key}' uses reserved prefix 'EL_'. Choose a different name.`
+    }, 400);
   }
 
-  // Update secret
-  const existingSecret = projectSecrets.get(secretKey)!;
-  projectSecrets.set(secretKey, {
-    ...existingSecret,
-    encrypted_value: encryptedValue,
-    updated_at: new Date().toISOString(),
-  });
+  try {
+    // Encrypt the secret value
+    const encryptedValue = await encryptSecret(value);
 
-  return c.json({
-    id: existingSecret.id,
-    key: secretKey,
-    updated_at: new Date().toISOString(),
-  });
+    // Store encrypted
+    const secret = await storeSecret(projectId, key, encryptedValue);
+
+    return c.json({
+      id: secret.id,
+      key: secret.key,
+      created_at: secret.created_at,
+      updated_at: secret.updated_at
+    }, 201);
+  } catch (error) {
+    console.error('Failed to store secret:', error);
+    return c.json({ error: 'Failed to store secret' }, 500);
+  }
 });
 
 /**
- * DELETE /projects/:id/secrets/:key - Delete secret
+ * List all secret keys for a project (values never returned)
+ * GET /projects/:projectId/secrets
  */
-secrets.delete('/:id/secrets/:key', async (c) => {
-  const projectId = c.req.param('id');
-  const secretKey = c.req.param('key');
+secrets.get('/:projectId/secrets', async (c) => {
+  const { projectId } = c.req.param();
 
-  // Validate project exists
-  const project = getProject(projectId);
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
+  try {
+    const projectSecrets = await getProjectSecrets(projectId);
+
+    // Return only keys and metadata, never values
+    const secretsList = projectSecrets.map(s => ({
+      id: s.id,
+      key: s.key,
+      created_at: s.created_at,
+      updated_at: s.updated_at
+    }));
+
+    return c.json({ secrets: secretsList });
+  } catch (error) {
+    console.error('Failed to list secrets:', error);
+    return c.json({ error: 'Failed to list secrets' }, 500);
   }
-
-  // Get project secrets
-  const projectSecrets = secretsStore.get(projectId);
-  if (!projectSecrets || !projectSecrets.has(secretKey)) {
-    return c.json({ error: 'Secret not found' }, 404);
-  }
-
-  // Delete secret
-  projectSecrets.delete(secretKey);
-
-  return c.json({ success: true });
 });
 
 /**
- * Internal function to get decrypted secrets for a run
- * (Never exposed via HTTP)
+ * Delete a secret
+ * DELETE /projects/:projectId/secrets/:key
  */
-export async function getDecryptedSecrets(projectId: string): Promise<Record<string, string>> {
-  const projectSecrets = secretsStore.get(projectId);
-  if (!projectSecrets) {
-    return {};
+secrets.delete('/:projectId/secrets/:key', async (c) => {
+  const { projectId, key } = c.req.param();
+
+  try {
+    await deleteSecret(projectId, key);
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Failed to delete secret:', error);
+    return c.json({ error: 'Failed to delete secret' }, 500);
   }
+});
+
+/**
+ * Internal: Get decrypted secrets for a run (never exposed via HTTP)
+ */
+export async function getDecryptedSecretsForRun(projectId: string): Promise<Record<string, string>> {
+  const projectSecrets = await getProjectSecrets(projectId);
 
   const decrypted: Record<string, string> = {};
 
-  for (const [key, secret] of projectSecrets.entries()) {
+  for (const secret of projectSecrets) {
     try {
-      decrypted[key] = await decryptSecret(secret.encrypted_value);
+      const value = await decryptSecret(secret.encrypted_value);
+      decrypted[secret.key] = value;
     } catch (error) {
-      console.error(`Failed to decrypt secret ${key}:`, error);
-      throw new Error(`SECRETS_DECRYPTION_FAILED: ${key}`);
+      console.error(`Failed to decrypt secret ${secret.key}:`, error);
+      throw new Error(`SECRETS_DECRYPTION_FAILED: ${secret.key}`);
     }
   }
 

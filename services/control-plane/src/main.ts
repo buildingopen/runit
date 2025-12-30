@@ -18,7 +18,7 @@ const app = new Hono();
 
 // CORS for web UI
 app.use('/*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'],
   credentials: true,
 }));
 
@@ -27,7 +27,7 @@ app.get('/', (c) => {
   return c.json({
     name: 'Execution Layer Control Plane',
     version: '0.1.0',
-    status: 'running',
+    status: 'operational',
     features: ['projects', 'runs', 'secrets', 'context'],
     endpoints: {
       projects: '/projects',
