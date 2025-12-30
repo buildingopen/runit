@@ -1,295 +1,225 @@
 /**
- * Quota enforcement middleware
- *
- * Enforces usage quotas:
- * - 100 CPU runs/hour per user
- * - 10 GPU runs/hour per user
- * - 2 concurrent CPU runs
- * - 1 concurrent GPU run
- *
- * Tracks active runs and prevents quota violations
+ * ABOUTME: Quota enforcement middleware for run execution
+ * ABOUTME: Tracks hourly and concurrent usage per user
  */
 
-interface QuotaEntry {
+import type { Context, Next } from 'hono';
+
+interface QuotaUsage {
   cpuRunsThisHour: number;
   gpuRunsThisHour: number;
   activeCpuRuns: Set<string>;
   activeGpuRuns: Set<string>;
-  hourResetAt: number;
+  hourlyResetAt: number;
 }
 
-interface QuotaLimits {
-  cpu: {
-    runsPerHour: number;
-    maxConcurrent: number;
-  };
-  gpu: {
-    runsPerHour: number;
-    maxConcurrent: number;
-  };
-}
+// In-memory store for v0
+const quotaStore = new Map<string, QuotaUsage>();
 
-const quotaLimits: QuotaLimits = {
+const QUOTA_LIMITS = {
   cpu: {
     runsPerHour: 100,
-    maxConcurrent: 2,
+    maxConcurrent: 2
   },
   gpu: {
     runsPerHour: 10,
-    maxConcurrent: 1,
-  },
+    maxConcurrent: 1
+  }
 };
 
-// In-memory store (replace with Redis for production)
-const quotaStore = new Map<string, QuotaEntry>();
-
 /**
- * Clean up expired entries periodically
+ * Get or create quota usage for a user
  */
-function cleanupExpiredQuotas() {
+function getQuotaUsage(userId: string): QuotaUsage {
   const now = Date.now();
-  for (const [userId, entry] of quotaStore.entries()) {
-    if (entry.hourResetAt < now) {
-      // Reset hourly counters
-      entry.cpuRunsThisHour = 0;
-      entry.gpuRunsThisHour = 0;
-      entry.hourResetAt = now + 3600000; // Next hour
-    }
+  const existing = quotaStore.get(userId);
+
+  // Reset if hour has passed
+  if (existing && now >= existing.hourlyResetAt) {
+    quotaStore.delete(userId);
   }
-}
 
-// Run cleanup every minute
-setInterval(cleanupExpiredQuotas, 60000);
-
-/**
- * Get or create quota entry for user
- */
-function getQuotaEntry(userId: string): QuotaEntry {
-  let entry = quotaStore.get(userId);
-
-  if (!entry) {
-    const now = Date.now();
-    entry = {
+  if (!quotaStore.has(userId)) {
+    const usage: QuotaUsage = {
       cpuRunsThisHour: 0,
       gpuRunsThisHour: 0,
       activeCpuRuns: new Set(),
       activeGpuRuns: new Set(),
-      hourResetAt: now + 3600000,
+      hourlyResetAt: now + 3600_000 // 1 hour
     };
-    quotaStore.set(userId, entry);
+    quotaStore.set(userId, usage);
+    return usage;
   }
 
-  return entry;
+  return quotaStore.get(userId)!;
 }
 
 /**
  * Check if user can start a new run
  */
-export function checkQuota(
-  userId: string,
-  lane: 'cpu' | 'gpu'
-): { allowed: boolean; reason?: string; resetAt?: number } {
-  const entry = getQuotaEntry(userId);
-  const now = Date.now();
+function checkQuota(userId: string, lane: 'cpu' | 'gpu'): {
+  allowed: boolean;
+  reason?: string;
+  runsRemaining?: number;
+  concurrentRemaining?: number;
+} {
+  const usage = getQuotaUsage(userId);
+  const limits = QUOTA_LIMITS[lane];
 
-  // Reset if hour has passed
-  if (entry.hourResetAt < now) {
-    entry.cpuRunsThisHour = 0;
-    entry.gpuRunsThisHour = 0;
-    entry.hourResetAt = now + 3600000;
-  }
-
-  if (lane === 'cpu') {
-    // Check hourly quota
-    if (entry.cpuRunsThisHour >= quotaLimits.cpu.runsPerHour) {
-      return {
-        allowed: false,
-        reason: `CPU quota exceeded: ${quotaLimits.cpu.runsPerHour} runs per hour`,
-        resetAt: entry.hourResetAt,
-      };
-    }
-
-    // Check concurrent quota
-    if (entry.activeCpuRuns.size >= quotaLimits.cpu.maxConcurrent) {
-      return {
-        allowed: false,
-        reason: `CPU concurrency limit: ${quotaLimits.cpu.maxConcurrent} concurrent runs`,
-      };
-    }
-  } else {
-    // GPU lane
-    // Check hourly quota
-    if (entry.gpuRunsThisHour >= quotaLimits.gpu.runsPerHour) {
-      return {
-        allowed: false,
-        reason: `GPU quota exceeded: ${quotaLimits.gpu.runsPerHour} runs per hour`,
-        resetAt: entry.hourResetAt,
-      };
-    }
-
-    // Check concurrent quota
-    if (entry.activeGpuRuns.size >= quotaLimits.gpu.maxConcurrent) {
-      return {
-        allowed: false,
-        reason: `GPU concurrency limit: ${quotaLimits.gpu.maxConcurrent} concurrent runs`,
-      };
-    }
-  }
-
-  return { allowed: true };
-}
-
-/**
- * Track run start
- */
-export function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu') {
-  const entry = getQuotaEntry(userId);
-
-  if (lane === 'cpu') {
-    entry.cpuRunsThisHour++;
-    entry.activeCpuRuns.add(runId);
-  } else {
-    entry.gpuRunsThisHour++;
-    entry.activeGpuRuns.add(runId);
-  }
-}
-
-/**
- * Track run completion
- */
-export function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'gpu') {
-  const entry = quotaStore.get(userId);
-  if (!entry) return;
-
-  if (lane === 'cpu') {
-    entry.activeCpuRuns.delete(runId);
-  } else {
-    entry.activeGpuRuns.delete(runId);
-  }
-}
-
-/**
- * Express middleware for quota enforcement
- */
-export function quotaMiddleware(req: any, res: any, next: any) {
-  const userId = req.user?.id;
-
-  if (!userId) {
-    // Anonymous users not allowed (should be caught by auth middleware first)
-    res.status(401).json({
-      error: 'Authentication required',
-      message: 'You must be authenticated to create runs',
-    });
-    return;
-  }
-
-  const lane: 'cpu' | 'gpu' = req.body?.lane || 'cpu';
-  const { allowed, reason, resetAt } = checkQuota(userId, lane);
-
-  if (!allowed) {
-    const response: any = {
-      error: 'Quota exceeded',
-      message: reason,
-      lane,
-      limits: {
-        cpu: quotaLimits.cpu,
-        gpu: quotaLimits.gpu,
-      },
-    };
-
-    if (resetAt) {
-      response.resetAt = resetAt;
-      response.retryAfter = Math.ceil((resetAt - Date.now()) / 1000);
-    }
-
-    res.status(429).json(response);
-    return;
-  }
-
-  // Attach quota tracking to request
-  req.quotaTracking = {
-    userId,
-    lane,
-    trackStart: (runId: string) => trackRunStart(userId, runId, lane),
-    trackComplete: (runId: string) => trackRunComplete(userId, runId, lane),
-  };
-
-  next();
-}
-
-/**
- * Get quota usage for user (for display)
- */
-export function getQuotaUsage(userId: string) {
-  const entry = quotaStore.get(userId);
-  const now = Date.now();
-
-  if (!entry || entry.hourResetAt < now) {
+  // Check hourly quota
+  const runsThisHour = lane === 'cpu' ? usage.cpuRunsThisHour : usage.gpuRunsThisHour;
+  if (runsThisHour >= limits.runsPerHour) {
     return {
-      cpu: {
-        runsThisHour: 0,
-        activeConcurrent: 0,
-        limits: quotaLimits.cpu,
-      },
-      gpu: {
-        runsThisHour: 0,
-        activeConcurrent: 0,
-        limits: quotaLimits.gpu,
-      },
-      resetAt: now + 3600000,
+      allowed: false,
+      reason: `${lane.toUpperCase()} quota exceeded: ${limits.runsPerHour} runs per hour`,
+      runsRemaining: 0
+    };
+  }
+
+  // Check concurrent quota
+  const activeRuns = lane === 'cpu' ? usage.activeCpuRuns : usage.activeGpuRuns;
+  if (activeRuns.size >= limits.maxConcurrent) {
+    return {
+      allowed: false,
+      reason: `${lane.toUpperCase()} concurrent limit reached: ${limits.maxConcurrent} max concurrent runs`,
+      concurrentRemaining: 0
     };
   }
 
   return {
-    cpu: {
-      runsThisHour: entry.cpuRunsThisHour,
-      activeConcurrent: entry.activeCpuRuns.size,
-      limits: quotaLimits.cpu,
-    },
-    gpu: {
-      runsThisHour: entry.gpuRunsThisHour,
-      activeConcurrent: entry.activeGpuRuns.size,
-      limits: quotaLimits.gpu,
-    },
-    resetAt: entry.hourResetAt,
+    allowed: true,
+    runsRemaining: limits.runsPerHour - runsThisHour - 1,
+    concurrentRemaining: limits.maxConcurrent - activeRuns.size - 1
   };
 }
 
 /**
- * Reset quota for user (admin only)
+ * Track the start of a run
  */
-export function resetQuota(userId: string) {
-  quotaStore.delete(userId);
+function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
+  const usage = getQuotaUsage(userId);
+
+  if (lane === 'cpu') {
+    usage.cpuRunsThisHour++;
+    usage.activeCpuRuns.add(runId);
+  } else {
+    usage.gpuRunsThisHour++;
+    usage.activeGpuRuns.add(runId);
+  }
+
+  quotaStore.set(userId, usage);
 }
 
 /**
- * Get all quota stats (admin/monitoring)
+ * Track the completion of a run
+ */
+function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
+  const usage = quotaStore.get(userId);
+  if (!usage) return;
+
+  if (lane === 'cpu') {
+    usage.activeCpuRuns.delete(runId);
+  } else {
+    usage.activeGpuRuns.delete(runId);
+  }
+
+  quotaStore.set(userId, usage);
+}
+
+/**
+ * Quota enforcement middleware
+ */
+export async function quotaMiddleware(c: Context, next: Next) {
+  // Only apply to run endpoints
+  const path = c.req.path;
+  if (!path.includes('/runs') || c.req.method !== 'POST') {
+    return next();
+  }
+
+  // Get user ID (placeholder - implement based on auth system)
+  const userId = c.req.header('x-user-id') || 'anonymous';
+
+  // Get lane from request body
+  const body = await c.req.json().catch(() => ({}));
+  const lane = body.lane || 'cpu';
+
+  if (lane !== 'cpu' && lane !== 'gpu') {
+    return c.json({ error: 'Invalid lane. Must be "cpu" or "gpu"' }, 400);
+  }
+
+  // Check quota
+  const result = checkQuota(userId, lane);
+
+  if (!result.allowed) {
+    const usage = getQuotaUsage(userId);
+    return c.json({
+      error: 'Quota exceeded',
+      message: result.reason,
+      quota: {
+        cpu: {
+          runsThisHour: usage.cpuRunsThisHour,
+          runsPerHour: QUOTA_LIMITS.cpu.runsPerHour,
+          activeConcurrent: usage.activeCpuRuns.size,
+          maxConcurrent: QUOTA_LIMITS.cpu.maxConcurrent
+        },
+        gpu: {
+          runsThisHour: usage.gpuRunsThisHour,
+          runsPerHour: QUOTA_LIMITS.gpu.runsPerHour,
+          activeConcurrent: usage.activeGpuRuns.size,
+          maxConcurrent: QUOTA_LIMITS.gpu.maxConcurrent
+        },
+        resetAt: new Date(usage.hourlyResetAt).toISOString()
+      }
+    }, 429);
+  }
+
+  // Generate run ID (placeholder - should come from run creation)
+  const runId = crypto.randomUUID();
+
+  // Track run start
+  trackRunStart(userId, runId, lane);
+
+  // Add tracking helpers to context
+  c.set('quotaTracking', {
+    userId,
+    runId,
+    lane,
+    trackComplete: () => trackRunComplete(userId, runId, lane)
+  });
+
+  // Set quota headers
+  c.header('X-Quota-CPU-Remaining', result.runsRemaining?.toString() || '0');
+  c.header('X-Quota-CPU-Concurrent', result.concurrentRemaining?.toString() || '0');
+
+  return next();
+}
+
+/**
+ * Admin endpoint to view quota stats
  */
 export function getQuotaStats() {
-  const stats = {
-    totalUsers: quotaStore.size,
-    users: Array.from(quotaStore.entries()).map(([userId, entry]) => ({
-      userId,
-      cpu: {
-        runsThisHour: entry.cpuRunsThisHour,
-        activeConcurrent: entry.activeCpuRuns.size,
-      },
-      gpu: {
-        runsThisHour: entry.gpuRunsThisHour,
-        activeConcurrent: entry.activeGpuRuns.size,
-      },
-      resetAt: new Date(entry.hourResetAt).toISOString(),
-    })),
-  };
-  return stats;
-}
+  const stats: Array<{
+    userId: string;
+    cpuRunsThisHour: number;
+    gpuRunsThisHour: number;
+    activeCpuRuns: number;
+    activeGpuRuns: number;
+    resetAt: string;
+  }> = [];
 
-export default {
-  quotaMiddleware,
-  checkQuota,
-  trackRunStart,
-  trackRunComplete,
-  getQuotaUsage,
-  resetQuota,
-  getQuotaStats,
-};
+  for (const [userId, usage] of quotaStore.entries()) {
+    stats.push({
+      userId,
+      cpuRunsThisHour: usage.cpuRunsThisHour,
+      gpuRunsThisHour: usage.gpuRunsThisHour,
+      activeCpuRuns: usage.activeCpuRuns.size,
+      activeGpuRuns: usage.activeGpuRuns.size,
+      resetAt: new Date(usage.hourlyResetAt).toISOString()
+    });
+  }
+
+  return {
+    totalUsers: stats.length,
+    users: stats
+  };
+}
