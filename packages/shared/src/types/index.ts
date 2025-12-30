@@ -4,11 +4,7 @@
  * Common types used across the platform.
  */
 
-// TODO: Agent 1 (ARCHITECT) will define:
-// - RunEnvelope
-// - OpenAPIEndpointMeta
-// - FormModel
-// - ErrorResponse
-// - Artifact
+export * from './run-envelope';
+export * from './openapi';
 
 export const TYPES_VERSION = '1.0.0';

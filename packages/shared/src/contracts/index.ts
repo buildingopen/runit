@@ -7,12 +7,6 @@
  * See CLAUDE.md Section 33.7 for complete contract definitions.
  */
 
-// TODO: Agent 1 (ARCHITECT) will define:
-// - BuildRequest
-// - BuildResponse
-// - GetOpenAPIRequest
-// - GetOpenAPIResponse
-// - RunEndpointRequest
-// - RunEndpointResponse
+export * from './runner';
 
 export const CONTRACTS_VERSION = '1.0.0';
