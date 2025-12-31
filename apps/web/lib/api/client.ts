@@ -109,6 +109,154 @@ class APIClient {
       body: JSON.stringify(data),
     });
   }
+
+  // Get endpoints for a project version
+  async getEndpoints(projectId: string, versionId?: string) {
+    const params = versionId ? `?version_id=${versionId}` : '';
+    return this.request<{
+      endpoints: Array<{
+        id: string;
+        method: string;
+        path: string;
+        summary?: string;
+        description?: string;
+        requires_gpu?: boolean;
+      }>;
+    }>(`/projects/${projectId}/endpoints${params}`);
+  }
+
+  // Get endpoint schema
+  async getEndpointSchema(projectId: string, versionId: string, endpointId: string) {
+    return this.request<{
+      endpoint: {
+        id: string;
+        method: string;
+        path: string;
+        summary?: string;
+        description?: string;
+      };
+      schema: any;
+    }>(`/projects/${projectId}/versions/${versionId}/endpoints/${endpointId}/schema`);
+  }
+
+  // Create a run
+  async createRun(data: {
+    project_id: string;
+    version_id: string;
+    endpoint_id: string;
+    request_data: {
+      params?: Record<string, any>;
+      json?: any;
+      headers?: Record<string, string>;
+      files?: Array<{ name: string; content: string; mime: string }>;
+    };
+    lane?: 'cpu' | 'gpu';
+  }) {
+    return this.request<{
+      run_id: string;
+      status: string;
+    }>('/runs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Get run status
+  async getRunStatus(runId: string) {
+    return this.request<{
+      run_id: string;
+      status: 'success' | 'error' | 'timeout' | 'running' | 'queued';
+      duration_ms?: number;
+      http_status?: number;
+      response_body?: any;
+      artifacts?: Array<{
+        name: string;
+        size: number;
+        mime: string;
+        url: string;
+      }>;
+      error_class?: string;
+      error_message?: string;
+      suggested_fix?: string;
+    }>(`/runs/${runId}`);
+  }
+
+  // List runs for a project
+  async listRuns(projectId: string, limit: number = 20) {
+    return this.request<{
+      runs: Array<{
+        run_id: string;
+        endpoint: string;
+        status: string;
+        created_at: string;
+        duration_ms?: number;
+      }>;
+    }>(`/projects/${projectId}/runs?limit=${limit}`);
+  }
+
+  // Create share link
+  async createShareLink(projectId: string, data: {
+    target_type: 'endpoint_template' | 'run_result';
+    target_ref: string;
+  }) {
+    return this.request<{
+      share_id: string;
+      share_url: string;
+      target_type: string;
+      target_ref: string;
+    }>(`/projects/${projectId}/share`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // List share links for a project
+  async listShareLinks(projectId: string) {
+    return this.request<{
+      shares: Array<{
+        share_id: string;
+        share_url: string;
+        target_type: string;
+        target_ref: string;
+        enabled: boolean;
+        created_at: string;
+        stats: {
+          run_count: number;
+          success_count: number;
+          last_run_at?: string;
+        };
+      }>;
+      total: number;
+    }>(`/projects/${projectId}/shares`);
+  }
+
+  // Disable share link
+  async disableShareLink(projectId: string, shareId: string) {
+    return this.request<{
+      share_id: string;
+      status: string;
+    }>(`/projects/${projectId}/share/${shareId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Get share link data
+  async getShareLink(shareId: string) {
+    return this.request<{
+      share_id: string;
+      project: {
+        project_id: string;
+        name: string;
+      };
+      target_type: string;
+      target_ref: string;
+      stats: {
+        run_count: number;
+        success_count: number;
+        last_run_at?: string;
+      };
+    }>(`/share/${shareId}`);
+  }
 }
 
 export const apiClient = new APIClient();

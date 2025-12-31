@@ -7,7 +7,8 @@ import { randomUUID } from 'crypto';
 import type {
   CreateRunRequest,
   CreateRunResponse,
-  GetRunStatusResponse
+  GetRunStatusResponse,
+  ListRunsResponse
 } from '@execution-layer/shared';
 import { getProject } from './projects.js';
 import { executeOnModal } from '../modal-client.js';
@@ -180,6 +181,33 @@ runs.get('/:id', async (c) => {
       error_message: run.error_message,
       suggested_fix: run.suggested_fix,
     } : undefined,
+  };
+
+  return c.json(response);
+});
+
+/**
+ * GET /projects/:project_id/runs - List runs for a project
+ */
+runs.get('/projects/:project_id/runs', async (c) => {
+  const project_id = c.req.param('project_id');
+  const limit = parseInt(c.req.query('limit') || '20');
+
+  // Get all runs for this project
+  const projectRuns = Array.from(runsStore.values())
+    .filter(run => run.project_id === project_id)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, limit);
+
+  const response: ListRunsResponse = {
+    runs: projectRuns.map(run => ({
+      run_id: run.run_id,
+      endpoint_id: run.endpoint_id,
+      status: run.status,
+      created_at: run.created_at,
+      duration_ms: run.duration_ms,
+    })),
+    total: projectRuns.length,
   };
 
   return c.json(response);

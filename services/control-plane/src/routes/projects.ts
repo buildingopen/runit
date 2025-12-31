@@ -11,6 +11,7 @@ import type {
   ListProjectsResponse,
   GetProjectResponse
 } from '@execution-layer/shared';
+import { extractOpenAPIFromZip } from '../openapi-extractor.js';
 
 const projects = new Hono();
 
@@ -58,6 +59,22 @@ projects.post('/', async (c) => {
   const version_hash = createHash('sha256').update(code_bundle).digest('hex').substring(0, 12);
 
   // Create project
+  const version: {
+    version_id: string;
+    version_hash: string;
+    code_bundle: string;
+    created_at: string;
+    status: 'building' | 'ready' | 'failed';
+    openapi?: any;
+    endpoints?: any[];
+  } = {
+    version_id,
+    version_hash,
+    code_bundle,
+    created_at: new Date().toISOString(),
+    status: 'ready',
+  };
+
   const project = {
     project_id,
     project_slug,
@@ -65,16 +82,23 @@ projects.post('/', async (c) => {
     owner_id: 'default-user',  // TODO: Get from auth
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    versions: [{
-      version_id,
-      version_hash,
-      code_bundle,
-      created_at: new Date().toISOString(),
-      status: 'ready' as const,
-    }]
+    versions: [version]
   };
 
   projectsStore.set(project_id, project);
+
+  // Extract OpenAPI spec (non-blocking, best-effort)
+  if (code_bundle) {
+    try {
+      const { openapi, endpoints } = await extractOpenAPIFromZip(code_bundle);
+      version.openapi = openapi;
+      version.endpoints = endpoints;
+      console.log(`✅ Extracted ${endpoints.length} endpoints from ${project.name}`);
+    } catch (error) {
+      console.warn('⚠️  OpenAPI extraction failed (non-fatal):', error);
+      // Non-fatal: project created but without OpenAPI
+    }
+  }
 
   const response: CreateProjectResponse = {
     project_id,

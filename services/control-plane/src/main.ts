@@ -13,6 +13,7 @@ import runs from './routes/runs.js';
 import openapi from './routes/openapi.js';
 import secrets from './routes/secrets.js';
 import contextRoutes from './routes/context';
+import share from './routes/share.js';
 import { rateLimitMiddleware } from './middleware/rate-limit';
 import { quotaMiddleware } from './middleware/quota';
 
@@ -55,6 +56,8 @@ app.route('/projects', endpoints);     // /projects/:id/endpoints
 app.route('/projects', openapi);       // /projects/:id/versions/:vid/extract-openapi
 app.route('/projects', secrets);       // /projects/:id/secrets
 app.route('/projects', contextRoutes); // /projects/:id/context
+app.route('/projects', share);         // /projects/:id/share
+app.route('/share', share);            // /share/:share_id
 app.route('/runs', runs);
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
@@ -85,6 +88,10 @@ Available routes:
   DELETE /projects/:id/context/:cid - Delete context
   POST   /runs                      - Execute endpoint
   GET    /runs/:id                  - Get run status
+  POST   /projects/:id/share        - Create share link
+  GET    /projects/:id/shares       - List share links (owner-only)
+  DELETE /projects/:id/share/:sid   - Disable share link
+  GET    /share/:share_id           - Get share link data
 
 Modal Runtime: execution-layer-runtime (deployed)
 `);

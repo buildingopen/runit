@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { apiClient, type Project } from '../lib/api/client';
 
 export default function HomePage() {
@@ -150,9 +151,12 @@ function ProjectCard({ project }: { project: Project }) {
             </div>
           </div>
         </div>
-        <button className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium">
+        <Link
+          href={`/p/${project.project_id}`}
+          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium inline-block"
+        >
           View Details
-        </button>
+        </Link>
       </div>
     </div>
   );
