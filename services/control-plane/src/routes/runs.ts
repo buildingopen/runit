@@ -187,30 +187,12 @@ runs.get('/:id', async (c) => {
 });
 
 /**
- * GET /projects/:project_id/runs - List runs for a project
+ * Helper to get runs for a project
  */
-runs.get('/projects/:project_id/runs', async (c) => {
-  const project_id = c.req.param('project_id');
-  const limit = parseInt(c.req.query('limit') || '20');
-
-  // Get all runs for this project
-  const projectRuns = Array.from(runsStore.values())
+export function getRunsForProject(project_id: string) {
+  return Array.from(runsStore.values())
     .filter(run => run.project_id === project_id)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, limit);
-
-  const response: ListRunsResponse = {
-    runs: projectRuns.map(run => ({
-      run_id: run.run_id,
-      endpoint_id: run.endpoint_id,
-      status: run.status,
-      created_at: run.created_at,
-      duration_ms: run.duration_ms,
-    })),
-    total: projectRuns.length,
-  };
-
-  return c.json(response);
-});
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
 
 export default runs;

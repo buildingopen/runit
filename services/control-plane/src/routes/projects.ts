@@ -183,4 +183,26 @@ export function updateVersionOpenAPI(project_id: string, version_id: string, ope
   return true;
 }
 
+/**
+ * GET /projects/:id/runs - List runs for a project
+ */
+projects.get('/:id/runs', async (c) => {
+  const project_id = c.req.param('id');
+  const { getRunsForProject } = await import('./runs.js');
+
+  const runs = getRunsForProject(project_id);
+  const limit = parseInt(c.req.query('limit') || '20');
+
+  return c.json({
+    runs: runs.slice(0, limit).map(run => ({
+      run_id: run.run_id,
+      endpoint_id: run.endpoint_id,
+      status: run.status,
+      created_at: run.created_at,
+      duration_ms: run.duration_ms,
+    })),
+    total: runs.length,
+  });
+});
+
 export default projects;

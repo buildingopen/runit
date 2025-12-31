@@ -6,7 +6,11 @@ import { Hono } from 'hono';
 import { randomUUID } from 'crypto';
 import { getProject } from './projects.js';
 
-const share = new Hono();
+// Project-scoped share routes (mounted at /projects)
+const projectShare = new Hono();
+
+// Global share link routes (mounted at /share)
+const shareLinks = new Hono();
 
 // In-memory share links store (replace with database later)
 const shareLinksStore = new Map<string, {
@@ -25,7 +29,7 @@ const shareLinksStore = new Map<string, {
 /**
  * POST /projects/:id/share - Create share link
  */
-share.post('/:id/share', async (c) => {
+projectShare.post('/:id/share', async (c) => {
   const project_id = c.req.param('id');
   const body = await c.req.json() as {
     target_type: 'endpoint_template' | 'run_result';
@@ -75,7 +79,7 @@ share.post('/:id/share', async (c) => {
 /**
  * GET /share/:share_id - Get share link data
  */
-share.get('/:share_id', async (c) => {
+shareLinks.get('/:share_id', async (c) => {
   const share_id = c.req.param('share_id');
   const shareLink = shareLinksStore.get(share_id);
 
@@ -112,7 +116,7 @@ share.get('/:share_id', async (c) => {
 /**
  * DELETE /projects/:id/share/:share_id - Disable share link
  */
-share.delete('/:id/share/:share_id', async (c) => {
+projectShare.delete('/:id/share/:share_id', async (c) => {
   const project_id = c.req.param('id');
   const share_id = c.req.param('share_id');
   const shareLink = shareLinksStore.get(share_id);
@@ -137,7 +141,7 @@ share.delete('/:id/share/:share_id', async (c) => {
 /**
  * GET /projects/:id/shares - List share links for a project (owner-only)
  */
-share.get('/:id/shares', async (c) => {
+projectShare.get('/:id/shares', async (c) => {
   const project_id = c.req.param('id');
 
   // Get project
@@ -190,4 +194,5 @@ export function getShareLink(share_id: string) {
   return shareLinksStore.get(share_id);
 }
 
-export default share;
+export { projectShare, shareLinks };
+export default projectShare;

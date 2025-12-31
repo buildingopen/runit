@@ -7,7 +7,7 @@ import crypto from 'crypto';
 
 // In v0, we use a simple encryption scheme
 // In production, this would use AWS KMS, Google Cloud KMS, or HashiCorp Vault
-const MASTER_KEY = process.env.MASTER_ENCRYPTION_KEY || 'dev-master-key-32-chars-long!!';
+const MASTER_KEY = process.env.MASTER_ENCRYPTION_KEY || 'dev-default-encryption-key-32chars!!';
 
 if (MASTER_KEY.length < 32) {
   throw new Error('MASTER_ENCRYPTION_KEY must be at least 32 characters');
