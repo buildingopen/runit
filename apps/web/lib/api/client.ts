@@ -144,13 +144,12 @@ class APIClient {
     project_id: string;
     version_id: string;
     endpoint_id: string;
-    request_data: {
-      params?: Record<string, any>;
-      json?: any;
-      headers?: Record<string, string>;
-      files?: Array<{ name: string; content: string; mime: string }>;
-    };
+    params?: Record<string, any>;
+    json?: any;
+    headers?: Record<string, string>;
+    files?: Array<{ filename: string; data: string; content_type: string }>;
     lane?: 'cpu' | 'gpu';
+    timeout_seconds?: number;
   }) {
     return this.request<{
       run_id: string;
@@ -165,19 +164,30 @@ class APIClient {
   async getRunStatus(runId: string) {
     return this.request<{
       run_id: string;
+      project_id: string;
+      version_id: string;
+      endpoint_id: string;
       status: 'success' | 'error' | 'timeout' | 'running' | 'queued';
+      created_at: string;
+      started_at?: string;
+      completed_at?: string;
       duration_ms?: number;
-      http_status?: number;
-      response_body?: any;
-      artifacts?: Array<{
-        name: string;
-        size: number;
-        mime: string;
-        url: string;
-      }>;
-      error_class?: string;
-      error_message?: string;
-      suggested_fix?: string;
+      created_by: string;
+      result?: {
+        http_status: number;
+        content_type: string;
+        json?: any;
+        artifacts: Array<{
+          name: string;
+          size: number;
+          mime_type: string;
+          download_url: string;
+        }>;
+        redactions_applied: boolean;
+        error_class?: string | null;
+        error_message?: string | null;
+        suggested_fix?: string | null;
+      };
     }>(`/runs/${runId}`);
   }
 

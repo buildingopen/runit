@@ -184,6 +184,43 @@ export function updateVersionOpenAPI(project_id: string, version_id: string, ope
 }
 
 /**
+ * GET /projects/:id/endpoints - Get endpoints for a project version
+ */
+projects.get('/:id/endpoints', async (c) => {
+  const project_id = c.req.param('id');
+  const version_id = c.req.query('version_id');
+
+  const project = projectsStore.get(project_id);
+
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+
+  // Check if project has any versions
+  if (!project.versions || project.versions.length === 0) {
+    return c.json({ error: 'No versions found for this project' }, 404);
+  }
+
+  // Get specific version or latest
+  const version = version_id
+    ? project.versions.find(v => v.version_id === version_id)
+    : project.versions[project.versions.length - 1];
+
+  if (!version) {
+    return c.json({ error: 'Version not found' }, 404);
+  }
+
+  if (!version.endpoints || version.endpoints.length === 0) {
+    return c.json({ error: 'OpenAPI not yet extracted for this version' }, 400);
+  }
+
+  return c.json({
+    endpoints: version.endpoints,
+    total: version.endpoints.length,
+  });
+});
+
+/**
  * GET /projects/:id/runs - List runs for a project
  */
 projects.get('/:id/runs', async (c) => {
