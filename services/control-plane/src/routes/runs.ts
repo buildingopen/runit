@@ -92,6 +92,7 @@ runs.post('/', async (c) => {
   }
 
   // Execute on Modal asynchronously (in background)
+  console.log(`🚀 Starting Modal execution for run ${run_id}`);
   executeOnModal({
     run_id,
     code_bundle: version.code_bundle,
@@ -111,6 +112,7 @@ runs.post('/', async (c) => {
     timeout_seconds: body.timeout_seconds || 60,
   }).then(result => {
     // Update run with result
+    console.log(`✅ Modal execution completed for run ${run_id}: ${result.status}`);
     const run = runsStore.get(run_id);
     if (run) {
       run.status = result.status;
@@ -123,15 +125,21 @@ runs.post('/', async (c) => {
       run.error_class = result.error_class;
       run.error_message = result.error_message;
       run.suggested_fix = result.suggested_fix;
+      console.log(`📊 Run ${run_id} updated in store`);
+    } else {
+      console.error(`❌ Run ${run_id} not found in store after execution!`);
     }
   }).catch(error => {
     // Handle execution error
+    console.error(`❌ Modal execution failed for run ${run_id}:`, error);
     const run = runsStore.get(run_id);
     if (run) {
       run.status = 'error';
       run.completed_at = new Date().toISOString();
       run.error_class = 'EXECUTION_FAILED';
       run.error_message = error.message;
+      run.suggested_fix = 'Check control-plane logs for details';
+      console.log(`📊 Run ${run_id} marked as error in store`);
     }
   });
 
