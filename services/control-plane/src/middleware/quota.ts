@@ -55,9 +55,16 @@ function getQuotaUsage(userId: string): QuotaUsage {
 }
 
 /**
+ * Reset quota for testing
+ */
+export function resetQuota(userId: string): void {
+  quotaStore.delete(userId);
+}
+
+/**
  * Check if user can start a new run
  */
-function checkQuota(userId: string, lane: 'cpu' | 'gpu'): {
+export function checkQuota(userId: string, lane: 'cpu' | 'gpu'): {
   allowed: boolean;
   reason?: string;
   runsRemaining?: number;
@@ -96,7 +103,7 @@ function checkQuota(userId: string, lane: 'cpu' | 'gpu'): {
 /**
  * Track the start of a run
  */
-function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
+export function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
   const usage = getQuotaUsage(userId);
 
   if (lane === 'cpu') {
@@ -113,7 +120,7 @@ function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'): void
 /**
  * Track the completion of a run
  */
-function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
+export function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
   const usage = quotaStore.get(userId);
   if (!usage) return;
 
@@ -173,18 +180,12 @@ export async function quotaMiddleware(c: Context, next: Next) {
     }, 429);
   }
 
-  // Generate run ID (placeholder - should come from run creation)
-  const runId = crypto.randomUUID();
-
-  // Track run start
-  trackRunStart(userId, runId, lane);
-
-  // Add tracking helpers to context
+  // Add tracking helpers to context - runs.ts will call trackStart with actual runId
   c.set('quotaTracking', {
     userId,
-    runId,
     lane,
-    trackComplete: () => trackRunComplete(userId, runId, lane)
+    trackStart: (runId: string) => trackRunStart(userId, runId, lane),
+    trackComplete: (runId: string) => trackRunComplete(userId, runId, lane)
   });
 
   // Set quota headers

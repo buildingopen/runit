@@ -96,12 +96,11 @@ export function FileUploader({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={`
-          border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
-          transition-colors
+          border-2 border-dashed rounded p-4 text-center cursor-pointer transition-colors
           ${
             isDragging
-              ? 'border-purple-500 bg-purple-50'
-              : 'border-gray-300 hover:border-gray-400'
+              ? 'border-[var(--accent)] bg-[var(--accent)]/5'
+              : 'border-[var(--border)] hover:border-[var(--border-hover)]'
           }
         `}
       >
@@ -115,65 +114,64 @@ export function FileUploader({
 
         <div className="flex flex-col items-center gap-2">
           <svg
-            className="w-8 h-8 text-gray-400"
+            className="w-6 h-6 text-[var(--text-tertiary)]"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            strokeWidth={1}
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
             />
           </svg>
           <div>
-            <p className="text-sm text-gray-700 font-medium">
+            <p className="text-xs text-[var(--text-secondary)]">
               Click to upload or drag and drop
             </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Max {maxFiles} file{maxFiles > 1 ? 's' : ''}, up to{' '}
-              {formatSize(maxSize)} each
+            <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
+              Max {maxFiles} file{maxFiles > 1 ? 's' : ''}, up to {formatSize(maxSize)} each
             </p>
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-600">{error}</p>
+        <div className="px-3 py-2 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded text-xs text-[var(--error)]">
+          {error}
         </div>
       )}
 
       {files.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {files.map((file, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+              className="flex items-center justify-between px-3 py-2 bg-[var(--bg-tertiary)] rounded border border-[var(--border)]"
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 {file.content_type.startsWith('image/') && (
                   <img
                     src={`data:${file.content_type};base64,${file.data}`}
                     alt={file.filename}
-                    className="w-10 h-10 object-cover rounded"
+                    className="w-8 h-8 object-cover rounded"
                   />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-700 truncate">
+                  <p className="text-xs font-medium text-[var(--text-primary)] truncate">
                     {file.filename}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-[10px] text-[var(--text-tertiary)]">
                     {formatSize(atob(file.data).length)}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => removeFile(index)}
-                className="flex-shrink-0 p-1 text-gray-400 hover:text-red-600 transition-colors"
+                className="flex-shrink-0 p-1 text-[var(--text-tertiary)] hover:text-[var(--error)] transition-colors"
               >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"
                     d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"

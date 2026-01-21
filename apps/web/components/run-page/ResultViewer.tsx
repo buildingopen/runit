@@ -18,25 +18,25 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
   return (
     <div className="space-y-4">
       {/* Status Header */}
-      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+      <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-tertiary)] rounded border border-[var(--border)]">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className={`inline-block w-2 h-2 rounded-full ${statusColor}`} />
-            <span className="text-sm font-medium text-gray-700 capitalize">
+            <span className="text-xs font-medium text-[var(--text-secondary)] capitalize">
               {status}
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-sm font-medium ${httpStatusColor}`}>
+            <span className={`text-xs font-medium ${httpStatusColor}`}>
               {result.http_status}
             </span>
-            <span className="text-sm text-gray-500">
+            <span className="text-xs text-[var(--text-tertiary)]">
               {getStatusText(result.http_status)}
             </span>
           </div>
         </div>
         {duration_ms && (
-          <span className="text-sm text-gray-600">
+          <span className="text-xs text-[var(--text-tertiary)]">
             {(duration_ms / 1000).toFixed(2)}s
           </span>
         )}
@@ -44,10 +44,10 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
 
       {/* Warnings */}
       {result.warnings && result.warnings.length > 0 && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="px-3 py-2 bg-[var(--warning)]/10 border border-[var(--warning)]/20 rounded">
           <div className="flex items-start gap-2">
             <svg
-              className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"
+              className="w-4 h-4 text-[var(--warning)] flex-shrink-0 mt-0.5"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -58,12 +58,12 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
               />
             </svg>
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-amber-800 mb-1">
+              <h3 className="text-xs font-medium text-[var(--warning)] mb-1">
                 Warnings
               </h3>
-              <ul className="text-sm text-amber-700 space-y-1">
-                {result.warnings.map((warning, i) => (
-                  <li key={i}>• {warning}</li>
+              <ul className="text-xs text-[var(--warning)]/80 space-y-0.5">
+                {result.warnings.map((warning: string, i: number) => (
+                  <li key={i}>{warning}</li>
                 ))}
               </ul>
             </div>
@@ -73,10 +73,10 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
 
       {/* Error Message */}
       {result.error_message && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="px-3 py-2 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded">
           <div className="flex items-start gap-2">
             <svg
-              className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
+              className="w-4 h-4 text-[var(--error)] flex-shrink-0 mt-0.5"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -87,19 +87,19 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
               />
             </svg>
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-red-800 mb-1">Error</h3>
-              <p className="text-sm text-red-700">{result.error_message}</p>
+              <h3 className="text-xs font-medium text-[var(--error)] mb-1">Error</h3>
+              <p className="text-xs text-[var(--error)]/80">{result.error_message}</p>
               {result.error_class && (
-                <p className="text-xs text-red-600 mt-1 font-mono">
+                <p className="text-[10px] text-[var(--error)]/60 mt-1 font-mono">
                   {result.error_class}
                 </p>
               )}
               {result.suggested_fix && (
-                <div className="mt-3 p-3 bg-white rounded border border-red-200">
-                  <h4 className="text-xs font-medium text-red-800 mb-1">
+                <div className="mt-2 p-2 bg-[var(--bg-secondary)] rounded border border-[var(--error)]/20">
+                  <h4 className="text-[10px] font-medium text-[var(--error)] mb-0.5">
                     Suggested Fix
                   </h4>
-                  <p className="text-sm text-red-700">{result.suggested_fix}</p>
+                  <p className="text-xs text-[var(--error)]/80">{result.suggested_fix}</p>
                 </div>
               )}
             </div>
@@ -109,10 +109,10 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
 
       {/* Redactions Notice */}
       {result.redactions_applied && (
-        <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+        <div className="px-3 py-2 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded">
           <div className="flex items-center gap-2">
             <svg
-              className="w-4 h-4 text-purple-600"
+              className="w-4 h-4 text-[var(--accent)]"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -122,7 +122,7 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
                 clipRule="evenodd"
               />
             </svg>
-            <p className="text-sm text-purple-700">
+            <p className="text-xs text-[var(--accent)]">
               Sensitive values were redacted from this output for security.
             </p>
           </div>
@@ -132,15 +132,15 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
       {/* Response Body */}
       {result.json !== undefined && (
         <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Response</h3>
+          <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-2">Response</h3>
           <JSONViewer data={result.json} />
         </div>
       )}
 
       {result.text_preview && !result.json && (
         <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Response</h3>
-          <pre className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-x-auto text-sm">
+          <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-2">Response</h3>
+          <pre className="px-3 py-2 bg-[var(--bg-tertiary)] rounded border border-[var(--border)] overflow-x-auto text-xs text-[var(--text-primary)] font-mono">
             {result.text_preview}
           </pre>
         </div>
@@ -149,30 +149,30 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
       {/* Artifacts */}
       {result.artifacts && result.artifacts.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-2">
+          <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-2">
             Artifacts ({result.artifacts.length})
           </h3>
-          <div className="space-y-2">
-            {result.artifacts.map((artifact, i) => (
+          <div className="space-y-1">
+            {result.artifacts.map((artifact: { name: string; size: number; mime_type: string; download_url: string }, i: number) => (
               <div
                 key={i}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                className="flex items-center justify-between px-3 py-2 bg-[var(--bg-tertiary)] rounded border border-[var(--border)]"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <FileIcon mimeType={artifact.mime_type} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-700 truncate">
+                    <p className="text-xs font-medium text-[var(--text-primary)] truncate">
                       {artifact.name}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {formatSize(artifact.size)} • {artifact.mime_type}
+                    <p className="text-[10px] text-[var(--text-tertiary)]">
+                      {formatSize(artifact.size)} · {artifact.mime_type}
                     </p>
                   </div>
                 </div>
                 <a
                   href={artifact.download_url}
                   download={artifact.name}
-                  className="flex-shrink-0 px-3 py-1 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                  className="flex-shrink-0 text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium"
                 >
                   Download
                 </a>
@@ -187,8 +187,8 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
 
 function JSONViewer({ data }: { data: unknown }) {
   return (
-    <pre className="p-4 bg-gray-50 rounded-lg border border-gray-200 overflow-x-auto">
-      <code className="text-sm">{JSON.stringify(data, null, 2)}</code>
+    <pre className="px-3 py-2 bg-[var(--bg-tertiary)] rounded border border-[var(--border)] overflow-x-auto">
+      <code className="text-xs text-[var(--text-primary)] font-mono">{JSON.stringify(data, null, 2)}</code>
     </pre>
   );
 }
@@ -196,7 +196,7 @@ function JSONViewer({ data }: { data: unknown }) {
 function FileIcon({ mimeType }: { mimeType: string }) {
   if (mimeType.startsWith('image/')) {
     return (
-      <svg className="w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="w-5 h-5 text-[var(--accent)]" fill="currentColor" viewBox="0 0 20 20">
         <path
           fillRule="evenodd"
           d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
@@ -208,7 +208,7 @@ function FileIcon({ mimeType }: { mimeType: string }) {
 
   if (mimeType.includes('pdf')) {
     return (
-      <svg className="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="w-5 h-5 text-[var(--error)]" fill="currentColor" viewBox="0 0 20 20">
         <path
           fillRule="evenodd"
           d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
@@ -219,7 +219,7 @@ function FileIcon({ mimeType }: { mimeType: string }) {
   }
 
   return (
-    <svg className="w-8 h-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+    <svg className="w-5 h-5 text-[var(--text-tertiary)]" fill="currentColor" viewBox="0 0 20 20">
       <path
         fillRule="evenodd"
         d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
@@ -232,25 +232,25 @@ function FileIcon({ mimeType }: { mimeType: string }) {
 function getStatusColor(status: string): string {
   switch (status) {
     case 'success':
-      return 'bg-green-500';
+      return 'bg-[var(--success)]';
     case 'error':
-      return 'bg-red-500';
+      return 'bg-[var(--error)]';
     case 'timeout':
-      return 'bg-amber-500';
+      return 'bg-[var(--warning)]';
     case 'running':
-      return 'bg-blue-500';
+      return 'bg-[var(--accent)]';
     case 'queued':
-      return 'bg-gray-400';
+      return 'bg-[var(--text-tertiary)]';
     default:
-      return 'bg-gray-400';
+      return 'bg-[var(--text-tertiary)]';
   }
 }
 
 function getHttpStatusColor(status: number): string {
-  if (status >= 200 && status < 300) return 'text-green-600';
-  if (status >= 400 && status < 500) return 'text-amber-600';
-  if (status >= 500) return 'text-red-600';
-  return 'text-gray-600';
+  if (status >= 200 && status < 300) return 'text-[var(--success)]';
+  if (status >= 400 && status < 500) return 'text-[var(--warning)]';
+  if (status >= 500) return 'text-[var(--error)]';
+  return 'text-[var(--text-secondary)]';
 }
 
 function getStatusText(status: number): string {

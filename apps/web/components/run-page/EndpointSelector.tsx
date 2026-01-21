@@ -1,9 +1,8 @@
 // ABOUTME: Endpoint selection UI - displays list of endpoints with method, path, summary
 // ABOUTME: Highlights GPU endpoints and shows loading/error states
+// ABOUTME: Quick-run buttons for endpoints without required parameters
 
 'use client';
-
-import { tokens } from '@execution-layer/ui';
 
 interface Endpoint {
   endpoint_id: string;
@@ -12,26 +11,34 @@ interface Endpoint {
   summary?: string;
   description?: string;
   requires_gpu?: boolean;
+  schema_ref?: string;
+  has_request_body?: boolean;
 }
 
 interface EndpointSelectorProps {
   endpoints: Endpoint[];
   selectedId: string | null;
   onSelect: (endpointId: string) => void;
+  onQuickRun?: (endpointId: string) => void;
   isLoading?: boolean;
+  isRunning?: boolean;
+  runningEndpointId?: string | null;
 }
 
 export function EndpointSelector({
   endpoints,
   selectedId,
   onSelect,
+  onQuickRun,
   isLoading,
+  isRunning,
+  runningEndpointId,
 }: EndpointSelectorProps) {
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-2">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 bg-gray-100 rounded-lg" />
+          <div key={i} className="h-14 bg-[var(--bg-tertiary)] rounded" />
         ))}
       </div>
     );
@@ -39,82 +46,120 @@ export function EndpointSelector({
 
   if (endpoints.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <p>No endpoints found for this project.</p>
-        <p className="text-sm mt-2">
+      <div className="text-center py-8">
+        <p className="text-sm text-[var(--text-secondary)]">No endpoints found for this project.</p>
+        <p className="text-xs text-[var(--text-tertiary)] mt-1">
           Make sure your FastAPI app has endpoints defined.
         </p>
       </div>
     );
   }
 
+  // Check if endpoint can be quick-run (GET/DELETE without path params, or has no request body)
+  const canQuickRun = (endpoint: Endpoint) => {
+    const method = endpoint.method.toUpperCase();
+    const hasPathParams = endpoint.path.includes('{');
+    // GET/DELETE typically don't have request bodies
+    // POST/PUT/PATCH might have optional bodies
+    return !hasPathParams && (method === 'GET' || method === 'DELETE' || !endpoint.has_request_body);
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {endpoints.map((endpoint) => {
         const isSelected = endpoint.endpoint_id === selectedId;
         const methodColor = getMethodColor(endpoint.method);
+        const isThisRunning = isRunning && runningEndpointId === endpoint.endpoint_id;
+        const showQuickRun = onQuickRun && canQuickRun(endpoint);
 
         return (
-          <button
+          <div
             key={endpoint.endpoint_id}
-            onClick={() => onSelect(endpoint.endpoint_id)}
             className={`
-              w-full text-left p-4 rounded-lg border transition-all
+              flex items-center gap-2 px-3 py-2.5 rounded transition-colors
               ${
                 isSelected
-                  ? 'border-purple-500 bg-purple-50 shadow-sm'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                  ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/30'
+                  : 'hover:bg-[var(--bg-hover)] border border-transparent'
               }
             `}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={`
-                      inline-block px-2 py-0.5 text-xs font-medium rounded
-                      ${methodColor}
-                    `}
-                  >
-                    {endpoint.method}
+            <button
+              onClick={() => onSelect(endpoint.endpoint_id)}
+              className="flex-1 text-left min-w-0"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`
+                    inline-block px-1.5 py-0.5 text-[10px] font-medium rounded uppercase tracking-wide
+                    ${methodColor}
+                  `}
+                >
+                  {endpoint.method}
+                </span>
+                <code className="text-sm text-[var(--text-primary)] font-mono truncate flex-1">
+                  {endpoint.path}
+                </code>
+                {endpoint.requires_gpu && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-[var(--warning)]/10 text-[var(--warning)] rounded">
+                    GPU
                   </span>
-                  <code className="text-sm text-gray-700 font-mono truncate">
-                    {endpoint.path}
-                  </code>
-                  {endpoint.requires_gpu && (
-                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded">
-                      <svg
-                        className="w-3 h-3 mr-1"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z" />
-                      </svg>
-                      GPU
-                    </span>
-                  )}
-                </div>
-                {endpoint.summary && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
-                    {endpoint.summary}
-                  </p>
                 )}
               </div>
-              {isSelected && (
-                <svg
-                  className="w-5 h-5 text-purple-500 flex-shrink-0"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+              {endpoint.summary && (
+                <p className="text-xs text-[var(--text-tertiary)] mt-1 ml-12 line-clamp-1">
+                  {endpoint.summary}
+                </p>
               )}
-            </div>
-          </button>
+            </button>
+
+            {/* Quick Run Button */}
+            {showQuickRun && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickRun(endpoint.endpoint_id);
+                }}
+                disabled={isRunning}
+                className={`
+                  flex-shrink-0 p-2 rounded-md transition-colors
+                  ${isThisRunning
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'hover:bg-[var(--accent)]/20 text-[var(--accent)]'
+                  }
+                  disabled:opacity-50
+                `}
+                title={`Run ${endpoint.method} ${endpoint.path}`}
+                aria-label={`Run ${endpoint.method} ${endpoint.path}`}
+              >
+                {isThisRunning ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            )}
+
+            {/* Selected Checkmark (only if no quick run button) */}
+            {isSelected && !showQuickRun && (
+              <svg
+                className="w-4 h-4 text-[var(--accent)] flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            )}
+          </div>
         );
       })}
     </div>
@@ -124,16 +169,16 @@ export function EndpointSelector({
 function getMethodColor(method: string): string {
   switch (method.toUpperCase()) {
     case 'GET':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-[var(--accent)]/10 text-[var(--accent)]';
     case 'POST':
-      return 'bg-green-100 text-green-800';
+      return 'bg-[var(--success)]/10 text-[var(--success)]';
     case 'PUT':
-      return 'bg-amber-100 text-amber-800';
+      return 'bg-[var(--warning)]/10 text-[var(--warning)]';
     case 'PATCH':
-      return 'bg-purple-100 text-purple-800';
+      return 'bg-[var(--info)]/10 text-[var(--info)]';
     case 'DELETE':
-      return 'bg-red-100 text-red-800';
+      return 'bg-[var(--error)]/10 text-[var(--error)]';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]';
   }
 }

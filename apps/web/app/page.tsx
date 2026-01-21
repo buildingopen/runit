@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiClient, type Project } from '../lib/api/client';
 
@@ -8,154 +8,262 @@ export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  useEffect(() => {
-    checkAPIHealth();
-    loadProjects();
-  }, []);
-
-  async function checkAPIHealth() {
-    try {
-      await apiClient.health();
-      setApiStatus('online');
-    } catch (err) {
-      setApiStatus('offline');
-      setError('API is offline. Make sure the control plane is running on port 3001.');
-    }
-  }
-
-  async function loadProjects() {
+  const loadProjects = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.listProjects();
-      setProjects(response.projects);
       setError(null);
+      const response = await apiClient.listProjects();
+      setProjects(response.projects || []);
+      setRetryCount(0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load projects');
+      const message = err instanceof Error ? err.message : 'Failed to load projects';
+      setError(message);
+      // Auto-retry on first failure after 2 seconds
+      if (retryCount < 1) {
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => loadProjects(), 2000);
+      }
     } finally {
       setLoading(false);
+    }
+  }, [retryCount]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  // Close delete modal on escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDeleteConfirm(null);
+    };
+    if (deleteConfirm) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [deleteConfirm]);
+
+  async function handleDelete(projectId: string) {
+    try {
+      setDeleting(projectId);
+      setError(null);
+      await apiClient.deleteProject(projectId);
+      setProjects(projects.filter(p => p.project_id !== projectId));
+      setDeleteConfirm(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete project');
+      setDeleteConfirm(null);
+    } finally {
+      setDeleting(null);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Execution Layer</h1>
-              <p className="text-sm text-gray-500">Colab for Apps</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  apiStatus === 'online' ? 'bg-green-500' :
-                  apiStatus === 'offline' ? 'bg-red-500' :
-                  'bg-yellow-500'
-                }`} />
-                <span className="text-sm text-gray-600">
-                  {apiStatus === 'online' ? 'API Online' :
-                   apiStatus === 'offline' ? 'API Offline' :
-                   'Checking...'}
-                </span>
-              </div>
-              <button
-                onClick={loadProjects}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      {/* Page Header */}
+      <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-6">
+        <div className="flex items-center gap-3">
+          <h1 className="text-[13px] font-semibold text-[var(--text-primary)]">Projects</h1>
+          {!loading && projects.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] rounded">
+              {projects.length}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={loadProjects}
+            disabled={loading}
+            className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] rounded-md disabled:opacity-50"
+            title="Refresh"
+          >
+            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-red-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+      {/* Content */}
+      <div className="p-4 sm:p-6">
+        {error && !loading && (
+          <div className="mb-4 px-4 py-3 bg-[var(--error-subtle)] border border-[var(--error)]/20 rounded-lg flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <svg className="w-5 h-5 text-[var(--error)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
-              <div>
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <p className="mt-1 text-sm text-red-700">{error}</p>
-              </div>
+              <span className="text-[13px] text-[var(--error)] truncate">{error}</span>
             </div>
+            <button
+              onClick={() => { setRetryCount(0); loadProjects(); }}
+              className="flex-shrink-0 px-3 py-1.5 text-[12px] font-medium text-[var(--error)] hover:bg-[var(--error)]/10 rounded-md transition-colors"
+            >
+              Retry
+            </button>
           </div>
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-8 h-8 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
-              <p className="text-sm text-gray-500">Loading projects...</p>
+          <div className="flex items-center justify-center py-24">
+            <div className="flex items-center gap-3 text-[var(--text-tertiary)]">
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="text-[13px]">Loading...</span>
             </div>
           </div>
         ) : projects.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="mt-4 text-lg font-medium text-gray-900">No projects yet</h3>
-            <p className="mt-2 text-sm text-gray-500">
-              Create your first project to get started with Execution Layer
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="w-14 h-14 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl flex items-center justify-center mb-5">
+              <svg className="w-7 h-7 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <h2 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1.5">No projects yet</h2>
+            <p className="text-[13px] text-[var(--text-tertiary)] mb-5 max-w-[280px]">
+              Get started by creating your first FastAPI project
             </p>
+            <Link
+              href="/new"
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[13px] font-medium rounded-md shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Create Project
+            </Link>
           </div>
         ) : (
-          <div className="grid gap-4">
-            <h2 className="text-lg font-semibold text-gray-900">Your Projects</h2>
+          <div className="space-y-1">
             {projects.map((project) => (
-              <ProjectCard key={project.project_id} project={project} />
+              <ProjectRow
+                key={project.project_id}
+                project={project}
+                deleteConfirm={deleteConfirm}
+                setDeleteConfirm={setDeleteConfirm}
+                deleting={deleting}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         )}
-      </main>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+        >
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg p-5 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 bg-[var(--error-subtle)] rounded-lg flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <div>
+                <h3 id="delete-modal-title" className="text-[14px] font-semibold text-[var(--text-primary)]">Delete project?</h3>
+                <p className="text-[12px] text-[var(--text-tertiary)]">This action cannot be undone</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end mt-5">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-3 py-1.5 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                disabled={deleting === deleteConfirm}
+                className="px-3 py-1.5 bg-[var(--error)] hover:bg-[var(--error)]/90 text-white text-[13px] font-medium rounded-md disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--error)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-secondary)]"
+                autoFocus
+              >
+                {deleting === deleteConfirm ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProjectCard({ project }: { project: Project }) {
-  const latestVersion = project.versions && project.versions.length > 0
-    ? project.versions[project.versions.length - 1]
-    : null;
+function ProjectRow({
+  project,
+  deleteConfirm,
+  setDeleteConfirm,
+  deleting,
+  onDelete
+}: {
+  project: Project;
+  deleteConfirm: string | null;
+  setDeleteConfirm: (id: string | null) => void;
+  deleting: string | null;
+  onDelete: (id: string) => void;
+}) {
+  const latestVersion = project.versions?.[project.versions.length - 1];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
+    <div className="group flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors">
+      <Link
+        href={`/p/${project.project_id}`}
+        className="flex items-center gap-3 flex-1 min-w-0"
+      >
+        {/* Icon */}
+        <div className="w-9 h-9 bg-gradient-to-br from-[var(--bg-tertiary)] to-[var(--bg-hover)] border border-[var(--border)] rounded-lg flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+          </svg>
+        </div>
+
+        {/* Name & Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-[13px] text-[var(--text-primary)] truncate">{project.name}</span>
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[var(--success-subtle)] text-[var(--success)] rounded">
               Ready
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-500">
-            Project ID: {project.project_id}
-          </p>
-          <div className="mt-4 flex items-center gap-6 text-sm text-gray-600">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              <span>Version: {latestVersion?.version_hash?.substring(0, 8) || 'N/A'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>Created: {project.created_at ? new Date(project.created_at).toLocaleDateString() : 'Unknown'}</span>
-            </div>
+          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[var(--text-tertiary)]">
+            <span className="font-mono">{project.latest_version?.substring(0, 7) || latestVersion?.version_hash?.substring(0, 7) || '—'}</span>
+            <span>·</span>
+            <span>{new Date(project.created_at).toLocaleDateString()}</span>
           </div>
         </div>
+      </Link>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDeleteConfirm(project.project_id);
+          }}
+          className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--error)] hover:bg-[var(--error-subtle)] rounded-md"
+          title="Delete"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+          </svg>
+        </button>
         <Link
           href={`/p/${project.project_id}`}
-          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium inline-block"
+          className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-active)] rounded-md"
         >
-          View Details
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
         </Link>
       </div>
     </div>

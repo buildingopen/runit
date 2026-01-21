@@ -2,6 +2,7 @@
  * Tests for quota enforcement middleware
  */
 
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   checkQuota,
   trackRunStart,
@@ -9,26 +10,19 @@ import {
   quotaMiddleware,
   resetQuota,
 } from '../quota';
+import {
+  createMockContext,
+  createMockNext,
+  createAuthenticatedContext,
+  createAnonymousContext,
+  asHonoContext,
+  asHonoNext,
+} from '../test-helpers';
 
 describe('Quota Enforcement', () => {
   const userId = 'test-user';
-  let req: any;
-  let res: any;
-  let next: jest.Mock;
 
   beforeEach(() => {
-    req = {
-      user: { id: userId },
-      body: { lane: 'cpu' },
-    };
-
-    res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-    };
-
-    next = jest.fn();
-
     // Reset quota before each test
     resetQuota(userId);
   });
@@ -68,7 +62,7 @@ describe('Quota Enforcement', () => {
       // Try to start a 3rd
       const { allowed, reason } = checkQuota(userId, 'cpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('concurrency limit');
+      expect(reason).toContain('concurrent limit');
     });
 
     it('should allow new runs after completing concurrent runs', () => {
@@ -119,54 +113,139 @@ describe('Quota Enforcement', () => {
       // Try to start a 2nd
       const { allowed, reason } = checkQuota(userId, 'gpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('concurrency limit');
+      expect(reason).toContain('concurrent limit');
     });
   });
 
   describe('Quota Middleware', () => {
-    it('should allow requests within quota', () => {
-      quotaMiddleware(req, res, next);
-
-      expect(next).toHaveBeenCalled();
-      expect(res.status).not.toHaveBeenCalledWith(429);
+    beforeEach(() => {
+      resetQuota(userId);
     });
 
-    it('should block requests exceeding quota', () => {
+    it('should allow requests within quota', async () => {
+      const c = createAuthenticatedContext(userId, {
+        method: 'POST',
+        path: '/runs',
+        body: { lane: 'cpu' },
+        headers: { 'x-user-id': userId },
+      });
+      const next = createMockNext();
+
+      await quotaMiddleware(asHonoContext(c), asHonoNext(next));
+
+      expect(next).toHaveBeenCalled();
+      expect(c.json).not.toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'Quota exceeded' }),
+        429
+      );
+    });
+
+    it('should block requests exceeding quota', async () => {
       // Use up quota
       for (let i = 0; i < 100; i++) {
         trackRunStart(userId, `run-${i}`, 'cpu');
         trackRunComplete(userId, `run-${i}`, 'cpu');
       }
 
-      quotaMiddleware(req, res, next);
+      const c = createAuthenticatedContext(userId, {
+        method: 'POST',
+        path: '/runs',
+        body: { lane: 'cpu' },
+        headers: { 'x-user-id': userId },
+      });
+      const next = createMockNext();
+
+      await quotaMiddleware(asHonoContext(c), asHonoNext(next));
 
       expect(next).not.toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(429);
-      expect(res.json).toHaveBeenCalledWith(
+      expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
           error: 'Quota exceeded',
-          lane: 'cpu',
-        })
+        }),
+        429
       );
     });
 
-    it('should reject anonymous users', () => {
-      req.user = null;
+    it('should pass through for non-run endpoints', async () => {
+      const c = createAnonymousContext('127.0.0.1', {
+        method: 'GET',
+        path: '/projects',
+      });
+      const next = createMockNext();
 
-      quotaMiddleware(req, res, next);
+      await quotaMiddleware(asHonoContext(c), asHonoNext(next));
 
-      expect(next).not.toHaveBeenCalled();
-      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).toHaveBeenCalled();
     });
 
-    it('should attach quota tracking to request', () => {
-      quotaMiddleware(req, res, next);
+    it('should pass through for non-POST requests', async () => {
+      const c = createAnonymousContext('127.0.0.1', {
+        method: 'GET',
+        path: '/runs/123',
+      });
+      const next = createMockNext();
 
-      expect(req.quotaTracking).toBeDefined();
-      expect(req.quotaTracking.userId).toBe(userId);
-      expect(req.quotaTracking.lane).toBe('cpu');
-      expect(typeof req.quotaTracking.trackStart).toBe('function');
-      expect(typeof req.quotaTracking.trackComplete).toBe('function');
+      await quotaMiddleware(asHonoContext(c), asHonoNext(next));
+
+      expect(next).toHaveBeenCalled();
+    });
+
+    it('should attach quota tracking to context', async () => {
+      const c = createAuthenticatedContext(userId, {
+        method: 'POST',
+        path: '/runs',
+        body: { lane: 'cpu' },
+        headers: { 'x-user-id': userId },
+      });
+      const next = createMockNext();
+
+      await quotaMiddleware(asHonoContext(c), asHonoNext(next));
+
+      const quotaTracking = c.get('quotaTracking') as {
+        userId: string;
+        lane: string;
+        trackStart: (runId: string) => void;
+        trackComplete: (runId: string) => void;
+      };
+
+      expect(quotaTracking).toBeDefined();
+      expect(quotaTracking.userId).toBe(userId);
+      expect(quotaTracking.lane).toBe('cpu');
+      expect(typeof quotaTracking.trackStart).toBe('function');
+      expect(typeof quotaTracking.trackComplete).toBe('function');
+    });
+
+    it('should set quota headers on successful requests', async () => {
+      const c = createAuthenticatedContext(userId, {
+        method: 'POST',
+        path: '/runs',
+        body: { lane: 'cpu' },
+        headers: { 'x-user-id': userId },
+      });
+      const next = createMockNext();
+
+      await quotaMiddleware(asHonoContext(c), asHonoNext(next));
+
+      expect(c._responseHeaders.get('X-Quota-CPU-Remaining')).toBeDefined();
+      expect(c._responseHeaders.get('X-Quota-CPU-Concurrent')).toBeDefined();
+    });
+
+    it('should reject invalid lane', async () => {
+      const c = createAuthenticatedContext(userId, {
+        method: 'POST',
+        path: '/runs',
+        body: { lane: 'invalid' },
+        headers: { 'x-user-id': userId },
+      });
+      const next = createMockNext();
+
+      await quotaMiddleware(asHonoContext(c), asHonoNext(next));
+
+      expect(next).not.toHaveBeenCalled();
+      expect(c.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: 'Invalid lane. Must be "cpu" or "gpu"' }),
+        400
+      );
     });
   });
 });

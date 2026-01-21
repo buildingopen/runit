@@ -4,17 +4,14 @@
  */
 
 import { Hono } from 'hono';
-import { fetchContextFromURL, validateContext } from '../context-fetcher';
-import type { ContextMetadata } from '../../../../packages/shared/src/types';
+import { fetchContextFromURL } from '../context-fetcher';
 import type {
   FetchContextRequest,
-  FetchContextResponse,
 } from '../../../../packages/shared/src/contracts/control-plane';
+import { CONTEXT_MAX_SIZE_BYTES, PROJECT_CONTEXT_MAX_TOTAL_BYTES } from '../constants';
+import * as contextsStore from '../db/contexts-store.js';
 
 const context = new Hono();
-
-// In-memory storage for v0 (will be replaced with database)
-const contextStore: Map<string, Map<string, ContextMetadata>> = new Map();
 
 /**
  * POST /projects/:id/context
@@ -42,51 +39,25 @@ context.post('/:id/context', async (c) => {
     // Fetch context from URL
     const fetchedContext = await fetchContextFromURL(body.url, body.name);
 
-    // Check size limit (1MB)
+    // Check size limit
     const dataSize = JSON.stringify(fetchedContext.data).length;
-    if (dataSize > 1024 * 1024) {
-      return c.json({ error: 'Context data exceeds 1MB limit' }, 400);
+    if (dataSize > CONTEXT_MAX_SIZE_BYTES) {
+      return c.json({ error: `Context data exceeds ${CONTEXT_MAX_SIZE_BYTES / (1024 * 1024)}MB limit` }, 400);
     }
 
-    const now = new Date().toISOString();
-
-    // Store context
-    const contextMetadata: ContextMetadata = {
-      id: fetchedContext.id,
+    // Create context in database (size limits checked in store)
+    const contextRecord = await contextsStore.createContext({
       project_id: projectId,
       name: body.name,
       url: body.url,
-      data: fetchedContext.data,
-      created_at: now,
-      updated_at: now,
-      fetched_at: now,
-    };
-
-    if (!contextStore.has(projectId)) {
-      contextStore.set(projectId, new Map());
-    }
-
-    const projectContexts = contextStore.get(projectId)!;
-
-    // Check total size for project
-    let totalSize = dataSize;
-    for (const ctx of projectContexts.values()) {
-      totalSize += JSON.stringify(ctx.data).length;
-    }
-
-    if (totalSize > 1024 * 1024) {
-      return c.json(
-        { error: 'Total context size for project exceeds 1MB limit' },
-        400
-      );
-    }
-
-    projectContexts.set(contextMetadata.id, contextMetadata);
+      data: fetchedContext.data as Record<string, unknown>,
+      size_bytes: dataSize,
+    });
 
     return c.json(
       {
-        id: contextMetadata.id,
-        data: contextMetadata.data,
+        id: contextRecord.id,
+        data: contextRecord.data,
       },
       201
     );
@@ -103,23 +74,19 @@ context.post('/:id/context', async (c) => {
 context.get('/:id/context', async (c) => {
   const projectId = c.req.param('id');
 
-  const projectContexts = contextStore.get(projectId);
+  const contexts = await contextsStore.listProjectContexts(projectId);
 
-  if (!projectContexts || projectContexts.size === 0) {
-    return c.json({ contexts: [] });
-  }
-
-  const contexts = Array.from(projectContexts.values()).map((ctx) => ({
-    id: ctx.id,
-    name: ctx.name,
-    url: ctx.url,
-    created_at: ctx.created_at,
-    updated_at: ctx.updated_at,
-    fetched_at: ctx.fetched_at,
-    size: JSON.stringify(ctx.data).length,
-  }));
-
-  return c.json({ contexts });
+  return c.json({
+    contexts: contexts.map((ctx) => ({
+      id: ctx.id,
+      name: ctx.name,
+      url: ctx.url,
+      created_at: ctx.created_at,
+      updated_at: ctx.updated_at,
+      fetched_at: ctx.fetched_at,
+      size: ctx.size_bytes,
+    })),
+  });
 });
 
 /**
@@ -130,19 +97,22 @@ context.get('/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
 
-  const projectContexts = contextStore.get(projectId);
-
-  if (!projectContexts) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  const ctx = projectContexts.get(contextId);
+  const ctx = await contextsStore.getProjectContext(projectId, contextId);
 
   if (!ctx) {
     return c.json({ error: 'Context not found' }, 404);
   }
 
-  return c.json(ctx);
+  return c.json({
+    id: ctx.id,
+    project_id: ctx.project_id,
+    name: ctx.name,
+    url: ctx.url,
+    data: ctx.data,
+    created_at: ctx.created_at,
+    updated_at: ctx.updated_at,
+    fetched_at: ctx.fetched_at,
+  });
 });
 
 /**
@@ -153,13 +123,7 @@ context.put('/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
 
-  const projectContexts = contextStore.get(projectId);
-
-  if (!projectContexts) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  const existingContext = projectContexts.get(contextId);
+  const existingContext = await contextsStore.getProjectContext(projectId, contextId);
 
   if (!existingContext) {
     return c.json({ error: 'Context not found' }, 404);
@@ -176,27 +140,31 @@ context.put('/:id/context/:cid', async (c) => {
     // Re-fetch from URL
     const fetchedContext = await fetchContextFromURL(
       existingContext.url,
-      existingContext.name
+      existingContext.name || 'context'
     );
 
     // Check size limit
     const dataSize = JSON.stringify(fetchedContext.data).length;
-    if (dataSize > 1024 * 1024) {
-      return c.json({ error: 'Context data exceeds 1MB limit' }, 400);
+    if (dataSize > CONTEXT_MAX_SIZE_BYTES) {
+      return c.json({ error: `Context data exceeds ${CONTEXT_MAX_SIZE_BYTES / (1024 * 1024)}MB limit` }, 400);
     }
 
-    const now = new Date().toISOString();
+    // Update context in database
+    const updated = await contextsStore.refreshContext(
+      contextId,
+      fetchedContext.data as Record<string, unknown>,
+      dataSize
+    );
 
-    // Update context
-    existingContext.data = fetchedContext.data;
-    existingContext.updated_at = now;
-    existingContext.fetched_at = now;
+    if (!updated) {
+      return c.json({ error: 'Failed to update context' }, 500);
+    }
 
     return c.json({
-      id: existingContext.id,
-      data: existingContext.data,
-      updated_at: existingContext.updated_at,
-      fetched_at: existingContext.fetched_at,
+      id: updated.id,
+      data: updated.data,
+      updated_at: updated.updated_at,
+      fetched_at: updated.fetched_at,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -212,13 +180,7 @@ context.delete('/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
 
-  const projectContexts = contextStore.get(projectId);
-
-  if (!projectContexts) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  const deleted = projectContexts.delete(contextId);
+  const deleted = await contextsStore.deleteProjectContext(projectId, contextId);
 
   if (!deleted) {
     return c.json({ error: 'Context not found' }, 404);
@@ -230,19 +192,17 @@ context.delete('/:id/context/:cid', async (c) => {
 /**
  * Helper function to get all contexts for a project (for runner)
  */
-export function getProjectContexts(projectId: string): Record<string, any> {
-  const projectContexts = contextStore.get(projectId);
+export async function getProjectContexts(projectId: string): Promise<Record<string, unknown>> {
+  const contexts = await contextsStore.listProjectContexts(projectId);
 
-  if (!projectContexts || projectContexts.size === 0) {
-    return {};
+  const result: Record<string, unknown> = {};
+  for (const ctx of contexts) {
+    if (ctx.name) {
+      result[ctx.name] = ctx.data;
+    }
   }
 
-  const contexts: Record<string, any> = {};
-  for (const [_id, ctx] of projectContexts) {
-    contexts[ctx.name] = ctx.data;
-  }
-
-  return contexts;
+  return result;
 }
 
 export default context;

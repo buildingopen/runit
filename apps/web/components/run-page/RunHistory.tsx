@@ -27,10 +27,10 @@ export function RunHistory({
   if (isLoading) {
     return (
       <div className="space-y-2">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Run History</h3>
+        <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-3">Run History</h3>
         <div className="animate-pulse space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded-lg" />
+            <div key={i} className="h-12 bg-[var(--bg-tertiary)] rounded" />
           ))}
         </div>
       </div>
@@ -40,22 +40,22 @@ export function RunHistory({
   if (runs.length === 0) {
     return (
       <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Run History</h3>
-        <div className="text-center py-8 text-gray-500">
+        <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-3">Run History</h3>
+        <div className="text-center py-8">
           <svg
-            className="w-12 h-12 mx-auto mb-2 text-gray-300"
+            className="w-10 h-10 mx-auto mb-2 text-[var(--text-tertiary)]"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            strokeWidth={1}
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-sm">No runs yet</p>
+          <p className="text-xs text-[var(--text-tertiary)]">No runs yet</p>
         </div>
       </div>
     );
@@ -63,10 +63,10 @@ export function RunHistory({
 
   return (
     <div>
-      <h3 className="text-sm font-medium text-gray-700 mb-3">
+      <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-3">
         Run History ({runs.length})
       </h3>
-      <div className="space-y-2">
+      <div className="space-y-1">
         {runs.map((run) => {
           const isSelected = run.run_id === selectedRunId;
           const statusColor = getStatusColor(run.status);
@@ -76,28 +76,33 @@ export function RunHistory({
               key={run.run_id}
               onClick={() => onSelectRun(run.run_id)}
               className={`
-                w-full text-left p-3 rounded-lg border transition-all
+                w-full text-left px-3 py-2 rounded transition-colors
                 ${
                   isSelected
-                    ? 'border-purple-500 bg-purple-50 shadow-sm'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                    ? 'bg-[var(--accent)]/10 border border-[var(--accent)]/30'
+                    : 'hover:bg-[var(--bg-hover)] border border-transparent'
                 }
               `}
             >
-              <div className="flex items-start justify-between gap-2 mb-1">
+              <div className="flex items-center justify-between gap-2 mb-0.5">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className={`inline-block w-2 h-2 rounded-full ${statusColor}`} />
-                  <span className="text-sm text-gray-600 capitalize truncate">
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${statusColor}`} />
+                  <span className="text-xs text-[var(--text-secondary)] capitalize truncate">
                     {run.status}
                   </span>
                 </div>
                 {run.duration_ms && (
-                  <span className="text-xs text-gray-500 flex-shrink-0">
+                  <span className="text-[10px] text-[var(--text-tertiary)] flex-shrink-0">
                     {(run.duration_ms / 1000).toFixed(1)}s
                   </span>
                 )}
               </div>
-              <div className="text-xs text-gray-500 pl-4">
+              {run.endpoint_id && (
+                <div className="text-[10px] text-[var(--text-tertiary)] pl-3.5 font-mono truncate">
+                  {run.endpoint_id}
+                </div>
+              )}
+              <div className="text-[10px] text-[var(--text-tertiary)] pl-3.5">
                 {formatTimestamp(run.created_at)}
               </div>
             </button>
@@ -111,24 +116,41 @@ export function RunHistory({
 function getStatusColor(status: string): string {
   switch (status) {
     case 'success':
-      return 'bg-green-500';
+      return 'bg-[var(--success)]';
     case 'error':
-      return 'bg-red-500';
+      return 'bg-[var(--error)]';
     case 'timeout':
-      return 'bg-amber-500';
+      return 'bg-[var(--warning)]';
     case 'running':
-      return 'bg-blue-500 animate-pulse';
+      return 'bg-[var(--accent)] animate-pulse';
     case 'queued':
-      return 'bg-gray-400';
+      return 'bg-[var(--text-tertiary)]';
     default:
-      return 'bg-gray-400';
+      return 'bg-[var(--text-tertiary)]';
   }
 }
 
 function formatTimestamp(timestamp: string): string {
+  // Handle empty/undefined timestamps
+  if (!timestamp) {
+    return 'Unknown';
+  }
+
   const date = new Date(timestamp);
+
+  // Check for invalid date
+  if (isNaN(date.getTime())) {
+    return 'Invalid date';
+  }
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
+
+  // Handle future dates (clock skew)
+  if (diffMs < 0) {
+    return 'Just now';
+  }
+
   const diffSecs = Math.floor(diffMs / 1000);
   const diffMins = Math.floor(diffSecs / 60);
   const diffHours = Math.floor(diffMins / 60);

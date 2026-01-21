@@ -2,7 +2,28 @@
  * API Client for Execution Layer Control Plane
  */
 
+import { createBrowserClient } from '@supabase/ssr';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+/**
+ * Get the current user's access token from Supabase
+ */
+async function getAccessToken(): Promise<string | null> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return null;
+  }
+
+  try {
+    const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
+  } catch {
+    return null;
+  }
+}
 
 export interface Project {
   project_id: string;
@@ -11,7 +32,8 @@ export interface Project {
   owner_id: string;
   created_at: string;
   updated_at: string;
-  versions: ProjectVersion[];
+  versions?: ProjectVersion[];
+  latest_version?: string;  // From list endpoint (version hash)
 }
 
 export interface ProjectVersion {
@@ -24,8 +46,10 @@ export interface ProjectVersion {
 
 export interface CreateProjectRequest {
   name: string;
-  source_type: 'zip';
-  zip_data: string;
+  source_type: 'zip' | 'github';
+  zip_data?: string;       // For ZIP uploads (base64)
+  github_url?: string;     // For GitHub imports
+  github_ref?: string;     // Branch/tag (optional, defaults to main)
 }
 
 export interface CreateProjectResponse {
@@ -50,11 +74,15 @@ class APIClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
+    // Get auth token if available
+    const token = await getAccessToken();
+
     try {
       const response = await fetch(url, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...options?.headers,
         },
         signal: controller.signal,
@@ -115,28 +143,43 @@ class APIClient {
     const params = versionId ? `?version_id=${versionId}` : '';
     return this.request<{
       endpoints: Array<{
-        id: string;
+        endpoint_id: string;
         method: string;
         path: string;
         summary?: string;
         description?: string;
         requires_gpu?: boolean;
+        schema_ref?: string;
       }>;
     }>(`/projects/${projectId}/endpoints${params}`);
   }
 
   // Get endpoint schema
   async getEndpointSchema(projectId: string, versionId: string, endpointId: string) {
-    return this.request<{
-      endpoint: {
-        id: string;
-        method: string;
-        path: string;
-        summary?: string;
-        description?: string;
-      };
-      schema: any;
+    const response = await this.request<{
+      endpoint_id: string;
+      method: string;
+      path: string;
+      summary?: string;
+      description?: string;
+      request_schema?: any;
+      response_schema?: any;
+      parameters?: any[];
     }>(`/projects/${projectId}/versions/${versionId}/endpoints/${endpointId}/schema`);
+
+    // Map to expected format - request_schema is the input schema (for POST/PUT/PATCH)
+    // For GET endpoints, request_schema will be undefined
+    return {
+      endpoint: {
+        id: response.endpoint_id,
+        method: response.method,
+        path: response.path,
+        summary: response.summary,
+        description: response.description,
+      },
+      schema: response.request_schema,
+      parameters: response.parameters,
+    };
   }
 
   // Create a run
@@ -196,7 +239,7 @@ class APIClient {
     return this.request<{
       runs: Array<{
         run_id: string;
-        endpoint: string;
+        endpoint_id: string;
         status: string;
         created_at: string;
         duration_ms?: number;
@@ -266,6 +309,13 @@ class APIClient {
         last_run_at?: string;
       };
     }>(`/share/${shareId}`);
+  }
+
+  // Delete project
+  async deleteProject(projectId: string) {
+    return this.request<{ status: string }>(`/projects/${projectId}`, {
+      method: 'DELETE',
+    });
   }
 }
 

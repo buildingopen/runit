@@ -167,9 +167,11 @@ export interface RunResult {
   warnings?: string[];
   redactions_applied: boolean;
   // Error info (if status=error)
-  error_class?: string;
-  error_message?: string;
-  suggested_fix?: string;
+  error_class?: string | null;
+  error_message?: string | null;
+  suggested_fix?: string | null;
+  // Execution logs for debugging
+  logs?: string;
 }
 
 export interface ListRunsRequest {

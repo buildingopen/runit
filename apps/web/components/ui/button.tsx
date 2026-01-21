@@ -2,22 +2,22 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
         default:
-          'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
+          'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] active:bg-[var(--accent-hover)]',
         secondary:
-          'bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300',
+          'bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-active)]',
         outline:
-          'border border-gray-300 bg-white text-gray-900 hover:bg-gray-50 active:bg-gray-100',
+          'border border-[var(--border)] bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-active)]',
         ghost:
-          'text-gray-900 hover:bg-gray-100 active:bg-gray-200',
+          'text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-active)]',
         destructive:
-          'bg-error-600 text-white hover:bg-error-700 active:bg-error-800',
+          'bg-[var(--error)] text-white hover:bg-[var(--error)]/90 active:bg-[var(--error)]/80',
         link:
-          'text-primary-600 underline-offset-4 hover:underline',
+          'text-[var(--accent)] underline-offset-4 hover:underline',
       },
       size: {
         sm: 'h-8 px-3 text-sm',

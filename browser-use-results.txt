@@ -1,0 +1,22 @@
+Browser-Use UI Test Results
+Generated: 2026-01-20 17:45:55.382321
+
+## Homepage Load
+Status: pass
+Result: The page loaded successfully and displays 'Execution Layer' and 'Projects'.
+
+## Project Page
+Status: pass
+Result: I see 3 endpoints:
+1. GET / (Read Root)
+2. GET /items/{item_id} (Read Item)
+3. POST /calculate (Calculate)
+
+## New Project Form
+Status: pass
+Result: The project creation form is displayed with the following fields:
+- Project name (input field)
+- Source (ZIP Upload or GitHub radio buttons)
+- File upload area (Drop ZIP file here or browse)
+- Create Project (button)
+

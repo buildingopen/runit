@@ -21,6 +21,7 @@ interface ExtractedOpenAPI {
     description?: string;
     requires_gpu?: boolean;
   }>;
+  entrypoint: string;  // e.g., "api:app" - detected entrypoint
 }
 
 /**
@@ -36,6 +37,7 @@ import base64
 import io
 import json
 import sys
+import os
 import zipfile
 from pathlib import Path
 
@@ -44,22 +46,40 @@ zip_data = base64.b64decode('''${zipBase64}''')
 with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
     zf.extractall('${workDir}')
 
+# Find the app directory (might be nested in a folder)
+app_dir = '${workDir}'
+items = [f for f in os.listdir(app_dir) if not f.startswith('.') and f != '__pycache__']
+if len(items) == 1 and os.path.isdir(os.path.join(app_dir, items[0])):
+    app_dir = os.path.join(app_dir, items[0])
+
 # Add to Python path
-sys.path.insert(0, '${workDir}')
+sys.path.insert(0, app_dir)
+
+# Change to app dir for relative imports
+os.chdir(app_dir)
 
 # Import the FastAPI app
-try:
-    from main import app
-except ImportError:
+app = None
+detected_entrypoint = None
+for module_name, var_name in [('main', 'app'), ('app', 'app'), ('api', 'app'), ('main', 'application'), ('server', 'app')]:
     try:
-        from app import app
+        module = __import__(module_name)
+        if hasattr(module, var_name):
+            app = getattr(module, var_name)
+            detected_entrypoint = f"{module_name}:{var_name}"
+            break
     except ImportError:
-        print(json.dumps({"error": "Could not find FastAPI app (tried main:app and app:app)"}))
-        sys.exit(1)
+        continue
+
+if app is None:
+    print(json.dumps({"error": "Could not find FastAPI app (tried main:app, app:app, api:app, server:app)"}))
+    sys.exit(1)
 
 # Extract OpenAPI spec
 try:
     openapi_spec = app.openapi()
+    # Add entrypoint to the response
+    openapi_spec["x_entrypoint"] = detected_entrypoint
     print(json.dumps(openapi_spec))
 except Exception as e:
     print(json.dumps({"error": f"Failed to extract OpenAPI: {str(e)}"}))
@@ -103,9 +123,14 @@ except Exception as e:
       }
     }
 
+    // Extract entrypoint from the response
+    const entrypoint = openapi.x_entrypoint || 'main:app';
+    delete openapi.x_entrypoint;  // Remove from stored spec
+
     return {
       openapi,
       endpoints,
+      entrypoint,
     };
   } finally {
     // Clean up (best effort)

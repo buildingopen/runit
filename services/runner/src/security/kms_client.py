@@ -9,7 +9,7 @@ import os
 import struct
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 
 
@@ -25,10 +25,11 @@ def get_master_key() -> bytes:
     if not master_key_env:
         # For development, use default key (INSECURE)
         print("WARNING: No MASTER_ENCRYPTION_KEY set, using default (INSECURE)")
-        return b"dev-master-key-32-bytes-long!!"[:32]
+        # Exactly 32 bytes for AES-256 (matches control-plane)
+        return b"dev-master-key-32-bytes-long!!!!"
 
     # Derive key using PBKDF2 (matches TypeScript implementation)
-    kdf = PBKDF2(
+    kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=b"execution-layer-salt-v1",

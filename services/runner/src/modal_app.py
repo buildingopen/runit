@@ -7,26 +7,34 @@ import modal
 import os
 
 # Base image version (pinned, immutable)
-BASE_IMAGE_VERSION = "2024-12-30"
+BASE_IMAGE_VERSION = "2026-01-09"
 
 # Curated base image with common dependencies
 base_image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
-        "fastapi==0.109.0",
+        # Core typing support (must be first to avoid conflicts)
+        "typing_extensions>=4.12.0",
+        # FastAPI and web framework
+        "fastapi>=0.109.0",
         "uvicorn==0.27.0",
-        "httpx==0.26.0",
-        "pydantic==2.5.3",
-        "python-multipart==0.0.6",
+        "httpx>=0.26.0",
+        "pydantic>=2.5.3",
+        "python-multipart>=0.0.6",
         # Common data libraries
-        "pandas==2.1.4",
-        "numpy==1.26.2",
+        "pandas>=2.1.4",
+        "numpy>=1.26.2",
         # HTTP/Scraping
-        "beautifulsoup4==4.12.2",
-        "lxml==4.9.3",
-        "requests==2.31.0",
+        "beautifulsoup4>=4.12.2",
+        "lxml>=4.9.3",
+        "requests>=2.31.0",
         # JSON/Data
-        "orjson==3.9.10",
+        "orjson>=3.9.10",
+        # AI Libraries (commonly needed)
+        "google-genai>=1.0.0",
+        "python-dotenv>=1.0.0",
+        # Cryptography for secrets decryption
+        "cryptography>=41.0.0",
     )
     .apt_install("ca-certificates", "curl")
     .env({
@@ -38,12 +46,13 @@ base_image = (
         "PIP_DISABLE_PIP_VERSION_CHECK": "1",
         "PIP_NO_INPUT": "1",
     })
-    # Add local execution modules to the image (LAST so they're mounted at runtime)
-    .add_local_dir("execute", remote_path="/root/execute")
-    .add_local_dir("build", remote_path="/root/build")
-    .add_local_dir("artifacts", remote_path="/root/artifacts")
-    .add_local_dir("errors", remote_path="/root/errors")
-    .add_local_dir("security", remote_path="/root/security")
+    # Add local execution modules to the image (relative to this file's directory)
+    # Using pathlib to get correct absolute paths
+    .add_local_python_source("execute")
+    .add_local_python_source("build")
+    .add_local_python_source("artifacts")
+    .add_local_python_source("errors")
+    .add_local_python_source("security")
 )
 
 # Single Modal app (execution factory)
@@ -77,9 +86,13 @@ def run_endpoint_cpu(payload: dict) -> dict:
     """
     from execute.executor import execute_endpoint
 
+    # Use timeout from payload, capped at 240s for CPU lane (leave 60s buffer for Modal)
+    requested_timeout = payload.get("timeout_seconds", 60)
+    max_timeout = min(requested_timeout, 240)
+
     return execute_endpoint(
         payload=payload,
-        max_timeout=60,  # CPU timeout
+        max_timeout=max_timeout,
         max_memory_mb=4096,
         lane="cpu"
     )

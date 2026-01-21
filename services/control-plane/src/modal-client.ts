@@ -13,6 +13,7 @@ interface ModalExecutionRequest {
   run_id: string;
   code_bundle: string;  // base64
   endpoint: string;     // "POST /greet"
+  entrypoint?: string;  // e.g., "api:app" - defaults to "main:app"
   request_data: {
     params?: Record<string, any>;
     json?: any;
@@ -42,6 +43,17 @@ interface ModalExecutionResult {
 }
 
 /**
+ * Convert JSON to Python-compatible string
+ * Replaces true/false/null with True/False/None
+ */
+function jsonToPython(obj: any): string {
+  return JSON.stringify(obj)
+    .replace(/\btrue\b/g, 'True')
+    .replace(/\bfalse\b/g, 'False')
+    .replace(/\bnull\b/g, 'None');
+}
+
+/**
  * Execute endpoint on Modal runtime
  *
  * This calls the deployed Modal function using Python SDK
@@ -64,14 +76,16 @@ run_endpoint_${request.lane} = modal.Function.from_name(
 payload = {
     "run_id": "${request.run_id}",
     "code_bundle": """${request.code_bundle}""",
-    "entrypoint": "main:app",
+    "entrypoint": "${request.entrypoint || 'main:app'}",
     "endpoint": "${request.endpoint}",
-    "request_data": ${JSON.stringify(request.request_data)},
+    "request_data": ${jsonToPython(request.request_data)},
     "env": {},
+    "secrets_ref": ${request.secrets_ref ? `"${request.secrets_ref}"` : 'None'},
     "context": {},
     "deps_hash": "no-deps",
     "project_id": "test-project",
     "deterministic": False,
+    "timeout_seconds": ${request.timeout_seconds},
 }
 
 # Execute

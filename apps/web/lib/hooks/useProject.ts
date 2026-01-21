@@ -13,6 +13,13 @@ export function useProject(projectId: string | null) {
     queryKey: ['project', projectId],
     queryFn: () => apiClient.getProject(projectId!),
     enabled: !!projectId,
+    retry: (failureCount, error) => {
+      // Don't retry on 404 or other client errors
+      if (error instanceof Error && (error.message.includes('404') || error.message.includes('not found'))) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 }
 
@@ -87,5 +94,56 @@ export function useRunsList(projectId: string | null, limit?: number) {
     queryKey: ['runs', projectId, limit],
     queryFn: () => apiClient.listRuns(projectId!, limit),
     enabled: !!projectId,
+  });
+}
+
+/**
+ * Fetch share links for a project
+ */
+export function useShareLinks(projectId: string | null) {
+  return useQuery({
+    queryKey: ['shares', projectId],
+    queryFn: () => apiClient.listShareLinks(projectId!),
+    enabled: !!projectId,
+  });
+}
+
+/**
+ * Create share link mutation
+ */
+export function useCreateShareLink() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      projectId: string;
+      target_type: 'endpoint_template' | 'run_result';
+      target_ref: string;
+    }) => apiClient.createShareLink(data.projectId, {
+      target_type: data.target_type,
+      target_ref: data.target_ref,
+    }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['shares', variables.projectId],
+      });
+    },
+  });
+}
+
+/**
+ * Disable share link mutation
+ */
+export function useDisableShareLink() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { projectId: string; shareId: string }) =>
+      apiClient.disableShareLink(data.projectId, data.shareId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['shares', variables.projectId],
+      });
+    },
   });
 }
