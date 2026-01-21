@@ -15,12 +15,12 @@ const openapi = new Hono();
 openapi.post('/:project_id/versions/:version_id/extract-openapi', async (c) => {
   const { project_id, version_id } = c.req.param();
 
-  const project = getProject(project_id);
+  const project = await getProject(project_id);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  const version = project.versions.find(v => v.version_id === version_id);
+  const version = project.versions.find((v: { version_id: string }) => v.version_id === version_id);
   if (!version) {
     return c.json({ error: 'Version not found' }, 404);
   }
@@ -30,12 +30,12 @@ openapi.post('/:project_id/versions/:version_id/extract-openapi', async (c) => {
     const { openapi: openapiSpec, endpoints } = await extractOpenAPIFromZip(version.code_bundle);
 
     // Store in version
-    updateVersionOpenAPI(project_id, version_id, openapiSpec, endpoints);
+    await updateVersionOpenAPI(project_id, version_id, openapiSpec, endpoints);
 
     return c.json({
       success: true,
       endpoints_count: endpoints.length,
-      endpoints: endpoints.map(ep => ({
+      endpoints: endpoints.map((ep: { id: string; method: string; path: string; summary?: string }) => ({
         id: ep.id,
         method: ep.method,
         path: ep.path,

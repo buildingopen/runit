@@ -2,140 +2,211 @@
  * Tests for rate limiting middleware
  */
 
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { rateLimitMiddleware, shareLinkRateLimitMiddleware, resetRateLimit } from '../rate-limit';
+import {
+  createMockContext,
+  createMockNext,
+  createAuthenticatedContext,
+  createAnonymousContext,
+  asHonoContext,
+  asHonoNext,
+} from '../test-helpers';
 
 describe('Rate Limiting', () => {
-  let req: any;
-  let res: any;
-  let next: jest.Mock;
-
   beforeEach(() => {
-    req = {
-      ip: '127.0.0.1',
-      connection: { remoteAddress: '127.0.0.1' },
-      user: null,
-    };
-
-    res = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn(),
-      setHeader: jest.fn(),
-    };
-
-    next = jest.fn();
-
     // Reset rate limits before each test
-    resetRateLimit('ip:127.0.0.1');
-    resetRateLimit('user:test-user');
+    resetRateLimit('api:ip:127.0.0.1');
+    resetRateLimit('api:user:test-user');
+    resetRateLimit('share:share-123');
   });
 
   describe('Anonymous Users', () => {
-    it('should allow requests within limit (10/min)', () => {
-      // Make 10 requests
-      for (let i = 0; i < 10; i++) {
-        rateLimitMiddleware(req, res, next);
-      }
+    it('should allow requests within limit (60/min for anonymous)', async () => {
+      // Make 60 requests (the anonymous limit)
+      for (let i = 0; i < 60; i++) {
+        const c = createAnonymousContext('127.0.0.1', {
+          method: 'GET',
+          path: '/api/projects',
+        });
+        const next = createMockNext();
 
-      expect(next).toHaveBeenCalledTimes(10);
-      expect(res.status).not.toHaveBeenCalledWith(429);
+        await rateLimitMiddleware(asHonoContext(c), asHonoNext(next));
+
+        expect(next).toHaveBeenCalled();
+        expect(c.json).not.toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Rate limit exceeded' }),
+          429
+        );
+      }
     });
 
-    it('should block requests exceeding limit (10/min)', () => {
-      // Make 11 requests
-      for (let i = 0; i < 11; i++) {
-        rateLimitMiddleware(req, res, next);
+    it('should block requests exceeding limit', async () => {
+      // Use up the limit
+      for (let i = 0; i < 60; i++) {
+        const c = createAnonymousContext('127.0.0.1', {
+          method: 'GET',
+          path: '/api/projects',
+        });
+        const next = createMockNext();
+        await rateLimitMiddleware(asHonoContext(c), asHonoNext(next));
       }
 
-      expect(next).toHaveBeenCalledTimes(10);
-      expect(res.status).toHaveBeenCalledWith(429);
-      expect(res.json).toHaveBeenCalledWith(
+      // 61st request should be blocked
+      const c = createAnonymousContext('127.0.0.1', {
+        method: 'GET',
+        path: '/api/projects',
+      });
+      const next = createMockNext();
+
+      await rateLimitMiddleware(asHonoContext(c), asHonoNext(next));
+
+      expect(next).not.toHaveBeenCalled();
+      expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
           error: 'Rate limit exceeded',
-          limit: 10,
-        })
+        }),
+        429
       );
     });
 
-    it('should set rate limit headers', () => {
-      rateLimitMiddleware(req, res, next);
+    it('should set rate limit headers', async () => {
+      const c = createAnonymousContext('127.0.0.1', {
+        method: 'GET',
+        path: '/api/projects',
+      });
+      const next = createMockNext();
 
-      expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', '10');
-      expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', expect.any(String));
-      expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Reset', expect.any(String));
+      await rateLimitMiddleware(asHonoContext(c), asHonoNext(next));
+
+      expect(c._responseHeaders.get('X-RateLimit-Limit')).toBeDefined();
+      expect(c._responseHeaders.get('X-RateLimit-Remaining')).toBeDefined();
+      expect(c._responseHeaders.get('X-RateLimit-Reset')).toBeDefined();
     });
   });
 
   describe('Authenticated Users', () => {
     beforeEach(() => {
-      req.user = { id: 'test-user' };
+      resetRateLimit('api:user:test-user');
     });
 
-    it('should allow requests within limit (60/min)', () => {
-      // Make 60 requests
-      for (let i = 0; i < 60; i++) {
-        rateLimitMiddleware(req, res, next);
-      }
+    it('should allow requests within limit (120/min for authenticated)', async () => {
+      // Make 120 requests (the authenticated limit)
+      for (let i = 0; i < 120; i++) {
+        const c = createAuthenticatedContext('test-user', {
+          method: 'GET',
+          path: '/api/projects',
+        });
+        const next = createMockNext();
 
-      expect(next).toHaveBeenCalledTimes(60);
-      expect(res.status).not.toHaveBeenCalledWith(429);
+        await rateLimitMiddleware(asHonoContext(c), asHonoNext(next));
+
+        expect(next).toHaveBeenCalled();
+        expect(c.json).not.toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Rate limit exceeded' }),
+          429
+        );
+      }
     });
 
-    it('should block requests exceeding limit (60/min)', () => {
-      // Make 61 requests
-      for (let i = 0; i < 61; i++) {
-        rateLimitMiddleware(req, res, next);
+    it('should block requests exceeding limit', async () => {
+      // Use up the limit
+      for (let i = 0; i < 120; i++) {
+        const c = createAuthenticatedContext('test-user', {
+          method: 'GET',
+          path: '/api/projects',
+        });
+        const next = createMockNext();
+        await rateLimitMiddleware(asHonoContext(c), asHonoNext(next));
       }
 
-      expect(next).toHaveBeenCalledTimes(60);
-      expect(res.status).toHaveBeenCalledWith(429);
-      expect(res.json).toHaveBeenCalledWith(
+      // 121st request should be blocked
+      const c = createAuthenticatedContext('test-user', {
+        method: 'GET',
+        path: '/api/projects',
+      });
+      const next = createMockNext();
+
+      await rateLimitMiddleware(asHonoContext(c), asHonoNext(next));
+
+      expect(next).not.toHaveBeenCalled();
+      expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
           error: 'Rate limit exceeded',
-          limit: 60,
-        })
+        }),
+        429
       );
     });
   });
 
   describe('Share Link Rate Limiting', () => {
     beforeEach(() => {
-      req.params = { shareLinkId: 'share-123' };
+      resetRateLimit('share:share-123');
     });
 
-    it('should allow requests within limit (100/hour)', () => {
+    it('should allow requests within limit (100/hour)', async () => {
       // Make 100 requests
       for (let i = 0; i < 100; i++) {
-        shareLinkRateLimitMiddleware(req, res, next);
-      }
+        const c = createAnonymousContext('127.0.0.1', {
+          method: 'POST',
+          path: '/share/share-123/run',
+          params: { shareLinkId: 'share-123' },
+        });
+        const next = createMockNext();
 
-      expect(next).toHaveBeenCalledTimes(100);
-      expect(res.status).not.toHaveBeenCalledWith(429);
+        await shareLinkRateLimitMiddleware(asHonoContext(c), asHonoNext(next));
+
+        expect(next).toHaveBeenCalled();
+        expect(c.json).not.toHaveBeenCalledWith(
+          expect.objectContaining({ error: 'Share link rate limit exceeded' }),
+          429
+        );
+      }
     });
 
-    it('should block requests exceeding limit (100/hour)', () => {
-      // Make 101 requests
-      for (let i = 0; i < 101; i++) {
-        shareLinkRateLimitMiddleware(req, res, next);
+    it('should block requests exceeding limit (100/hour)', async () => {
+      // Use up the limit
+      for (let i = 0; i < 100; i++) {
+        const c = createAnonymousContext('127.0.0.1', {
+          method: 'POST',
+          path: '/share/share-123/run',
+          params: { shareLinkId: 'share-123' },
+        });
+        const next = createMockNext();
+        await shareLinkRateLimitMiddleware(asHonoContext(c), asHonoNext(next));
       }
 
-      expect(next).toHaveBeenCalledTimes(100);
-      expect(res.status).toHaveBeenCalledWith(429);
-      expect(res.json).toHaveBeenCalledWith(
+      // 101st request should be blocked
+      const c = createAnonymousContext('127.0.0.1', {
+        method: 'POST',
+        path: '/share/share-123/run',
+        params: { shareLinkId: 'share-123' },
+      });
+      const next = createMockNext();
+
+      await shareLinkRateLimitMiddleware(asHonoContext(c), asHonoNext(next));
+
+      expect(next).not.toHaveBeenCalled();
+      expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
           error: 'Share link rate limit exceeded',
-          limit: 100,
-        })
+        }),
+        429
       );
     });
 
-    it('should pass through if no share link ID', () => {
-      req.params = {};
-      req.query = {};
+    it('should pass through if no share link ID', async () => {
+      const c = createAnonymousContext('127.0.0.1', {
+        method: 'POST',
+        path: '/runs',
+        params: {},
+      });
+      const next = createMockNext();
 
-      shareLinkRateLimitMiddleware(req, res, next);
+      await shareLinkRateLimitMiddleware(asHonoContext(c), asHonoNext(next));
 
       expect(next).toHaveBeenCalled();
-      expect(res.status).not.toHaveBeenCalled();
+      expect(c.json).not.toHaveBeenCalled();
     });
   });
 });

@@ -6,6 +6,7 @@
 import { Hono } from 'hono';
 import { encryptSecret, decryptSecret } from '../crypto/kms';
 import { getProjectSecrets, storeSecret, deleteSecret, getSecret } from '../db/secrets-store';
+import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../constants';
 
 const secrets = new Hono();
 
@@ -31,9 +32,10 @@ secrets.post('/:projectId/secrets', async (c) => {
   }
 
   // Reject reserved prefix
-  if (key.startsWith('EL_')) {
+  if (key.startsWith(SECRETS_RESERVED_PREFIX)) {
     return c.json({
-      error: `Secret key '${key}' uses reserved prefix 'EL_'. Choose a different name.`
+      error: `Secret key '${key}' uses reserved prefix '${SECRETS_RESERVED_PREFIX}'. Choose a different name.`,
+      code: ERROR_CODES.SECRET_RESERVED_PREFIX
     }, 400);
   }
 
@@ -51,8 +53,16 @@ secrets.post('/:projectId/secrets', async (c) => {
       updated_at: secret.updated_at
     }, 201);
   } catch (error) {
-    console.error('Failed to store secret:', error);
-    return c.json({ error: 'Failed to store secret' }, 500);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[${ERROR_CODES.SECRET_STORE_FAILED}] Failed to store secret for project ${projectId}:`, {
+      key,
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    });
+    return c.json({
+      error: 'Failed to store secret',
+      code: ERROR_CODES.SECRET_STORE_FAILED
+    }, 500);
   }
 });
 
@@ -76,8 +86,15 @@ secrets.get('/:projectId/secrets', async (c) => {
 
     return c.json({ secrets: secretsList });
   } catch (error) {
-    console.error('Failed to list secrets:', error);
-    return c.json({ error: 'Failed to list secrets' }, 500);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[${ERROR_CODES.SECRET_LIST_FAILED}] Failed to list secrets for project ${projectId}:`, {
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    });
+    return c.json({
+      error: 'Failed to list secrets',
+      code: ERROR_CODES.SECRET_LIST_FAILED
+    }, 500);
   }
 });
 
@@ -92,8 +109,15 @@ secrets.delete('/:projectId/secrets/:key', async (c) => {
     await deleteSecret(projectId, key);
     return c.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete secret:', error);
-    return c.json({ error: 'Failed to delete secret' }, 500);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[${ERROR_CODES.SECRET_DELETE_FAILED}] Failed to delete secret ${key} for project ${projectId}:`, {
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    });
+    return c.json({
+      error: 'Failed to delete secret',
+      code: ERROR_CODES.SECRET_DELETE_FAILED
+    }, 500);
   }
 });
 

@@ -48,10 +48,10 @@ export function useRunStatus(runId: string | null, enabled = true) {
       return getRunStatus({ run_id: runId });
     },
     enabled: enabled && !!runId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll every 1s while running, stop when complete
-      if (!data) return 1000;
-      const status = data.status;
+      if (!query.state.data) return 1000;
+      const status = query.state.data.status;
       if (status === 'queued' || status === 'running') {
         return 1000;
       }

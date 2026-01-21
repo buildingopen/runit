@@ -3,8 +3,11 @@
  */
 
 import { Hono } from 'hono';
-import { randomUUID } from 'crypto';
 import { createHash } from 'crypto';
+import { spawn } from 'child_process';
+import { mkdtemp, rm, readFile } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import type {
   CreateProjectRequest,
   CreateProjectResponse,
@@ -12,27 +15,100 @@ import type {
   GetProjectResponse
 } from '@execution-layer/shared';
 import { extractOpenAPIFromZip } from '../openapi-extractor.js';
+import {
+  validateProjectName,
+  validateBase64,
+  validateZipMagicBytes,
+  validateZipDataSize,
+} from '../lib/validation-utils.js';
+import { getAuthContext, getAuthUser } from '../middleware/auth.js';
+import * as projectsStore from '../db/projects-store.js';
+import * as runsStore from '../db/runs-store.js';
+
+// Validation patterns for GitHub inputs (prevent command injection)
+const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[\w\-\.]+\/[\w\-\.]+(?:\.git)?$/;
+const GIT_REF_PATTERN = /^[\w\-\.\/]+$/;
+
+/**
+ * Run a command safely using spawn (prevents shell injection)
+ */
+function runCommand(cmd: string, args: string[], options: { cwd?: string; timeout?: number }): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, args, {
+      cwd: options.cwd,
+      timeout: options.timeout,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    proc.stdout.on('data', (data) => { stdout += data.toString(); });
+    proc.stderr.on('data', (data) => { stderr += data.toString(); });
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve(stdout);
+      } else {
+        reject(new Error(stderr || stdout || `Command failed with code ${code}`));
+      }
+    });
+
+    proc.on('error', reject);
+  });
+}
+
+/**
+ * Clone a GitHub repo and return as base64 ZIP
+ * Uses spawn with array arguments to prevent command injection
+ */
+async function cloneGitHubRepo(github_url: string, github_ref?: string): Promise<string> {
+  // Validate GitHub URL format (prevent command injection)
+  if (!GITHUB_URL_PATTERN.test(github_url)) {
+    throw new Error('Invalid GitHub URL format. Must be https://github.com/owner/repo');
+  }
+
+  // Validate git ref format if provided
+  if (github_ref && !GIT_REF_PATTERN.test(github_ref)) {
+    throw new Error('Invalid git ref format. Only alphanumeric, dash, dot, and slash allowed');
+  }
+
+  // Create temp directory
+  const tempDir = await mkdtemp(join(tmpdir(), 'github-clone-'));
+  const repoDir = join(tempDir, 'repo');
+
+  try {
+    // Build git clone arguments as array (safe from injection)
+    const cloneArgs = ['clone', '--depth', '1'];
+    if (github_ref) {
+      cloneArgs.push('--branch', github_ref);
+    }
+    cloneArgs.push(github_url, repoDir);
+
+    console.log(`📥 Cloning ${github_url}${github_ref ? ` (${github_ref})` : ''}...`);
+    await runCommand('git', cloneArgs, { timeout: 60000 });
+
+    // Remove .git directory to reduce size
+    const gitDir = join(repoDir, '.git');
+    await rm(gitDir, { recursive: true, force: true });
+
+    // Create ZIP of the repo using spawn (safe)
+    const zipPath = join(tempDir, 'repo.zip');
+    await runCommand('zip', ['-r', zipPath, '.'], { cwd: repoDir, timeout: 30000 });
+
+    // Read ZIP as base64
+    const zipBuffer = await readFile(zipPath);
+    const base64 = zipBuffer.toString('base64');
+
+    console.log(`✅ Cloned and zipped ${github_url} (${Math.round(base64.length / 1024)}KB)`);
+    return base64;
+  } finally {
+    // Cleanup temp directory
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
 
 const projects = new Hono();
-
-// In-memory store for MVP (replace with database later)
-const projectsStore = new Map<string, {
-  project_id: string;
-  project_slug: string;
-  name: string;
-  owner_id: string;
-  created_at: string;
-  updated_at: string;
-  versions: Array<{
-    version_id: string;
-    version_hash: string;
-    code_bundle: string;  // base64
-    created_at: string;
-    status: 'building' | 'ready' | 'failed';
-    openapi?: any;
-    endpoints?: any[];
-  }>;
-}>();
 
 /**
  * POST /projects - Create a new project
@@ -40,71 +116,114 @@ const projectsStore = new Map<string, {
 projects.post('/', async (c) => {
   const body = await c.req.json() as CreateProjectRequest;
 
-  // Validate request
+  // Get authenticated user
+  const authContext = getAuthContext(c);
+  const owner_id = authContext.user?.id || 'anonymous';
+
+  // Validate required fields
   if (!body.name || !body.source_type) {
     return c.json({ error: 'Missing required fields: name, source_type' }, 400);
   }
 
-  if (body.source_type === 'zip' && !body.zip_data) {
-    return c.json({ error: 'zip_data required for ZIP uploads' }, 400);
+  // Validate source_type enum
+  if (!['zip', 'github'].includes(body.source_type)) {
+    return c.json({
+      error: 'Invalid source_type. Must be "zip" or "github"',
+      received: body.source_type
+    }, 400);
   }
 
-  // Generate IDs
-  const project_id = randomUUID();
-  const project_slug = body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const version_id = randomUUID();
+  // Validate project name (length and format)
+  const nameValidation = validateProjectName(body.name);
+  if (!nameValidation.valid) {
+    return c.json({ error: nameValidation.error }, 400);
+  }
 
-  // Calculate version hash from code bundle
-  const code_bundle = body.zip_data || '';
-  const version_hash = createHash('sha256').update(code_bundle).digest('hex').substring(0, 12);
+  // Validate ZIP-specific requirements
+  if (body.source_type === 'zip') {
+    if (!body.zip_data) {
+      return c.json({ error: 'zip_data required for ZIP uploads' }, 400);
+    }
 
-  // Create project
-  const version: {
-    version_id: string;
-    version_hash: string;
-    code_bundle: string;
-    created_at: string;
-    status: 'building' | 'ready' | 'failed';
-    openapi?: any;
-    endpoints?: any[];
-  } = {
-    version_id,
-    version_hash,
-    code_bundle,
-    created_at: new Date().toISOString(),
-    status: 'ready',
-  };
+    // Validate base64 format
+    const base64Validation = validateBase64(body.zip_data);
+    if (!base64Validation.valid) {
+      return c.json({ error: base64Validation.error }, 400);
+    }
 
-  const project = {
-    project_id,
-    project_slug,
-    name: body.name,
-    owner_id: 'default-user',  // TODO: Get from auth
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    versions: [version]
-  };
+    // Validate ZIP size
+    const sizeValidation = validateZipDataSize(body.zip_data);
+    if (!sizeValidation.valid) {
+      return c.json({ error: sizeValidation.error }, 400);
+    }
 
-  projectsStore.set(project_id, project);
-
-  // Extract OpenAPI spec (non-blocking, best-effort)
-  if (code_bundle) {
-    try {
-      const { openapi, endpoints } = await extractOpenAPIFromZip(code_bundle);
-      version.openapi = openapi;
-      version.endpoints = endpoints;
-      console.log(`✅ Extracted ${endpoints.length} endpoints from ${project.name}`);
-    } catch (error) {
-      console.warn('⚠️  OpenAPI extraction failed (non-fatal):', error);
-      // Non-fatal: project created but without OpenAPI
+    // Validate ZIP magic bytes
+    const zipValidation = validateZipMagicBytes(body.zip_data);
+    if (!zipValidation.valid) {
+      return c.json({ error: zipValidation.error }, 400);
     }
   }
 
-  const response: CreateProjectResponse = {
-    project_id,
-    project_slug,
-    version_id,
+  // Validate GitHub-specific requirements
+  if (body.source_type === 'github' && !body.github_url) {
+    return c.json({ error: 'github_url required for GitHub imports' }, 400);
+  }
+
+  // Get code bundle - either from ZIP upload or GitHub clone
+  let code_bundle: string;
+
+  if (body.source_type === 'github' && body.github_url) {
+    try {
+      code_bundle = await cloneGitHubRepo(body.github_url, body.github_ref);
+    } catch (error) {
+      console.error('❌ GitHub clone failed:', error);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return c.json({ error: `Failed to clone GitHub repository: ${message}` }, 400);
+    }
+  } else {
+    code_bundle = body.zip_data || '';
+  }
+  const version_hash = createHash('sha256').update(code_bundle).digest('hex').substring(0, 12);
+
+  // Create project in database
+  const project = await projectsStore.createProject({
+    owner_id,
+    name: body.name,
+  });
+
+  // Extract OpenAPI spec
+  let openapi: any = null;
+  let endpoints: any[] = [];
+  let entrypoint: string | null = null;
+
+  if (code_bundle) {
+    try {
+      const extracted = await extractOpenAPIFromZip(code_bundle);
+      openapi = extracted.openapi;
+      endpoints = extracted.endpoints;
+      entrypoint = extracted.entrypoint;
+      console.log(`✅ Extracted ${endpoints.length} endpoints from ${project.name} (entrypoint: ${entrypoint})`);
+    } catch (error) {
+      console.warn('⚠️  OpenAPI extraction failed (non-fatal):', error);
+    }
+  }
+
+  // Create version in database
+  const version = await projectsStore.createVersion({
+    project_id: project.id,
     version_hash,
+    code_bundle_ref: code_bundle, // In production, store in blob storage
+    openapi,
+    endpoints: endpoints as projectsStore.Endpoint[],
+    entrypoint,
+    status: 'ready',
+  });
+
+  const response: CreateProjectResponse = {
+    project_id: project.id,
+    project_slug: project.slug,
+    version_id: version.id,
+    version_hash: version.version_hash,
     status: 'ready',
   };
 
@@ -115,14 +234,27 @@ projects.post('/', async (c) => {
  * GET /projects - List all projects
  */
 projects.get('/', async (c) => {
-  const projects_array = Array.from(projectsStore.values()).map(p => ({
-    project_id: p.project_id,
-    project_slug: p.project_slug,
-    name: p.name,
-    latest_version: p.versions[p.versions.length - 1]?.version_hash || '',
-    created_at: p.created_at,
-    updated_at: p.updated_at,
-  }));
+  // Get authenticated user
+  const authContext = getAuthContext(c);
+  const owner_id = authContext.user?.id || 'anonymous';
+
+  // List projects for this user
+  const userProjects = await projectsStore.listProjects(owner_id);
+
+  // Get latest version for each project
+  const projects_array = await Promise.all(
+    userProjects.map(async (p) => {
+      const latestVersion = await projectsStore.getLatestVersion(p.id);
+      return {
+        project_id: p.id,
+        project_slug: p.slug,
+        name: p.name,
+        latest_version: latestVersion?.version_hash || '',
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+      };
+    })
+  );
 
   const response: ListProjectsResponse = {
     projects: projects_array,
@@ -137,22 +269,25 @@ projects.get('/', async (c) => {
  */
 projects.get('/:id', async (c) => {
   const project_id = c.req.param('id');
-  const project = projectsStore.get(project_id);
+  const project = await projectsStore.getProject(project_id);
 
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
   }
 
+  // Get versions
+  const versions = await projectsStore.listVersions(project_id);
+
   const response: GetProjectResponse = {
-    project_id: project.project_id,
-    project_slug: project.project_slug,
+    project_id: project.id,
+    project_slug: project.slug,
     name: project.name,
     owner_id: project.owner_id,
-    versions: project.versions.map(v => ({
-      version_id: v.version_id,
+    versions: versions.map(v => ({
+      version_id: v.id,
       version_hash: v.version_hash,
       created_at: v.created_at,
-      status: v.status,
+      status: v.status as 'building' | 'ready' | 'failed',
     })),
     created_at: project.created_at,
     updated_at: project.updated_at,
@@ -164,23 +299,37 @@ projects.get('/:id', async (c) => {
 /**
  * Helper to get project from store
  */
-export function getProject(project_id: string) {
-  return projectsStore.get(project_id);
+export async function getProject(project_id: string) {
+  const project = await projectsStore.getProject(project_id);
+  if (!project) return null;
+
+  const versions = await projectsStore.listVersions(project_id);
+  return {
+    ...project,
+    project_id: project.id,
+    project_slug: project.slug,
+    versions: versions.map(v => ({
+      version_id: v.id,
+      version_hash: v.version_hash,
+      code_bundle: v.code_bundle_ref,
+      created_at: v.created_at,
+      status: v.status,
+      openapi: v.openapi,
+      endpoints: v.endpoints,
+      entrypoint: v.entrypoint,
+    })),
+  };
 }
 
 /**
  * Helper to update project version with OpenAPI
  */
-export function updateVersionOpenAPI(project_id: string, version_id: string, openapi: any, endpoints: any[]) {
-  const project = projectsStore.get(project_id);
-  if (!project) return false;
-
-  const version = project.versions.find(v => v.version_id === version_id);
-  if (!version) return false;
-
-  version.openapi = openapi;
-  version.endpoints = endpoints;
-  return true;
+export async function updateVersionOpenAPI(project_id: string, version_id: string, openapi: any, endpoints: any[]) {
+  const result = await projectsStore.updateVersion(version_id, {
+    openapi,
+    endpoints: endpoints as projectsStore.Endpoint[],
+  });
+  return !!result;
 }
 
 /**
@@ -190,21 +339,19 @@ projects.get('/:id/endpoints', async (c) => {
   const project_id = c.req.param('id');
   const version_id = c.req.query('version_id');
 
-  const project = projectsStore.get(project_id);
+  const project = await projectsStore.getProject(project_id);
 
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  // Check if project has any versions
-  if (!project.versions || project.versions.length === 0) {
-    return c.json({ error: 'No versions found for this project' }, 404);
-  }
-
   // Get specific version or latest
-  const version = version_id
-    ? project.versions.find(v => v.version_id === version_id)
-    : project.versions[project.versions.length - 1];
+  let version: projectsStore.ProjectVersion | null;
+  if (version_id) {
+    version = await projectsStore.getVersion(version_id);
+  } else {
+    version = await projectsStore.getLatestVersion(project_id);
+  }
 
   if (!version) {
     return c.json({ error: 'Version not found' }, 404);
@@ -225,14 +372,13 @@ projects.get('/:id/endpoints', async (c) => {
  */
 projects.get('/:id/runs', async (c) => {
   const project_id = c.req.param('id');
-  const { getRunsForProject } = await import('./runs.js');
-
-  const runs = getRunsForProject(project_id);
   const limit = parseInt(c.req.query('limit') || '20');
 
+  const runs = await runsStore.listProjectRuns(project_id, { limit });
+
   return c.json({
-    runs: runs.slice(0, limit).map(run => ({
-      run_id: run.run_id,
+    runs: runs.map(run => ({
+      run_id: run.id,
       endpoint_id: run.endpoint_id,
       status: run.status,
       created_at: run.created_at,

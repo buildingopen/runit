@@ -210,8 +210,17 @@ def execute_endpoint(
         log("Importing FastAPI app...")
         sys.path.insert(0, str(workspace))
 
+        # Log workspace contents for debugging
+        log(f"Workspace path: {workspace}")
+        try:
+            workspace_files = list(workspace.iterdir())
+            log(f"Workspace contents: {[f.name for f in workspace_files]}")
+        except Exception as ws_err:
+            log(f"Could not list workspace: {ws_err}")
+
         entrypoint = payload.get("entrypoint", "main:app")
         module_name, app_name = entrypoint.split(":")
+        log(f"Attempting to import: {module_name}:{app_name}")
 
         try:
             import importlib
@@ -219,6 +228,10 @@ def execute_endpoint(
             module = importlib.import_module(module_name)
             app = getattr(module, app_name)
         except (ImportError, AttributeError) as e:
+            # Log the actual exception type and details
+            import traceback
+            log(f"Import failed: {type(e).__name__}: {e}")
+            log(f"Traceback: {traceback.format_exc()}")
             raise ExecutionError(
                 error_class="ENTRYPOINT_NOT_FOUND",
                 message=f"Couldn't find FastAPI app at {entrypoint}",

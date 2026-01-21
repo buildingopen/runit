@@ -18,14 +18,14 @@ endpoints.get('/:project_id/endpoints', async (c) => {
   const project_id = c.req.param('project_id');
   const version_id = c.req.query('version_id');  // Optional
 
-  const project = getProject(project_id);
+  const project = await getProject(project_id);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
   }
 
   // Get version (latest if not specified)
   const version = version_id
-    ? project.versions.find(v => v.version_id === version_id)
+    ? project.versions.find((v: { version_id: string }) => v.version_id === version_id)
     : project.versions[project.versions.length - 1];
 
   if (!version) {
@@ -39,7 +39,7 @@ endpoints.get('/:project_id/endpoints', async (c) => {
   const response: ListEndpointsResponse = {
     project_id,
     version_id: version.version_id,
-    endpoints: version.endpoints.map(ep => ({
+    endpoints: version.endpoints.map((ep: { id: string; method: string; path: string; summary?: string; description?: string; requires_gpu?: boolean }) => ({
       endpoint_id: ep.id,
       method: ep.method,
       path: ep.path,
@@ -60,12 +60,12 @@ endpoints.get('/:project_id/endpoints', async (c) => {
 endpoints.get('/:project_id/versions/:version_id/endpoints/:endpoint_id/schema', async (c) => {
   const { project_id, version_id, endpoint_id } = c.req.param();
 
-  const project = getProject(project_id);
+  const project = await getProject(project_id);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  const version = project.versions.find(v => v.version_id === version_id);
+  const version = project.versions.find((v: { version_id: string }) => v.version_id === version_id);
   if (!version) {
     return c.json({ error: 'Version not found' }, 404);
   }
@@ -74,13 +74,14 @@ endpoints.get('/:project_id/versions/:version_id/endpoints/:endpoint_id/schema',
     return c.json({ error: 'OpenAPI not yet extracted' }, 400);
   }
 
-  const endpoint = version.endpoints?.find(ep => ep.id === endpoint_id);
+  const endpoint = version.endpoints?.find((ep: { id: string }) => ep.id === endpoint_id);
   if (!endpoint) {
     return c.json({ error: 'Endpoint not found' }, 404);
   }
 
   // Extract schema from OpenAPI spec
-  const operation = version.openapi.paths?.[endpoint.path]?.[endpoint.method.toLowerCase()];
+  const openapi = version.openapi as { paths?: Record<string, Record<string, any>> };
+  const operation = openapi.paths?.[endpoint.path]?.[endpoint.method.toLowerCase()];
   if (!operation) {
     return c.json({ error: 'Endpoint schema not found in OpenAPI' }, 500);
   }

@@ -4,6 +4,7 @@
  */
 
 import type { Context, Next } from 'hono';
+import { getAuthContext } from './auth.js';
 
 interface RateLimitEntry {
   count: number;
@@ -15,11 +16,13 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 
 const LIMITS = {
   authenticated: {
-    requestsPerMinute: 60,
+    requestsPerMinute: 120,
     windowMs: 60_000
   },
   anonymous: {
-    requestsPerMinute: 10,
+    // Increased from 10 to 60 for better dev/demo experience
+    // In production, consider lower limits with auth-based increases
+    requestsPerMinute: 60,
     windowMs: 60_000
   },
   shareLink: {
@@ -30,12 +33,19 @@ const LIMITS = {
 
 /**
  * Get rate limit key for request
+ * Uses user ID for authenticated users, IP for anonymous
  */
 function getRateLimitKey(c: Context, prefix: string = 'api'): string {
-  // In v0, use IP-based rate limiting
-  // In production, use user ID for authenticated users
+  const authContext = getAuthContext(c);
+
+  // Use user ID for authenticated users
+  if (authContext.isAuthenticated && authContext.user) {
+    return `${prefix}:user:${authContext.user.id}`;
+  }
+
+  // Fall back to IP-based rate limiting for anonymous users
   const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
-  return `${prefix}:${ip}`;
+  return `${prefix}:ip:${ip}`;
 }
 
 /**
@@ -98,10 +108,14 @@ setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
  * Rate limiting middleware for general API requests
  */
 export async function rateLimitMiddleware(c: Context, next: Next) {
-  const key = getRateLimitKey(c, 'api');
+  // Skip rate limiting in development mode
+  if (process.env.NODE_ENV === 'development' || process.env.DISABLE_RATE_LIMIT === 'true') {
+    return next();
+  }
 
-  // Check if user is authenticated (placeholder - implement based on auth system)
-  const isAuthenticated = !!c.req.header('authorization');
+  const key = getRateLimitKey(c, 'api');
+  const authContext = getAuthContext(c);
+  const isAuthenticated = authContext.isAuthenticated;
 
   const config = isAuthenticated ? LIMITS.authenticated : LIMITS.anonymous;
   const result = checkRateLimit(key, config.requestsPerMinute, config.windowMs);
@@ -149,6 +163,13 @@ export async function shareLinkRateLimitMiddleware(c: Context, next: Next) {
   }
 
   return next();
+}
+
+/**
+ * Reset rate limit for testing
+ */
+export function resetRateLimit(key: string): void {
+  rateLimitStore.delete(key);
 }
 
 /**
