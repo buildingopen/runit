@@ -1,5 +1,5 @@
 /**
- * @execution-layer/openapi-form
+ * @runtime-ai/openapi-form
  *
  * OpenAPI-driven form generation for Execution Layer.
  * Renders forms from OpenAPI schemas with automatic field rendering,

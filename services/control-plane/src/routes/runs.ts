@@ -7,7 +7,7 @@ import type {
   CreateRunRequest,
   CreateRunResponse,
   GetRunStatusResponse,
-} from '@execution-layer/shared';
+} from '@runtime-ai/shared';
 import { getProject } from './projects.js';
 import { executeOnModal } from '../modal-client.js';
 import { getDecryptedSecretsForRun } from './secrets.js';

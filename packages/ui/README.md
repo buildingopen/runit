@@ -1,4 +1,4 @@
-# @execution-layer/ui
+# @runtime-ai/ui
 
 React component library for Runtime AI.
 
@@ -12,13 +12,13 @@ React component library for Runtime AI.
 ## Installation
 
 ```bash
-npm install @execution-layer/ui
+npm install @runtime-ai/ui
 ```
 
 ## Usage
 
 ```tsx
-import { Button, Card, Input } from '@execution-layer/ui';
+import { Button, Card, Input } from '@runtime-ai/ui';
 
 function MyComponent() {
   return (

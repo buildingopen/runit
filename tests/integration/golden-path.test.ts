@@ -27,7 +27,7 @@ import type {
   GetRunStatusRequest,
   GetRunStatusResponse,
   RunResult,
-} from '@execution-layer/shared';
+} from '@runtime-ai/shared';
 
 // ============================================================================
 // MOCK IMPLEMENTATIONS

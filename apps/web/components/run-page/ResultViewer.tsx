@@ -3,7 +3,7 @@
 
 'use client';
 
-import type { RunResult } from '@execution-layer/shared';
+import type { RunResult } from '@runtime-ai/shared';
 
 interface ResultViewerProps {
   result: RunResult;

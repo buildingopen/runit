@@ -8,7 +8,7 @@ import type {
   CreateRunRequest,
   CreateRunResponse,
   GetRunStatusResponse,
-} from '@execution-layer/shared';
+} from '@runtime-ai/shared';
 import { createRun, getRunStatus } from '../api/run-api';
 
 /**

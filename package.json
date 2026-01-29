@@ -1,8 +1,8 @@
 {
-  "name": "execution-layer",
+  "name": "runtime-ai",
   "version": "0.1.0",
   "private": true,
-  "description": "Execution Layer - Colab for Apps (FastAPI Runtime)",
+  "description": "Runtime AI - Run any FastAPI app in the cloud with zero infrastructure",
   "workspaces": [
     "apps/*",
     "packages/*",
