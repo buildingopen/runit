@@ -23,7 +23,7 @@ import {
   classifyError,
   extractMissingPackage,
   extractSyntaxErrorLocation
-} from '../../src/lib/openapi/classifier';
+} from '../../src/lib/errors/classifier';
 
 // Get fixtures directory
 const __filename = fileURLToPath(import.meta.url);

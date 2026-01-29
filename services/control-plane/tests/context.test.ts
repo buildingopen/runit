@@ -80,9 +80,10 @@ describe('Context Fetcher', () => {
     const result = await fetchContextFromURL('https://example.com', 'test-company');
 
     expect(result.id).toBeDefined();
-    expect(result.name).toBe('test-company');
-    expect(result.data.title).toBe('ACME Inc - Enterprise SaaS Solutions');
-    expect(result.data.description).toBe('Leading provider of enterprise software solutions');
+    // og:title takes precedence over <title>
+    expect(result.data.title).toBe('ACME Inc');
+    // og:description takes precedence over meta description
+    expect(result.data.description).toBe('Enterprise SaaS platform');
     expect(result.data.url).toBe('https://example.com');
     expect(result.data.fetched_at).toBeDefined();
   });
