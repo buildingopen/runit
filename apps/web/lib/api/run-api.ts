@@ -1,5 +1,5 @@
 // ABOUTME: Run API client methods for creating runs, fetching status, and listing run history
-// ABOUTME: Uses control-plane contracts from @execution-layer/shared
+// ABOUTME: Uses control-plane contracts from @runtime-ai/shared
 
 import type {
   CreateRunRequest,
@@ -12,7 +12,7 @@ import type {
   ListEndpointsResponse,
   GetEndpointSchemaRequest,
   GetEndpointSchemaResponse,
-} from '@execution-layer/shared';
+} from '@runtime-ai/shared';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const DEFAULT_TIMEOUT = 30000; // 30 seconds

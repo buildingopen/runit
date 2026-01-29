@@ -1,5 +1,5 @@
 /**
- * @execution-layer/shared
+ * @runtime-ai/shared
  *
  * Shared types, contracts, and schemas for Execution Layer.
  * Single source of truth to prevent shape drift.

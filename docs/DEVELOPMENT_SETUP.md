@@ -74,7 +74,7 @@ PORT=3001
 DATABASE_URL=postgresql://user:pass@localhost:5432/execution_layer
 SUPABASE_URL=your-supabase-url
 SUPABASE_SERVICE_KEY=your-service-key
-AWS_S3_BUCKET=execution-layer-artifacts
+AWS_S3_BUCKET=runtime-ai-artifacts
 ```
 
 **services/runner/.env.local:**

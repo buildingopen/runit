@@ -13,7 +13,7 @@ import type {
   CreateProjectResponse,
   ListProjectsResponse,
   GetProjectResponse
-} from '@execution-layer/shared';
+} from '@runtime-ai/shared';
 import { extractOpenAPIFromZip } from '../openapi-extractor.js';
 import {
   validateProjectName,

@@ -1,5 +1,5 @@
 /**
- * @execution-layer/openapi-form tests
+ * @runtime-ai/openapi-form tests
  */
 
 import { describe, it, expect } from 'vitest';

@@ -22,9 +22,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@execution-layer/shared': path.resolve(__dirname, './packages/shared/src'),
-      '@execution-layer/ui': path.resolve(__dirname, './packages/ui/src'),
-      '@execution-layer/openapi-form': path.resolve(__dirname, './packages/openapi-form/src'),
+      '@runtime-ai/shared': path.resolve(__dirname, './packages/shared/src'),
+      '@runtime-ai/ui': path.resolve(__dirname, './packages/ui/src'),
+      '@runtime-ai/openapi-form': path.resolve(__dirname, './packages/openapi-form/src'),
     },
   },
 });

@@ -6,7 +6,7 @@ import { Hono } from 'hono';
 import type {
   ListEndpointsResponse,
   GetEndpointSchemaResponse
-} from '@execution-layer/shared';
+} from '@runtime-ai/shared';
 import { getProject } from './projects.js';
 
 const endpoints = new Hono();
