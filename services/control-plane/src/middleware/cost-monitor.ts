@@ -82,7 +82,7 @@ function logMetric(metric: RunMetric) {
   // Log to console (structured JSON)
   console.log(JSON.stringify(logEntry));
 
-  // TODO: Send to monitoring service (DataDog, CloudWatch, etc.)
+  // v1 enhancement: Integrate with monitoring service (DataDog, CloudWatch, etc.)
 }
 
 /**
