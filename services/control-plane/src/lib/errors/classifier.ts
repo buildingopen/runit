@@ -19,16 +19,16 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; error_class: ErrorClass }> = [
   // Timeout
   { pattern: /timeout|timed out|exceeded.*seconds/i, error_class: 'timeout' },
 
+  // Circular imports (must be before generic import_error)
+  {
+    pattern: /circular import|partially initialized module/i,
+    error_class: 'circular_import'
+  },
+
   // Import errors
   {
     pattern: /ModuleNotFoundError|ImportError|cannot import name/i,
     error_class: 'import_error'
-  },
-
-  // Circular imports
-  {
-    pattern: /circular import|partially initialized module/i,
-    error_class: 'circular_import'
   },
 
   // Syntax errors

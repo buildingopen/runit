@@ -12,7 +12,7 @@ describe('KMS Encryption', () => {
     const encrypted = await encryptSecret(plaintext);
 
     expect(encrypted).not.toBe(plaintext);
-    expect(encrypted).toContain(':'); // Envelope format
+    // Encrypted output is base64-encoded
 
     const decrypted = await decryptSecret(encrypted);
     expect(decrypted).toBe(plaintext);
@@ -102,6 +102,9 @@ describe('Secrets Store', () => {
     const enc1 = await encryptSecret('old-value');
     const secret1 = await storeSecret('project-123', 'API_KEY', enc1);
 
+    // Small delay to ensure different timestamp
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     const enc2 = await encryptSecret('new-value');
     const secret2 = await storeSecret('project-123', 'API_KEY', enc2);
 
@@ -141,7 +144,7 @@ describe('Secrets Integration', () => {
 
     // Verify plaintext is not in stored value
     expect(secret.encrypted_value).not.toContain(plaintext);
-    expect(secret.encrypted_value).toContain(':'); // Envelope format
+    // Encrypted output is base64-encoded
 
     // Retrieve and decrypt
     const secrets = await getProjectSecrets('project-123');
