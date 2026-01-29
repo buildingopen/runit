@@ -31,7 +31,7 @@ interface MockContext {
   set: (key: string, value: unknown) => void;
   get: (key: string) => unknown;
   header: (name: string, value: string) => void;
-  json: ReturnType<typeof vi.fn>;
+  json: (data: unknown, status?: number) => { __response: boolean; data: unknown; status: number };
   res: { status: number };
   _contextData: Map<string, unknown>;
   _responseHeaders: Map<string, string>;
@@ -83,12 +83,19 @@ export function createMockContext(options: MockContextOptions = {}): MockContext
   return mockContext;
 }
 
+interface MockNext {
+  (): Promise<void>;
+  wasCalled: () => boolean;
+  mock: { calls: unknown[][] };
+}
+
 /**
  * Create a mock Next function for testing
  */
-export function createMockNext(): ReturnType<typeof vi.fn> & { wasCalled: () => boolean } {
-  const next = vi.fn(() => Promise.resolve()) as ReturnType<typeof vi.fn> & { wasCalled: () => boolean };
-  next.wasCalled = () => next.mock.calls.length > 0;
+export function createMockNext(): MockNext {
+  const mockFn = vi.fn(() => Promise.resolve());
+  const next = mockFn as unknown as MockNext;
+  next.wasCalled = () => mockFn.mock.calls.length > 0;
   return next;
 }
 
@@ -138,6 +145,6 @@ export function asHonoContext(mock: MockContext): Context {
 /**
  * Type cast helper to use mock next with Hono middleware
  */
-export function asHonoNext(mock: ReturnType<typeof vi.fn>): Next {
+export function asHonoNext(mock: MockNext): Next {
   return mock as unknown as Next;
 }

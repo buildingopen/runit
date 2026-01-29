@@ -1,185 +1,111 @@
-# Agent 6 (MEMORY) - Context System
+# Runtime AI
 
-## Quick Start
+**Run any FastAPI app in the cloud with zero infrastructure.**
 
-This directory contains the **Context system** implementation for Execution Layer v0.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-### What is Context?
-
-Context allows you to mount reusable metadata/data to runs without storing secrets.
-
-**Example:**
-```bash
-# Fetch company info from URL
-curl -X POST http://localhost:3001/projects/proj-123/context \
-  -d '{"url": "https://example.com", "name": "company"}'
-
-# Your FastAPI app can now access it
-from executionlayer import get_context
-
-@app.post("/extract")
-def extract():
-    company = get_context("company")
-    return {"name": company["name"]}
-```
-
----
+Runtime AI is a Modal-based execution platform that lets you upload any FastAPI application as a ZIP file and instantly get shareable API endpoints. It handles dependency installation, OpenAPI detection, secrets management, and artifact storage—so you can focus on building.
 
 ## Features
 
-✅ **Fetch from URL** - Extract metadata from any website
-✅ **Read-only mount** - Context files mounted at /context/*.json
-✅ **Secret protection** - Rejects API keys, tokens, passwords
-✅ **Size limits** - Max 1MB per context, 1MB per project
-✅ **SDK helpers** - Simple Python API for user code
+- **ZIP Upload** — Drop a FastAPI project and get running endpoints
+- **OpenAPI Detection** — Automatically generates forms from your API schema
+- **Secrets Management** — Encrypted storage for API keys and tokens
+- **Artifact Storage** — Persist and download files generated during execution
+- **Share Links** — Instant public URLs for your endpoints
+- **Context System** — Mount external data sources to your runs
 
----
+## Quick Start
 
-## API Endpoints
+### Prerequisites
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /projects/:id/context | Fetch from URL |
-| GET | /projects/:id/context | List all contexts |
-| GET | /projects/:id/context/:cid | Get specific context |
-| PUT | /projects/:id/context/:cid | Refresh from URL |
-| DELETE | /projects/:id/context/:cid | Delete context |
+- Node.js >= 18.0.0
+- Python >= 3.11
+- [Modal](https://modal.com) account (for execution runtime)
 
----
-
-## File Structure
-
-```
-agent-6-memory/
-├── services/
-│   ├── control-plane/src/
-│   │   ├── routes/context.ts         # CRUD API
-│   │   ├── context-fetcher.ts        # URL scraper
-│   │   └── tests/context.test.ts     # Tests
-│   └── runner/src/
-│       ├── context/mounter.py        # Mount logic
-│       └── tests/test_*.py           # Tests
-├── packages/
-│   ├── shared/src/types/index.ts     # Types
-│   └── sdk/src/context.py            # SDK helpers
-├── test-context-api.sh               # Acceptance test
-├── CONTEXT_IMPLEMENTATION.md         # Full docs
-└── AGENT-6-COMPLETION-REPORT.md     # Completion report
-```
-
----
-
-## Testing
-
-### Run Acceptance Test
+### Installation
 
 ```bash
-# Start control plane
-cd services/control-plane
-npm run dev
+# Clone the repository
+git clone https://github.com/your-org/runtime-ai.git
+cd runtime-ai
 
-# Run test (in another terminal)
-./test-context-api.sh
-```
+# Install dependencies
+npm install
 
-### Run Unit Tests
-
-```bash
-# TypeScript tests
-cd services/control-plane
-npm test
-
-# Python tests
+# Set up Python environment for the runner
 cd services/runner
-pytest
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
 ```
 
----
+### Configuration
+
+Copy the example environment file and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Required variables:
+- `SUPABASE_URL` / `SUPABASE_ANON_KEY` — Database and auth
+- `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` — Execution runtime
+- `MASTER_ENCRYPTION_KEY` — Secrets encryption
+
+### Running Locally
+
+```bash
+# Terminal 1: Web UI
+cd apps/web && npm run dev
+
+# Terminal 2: Control Plane API
+cd services/control-plane && npm run dev
+
+# Terminal 3: Modal Runner (optional)
+cd services/runner && source venv/bin/activate && modal serve src/modal_app.py
+```
+
+Open [http://localhost:3000](http://localhost:3000) to access the web interface.
+
+## Architecture
+
+```
+runtime-ai/
+├── apps/web/              # Next.js frontend
+├── packages/
+│   ├── openapi-form/      # Form generation from OpenAPI specs
+│   ├── shared/            # Shared types and contracts
+│   ├── sdk/               # Python SDK for user apps
+│   └── ui/                # React component library
+├── services/
+│   ├── control-plane/     # Hono API backend
+│   └── runner/            # Modal execution runtime
+└── infra/                 # Infrastructure scripts
+```
+
+### How It Works
+
+1. **Upload** — User uploads a ZIP containing a FastAPI app
+2. **Build** — Runner installs dependencies and detects the entrypoint
+3. **Extract** — OpenAPI schema is parsed to generate endpoint forms
+4. **Execute** — Requests run in isolated Modal containers
+5. **Share** — Public URLs enable instant sharing
 
 ## Documentation
 
-- **[CONTEXT_IMPLEMENTATION.md](./CONTEXT_IMPLEMENTATION.md)** - Full implementation guide
-- **[AGENT-6-COMPLETION-REPORT.md](./AGENT-6-COMPLETION-REPORT.md)** - Completion report
+- [Development Setup](docs/DEVELOPMENT_SETUP.md) — Environment configuration
+- [Testing Guide](docs/TESTING_GUIDE.md) — Running tests
+- [SDK Guide](docs/SDK_GUIDE.md) — Using the Python SDK
 
----
+## Contributing
 
-## Status
-
-✅ **COMPLETE** - All acceptance criteria met
-
-Ready for integration with Agent 2 (KERNEL) runner implementation.
-
----
-
-## Quick Examples
-
-### Fetch Context
-
-```bash
-curl -X POST http://localhost:3001/projects/test/context \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://example.com",
-    "name": "company"
-  }'
-```
-
-### Use in FastAPI App
-
-```python
-from executionlayer import get_context
-
-@app.post("/process")
-def process():
-    # Get mounted context
-    company = get_context("company")
-
-    # Use the data
-    return {
-        "company": company["name"],
-        "industry": company["industry"]
-    }
-```
-
-### List Available Contexts
-
-```python
-from executionlayer import list_contexts
-
-contexts = list_contexts()
-print(f"Available: {contexts}")
-# Output: ['company', 'user_prefs']
-```
-
----
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Security
 
-✅ **No secrets** - Validation rejects keys like `API_KEY`, `SECRET_TOKEN`
-✅ **Read-only** - All files mounted as read-only (chmod 444)
-✅ **Size limits** - Max 1MB per context, 1MB per project
-✅ **Timeout** - 10-second fetch timeout
+For security issues, please see [SECURITY.md](SECURITY.md).
 
----
+## License
 
-## Integration
-
-For Agent 2 (KERNEL):
-
-```python
-from context import write_context_files
-from routes.context import get_project_contexts
-
-# Get contexts
-contexts = get_project_contexts(project_id)
-
-# Mount before execution
-write_context_files(contexts)
-os.environ["EL_CONTEXT_DIR"] = "/context"
-
-# Execute user code (context is now available)
-```
-
----
-
-**Agent 6 (MEMORY) - Context System Implementation Complete** 🎯
+MIT — see [LICENSE](LICENSE) for details.

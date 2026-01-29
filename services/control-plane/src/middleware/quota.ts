@@ -143,7 +143,8 @@ export async function quotaMiddleware(c: Context, next: Next) {
     return next();
   }
 
-  // Get user ID (placeholder - implement based on auth system)
+  // Get user ID from request header.
+  // Production: Replace with authenticated user ID from your auth system (e.g., Supabase auth, JWT claims)
   const userId = c.req.header('x-user-id') || 'anonymous';
 
   // Get lane from request body
