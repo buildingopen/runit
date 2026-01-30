@@ -120,6 +120,24 @@ export function OpenAPIFormThemed(props: OpenAPIFormProps) {
           background-color: var(--accent-hover) !important;
         }
 
+        /* Toggle switch styling */
+        .openapi-form-themed .openapi-form button[role="switch"] {
+          background-color: var(--bg-tertiary);
+        }
+
+        .openapi-form-themed .openapi-form button[role="switch"][aria-checked="true"] {
+          background-color: var(--accent) !important;
+        }
+
+        .openapi-form-themed .openapi-form button[role="switch"]:focus {
+          ring-color: var(--accent);
+        }
+
+        /* Gray backgrounds for toggle off state */
+        .openapi-form-themed .openapi-form .bg-gray-300 {
+          background-color: var(--bg-tertiary) !important;
+        }
+
         /* Disabled gray backgrounds */
         .openapi-form-themed .openapi-form .disabled\\:bg-gray-300:disabled {
           background-color: var(--bg-tertiary) !important;

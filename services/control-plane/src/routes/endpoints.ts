@@ -8,6 +8,7 @@ import type {
   GetEndpointSchemaResponse
 } from '@runtime-ai/shared';
 import { getProject } from './projects.js';
+import { resolveSchemaRefs, type OpenAPISpec } from '../utils/schema-resolver.js';
 
 const endpoints = new Hono();
 
@@ -80,11 +81,23 @@ endpoints.get('/:project_id/versions/:version_id/endpoints/:endpoint_id/schema',
   }
 
   // Extract schema from OpenAPI spec
-  const openapi = version.openapi as { paths?: Record<string, Record<string, any>> };
+  const openapi = version.openapi as OpenAPISpec & { paths?: Record<string, Record<string, any>> };
   const operation = openapi.paths?.[endpoint.path]?.[endpoint.method.toLowerCase()];
   if (!operation) {
     return c.json({ error: 'Endpoint schema not found in OpenAPI' }, 500);
   }
+
+  // Get raw schemas
+  const rawRequestSchema = operation.requestBody?.content?.['application/json']?.schema;
+  const rawResponseSchema = operation.responses?.['200']?.content?.['application/json']?.schema;
+
+  // Resolve $ref references in both schemas
+  const resolvedRequestSchema = rawRequestSchema
+    ? resolveSchemaRefs(rawRequestSchema, openapi)
+    : undefined;
+  const resolvedResponseSchema = rawResponseSchema
+    ? resolveSchemaRefs(rawResponseSchema, openapi)
+    : undefined;
 
   const response: GetEndpointSchemaResponse = {
     endpoint_id,
@@ -92,8 +105,8 @@ endpoints.get('/:project_id/versions/:version_id/endpoints/:endpoint_id/schema',
     path: endpoint.path,
     summary: operation.summary,
     description: operation.description,
-    request_schema: operation.requestBody?.content?.['application/json']?.schema,
-    response_schema: operation.responses?.['200']?.content?.['application/json']?.schema,
+    request_schema: resolvedRequestSchema,
+    response_schema: resolvedResponseSchema,
     parameters: operation.parameters,
   };
 

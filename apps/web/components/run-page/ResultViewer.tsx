@@ -3,7 +3,10 @@
 
 'use client';
 
+import { useState } from 'react';
 import type { RunResult } from '@runtime-ai/shared';
+import { AutoMappedOutput } from './AutoMappedOutput';
+import { ResultPanelHeader } from './ResultPanelHeader';
 
 interface ResultViewerProps {
   result: RunResult;
@@ -12,36 +15,28 @@ interface ResultViewerProps {
 }
 
 export function ResultViewer({ result, status, duration_ms }: ResultViewerProps) {
-  const statusColor = getStatusColor(status);
-  const httpStatusColor = getHttpStatusColor(result.http_status);
+  const [viewMode, setViewMode] = useState<'formatted' | 'raw'>('formatted');
+
+  const handleCopyAll = () => {
+    const data = result.json ?? result.text_preview ?? '';
+    const text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    navigator.clipboard.writeText(text);
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Status Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-tertiary)] rounded border border-[var(--border)]">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className={`inline-block w-2 h-2 rounded-full ${statusColor}`} />
-            <span className="text-xs font-medium text-[var(--text-secondary)] capitalize">
-              {status}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-medium ${httpStatusColor}`}>
-              {result.http_status}
-            </span>
-            <span className="text-xs text-[var(--text-tertiary)]">
-              {getStatusText(result.http_status)}
-            </span>
-          </div>
-        </div>
-        {duration_ms && (
-          <span className="text-xs text-[var(--text-tertiary)]">
-            {(duration_ms / 1000).toFixed(2)}s
-          </span>
-        )}
-      </div>
+    <div>
+      {/* Status Header - at card edge */}
+      <ResultPanelHeader
+        status={status}
+        duration_ms={duration_ms}
+        httpStatus={result.http_status}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onCopyAll={handleCopyAll}
+      />
 
+      {/* Content with padding */}
+      <div className="p-4 space-y-4">
       {/* Warnings */}
       {result.warnings && result.warnings.length > 0 && (
         <div className="px-3 py-2 bg-[var(--warning)]/10 border border-[var(--warning)]/20 rounded">
@@ -133,7 +128,13 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
       {result.json !== undefined && (
         <div>
           <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-2">Response</h3>
-          <JSONViewer data={result.json} />
+          {viewMode === 'formatted' ? (
+            <div className="px-3 py-3 bg-[var(--bg-tertiary)] rounded border border-[var(--border)]">
+              <AutoMappedOutput data={result.json} />
+            </div>
+          ) : (
+            <JSONViewer data={result.json} />
+          )}
         </div>
       )}
 
@@ -181,6 +182,7 @@ export function ResultViewer({ result, status, duration_ms }: ResultViewerProps)
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -227,40 +229,6 @@ function FileIcon({ mimeType }: { mimeType: string }) {
       />
     </svg>
   );
-}
-
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'success':
-      return 'bg-[var(--success)]';
-    case 'error':
-      return 'bg-[var(--error)]';
-    case 'timeout':
-      return 'bg-[var(--warning)]';
-    case 'running':
-      return 'bg-[var(--accent)]';
-    case 'queued':
-      return 'bg-[var(--text-tertiary)]';
-    default:
-      return 'bg-[var(--text-tertiary)]';
-  }
-}
-
-function getHttpStatusColor(status: number): string {
-  if (status >= 200 && status < 300) return 'text-[var(--success)]';
-  if (status >= 400 && status < 500) return 'text-[var(--warning)]';
-  if (status >= 500) return 'text-[var(--error)]';
-  return 'text-[var(--text-secondary)]';
-}
-
-function getStatusText(status: number): string {
-  if (status === 200) return 'OK';
-  if (status === 201) return 'Created';
-  if (status === 400) return 'Bad Request';
-  if (status === 401) return 'Unauthorized';
-  if (status === 404) return 'Not Found';
-  if (status === 500) return 'Internal Server Error';
-  return '';
 }
 
 function formatSize(bytes: number): string {
