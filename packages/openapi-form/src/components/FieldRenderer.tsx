@@ -74,20 +74,32 @@ export function FieldRenderer({
         />
       );
 
-    case 'boolean':
+    case 'boolean': {
+      // Use nullish coalescing to properly handle false values
+      const isChecked = value !== undefined ? Boolean(value) : Boolean(schema.default);
       return (
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={(value as boolean) || (schema.default as boolean) || false}
-            onChange={(e) => onChange(e.target.checked)}
-            className="w-4 h-4 bg-gray-50 border-gray-300 rounded text-blue-500 focus:ring-blue-500"
-          />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isChecked}
+            onClick={() => onChange(!isChecked)}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              isChecked ? 'bg-blue-500' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                isChecked ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
           <span className="text-sm text-gray-600">
             {schema.description || formatFieldName(name)}
           </span>
-        </label>
+        </div>
       );
+    }
 
     case 'array':
       return (

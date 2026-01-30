@@ -1,5 +1,5 @@
 // ABOUTME: Project Run Page - main UI for selecting endpoints, filling forms, and viewing results
-// ABOUTME: Integrates EndpointSelector, DynamicForm, ResultViewer, and RunHistory components
+// ABOUTME: 35/65 split layout with Pre-Run, Running, and Post-Run states
 
 'use client';
 
@@ -11,6 +11,8 @@ import { OpenAPIFormThemed } from '@/components/OpenAPIFormThemed';
 import { ResultViewer } from '@/components/run-page/ResultViewer';
 import { RunHistory } from '@/components/run-page/RunHistory';
 import { ShareModal } from '@/components/ShareModal';
+import { RunningIndicator } from '@/components/run-page/RunningIndicator';
+import { EmptyState } from '@/components/run-page/EmptyState';
 import {
   useProject,
   useEndpoints,
@@ -19,6 +21,8 @@ import {
   useRunStatus,
   useRunsList,
 } from '@/lib/hooks/useProject';
+
+type RunPageState = 'pre-run' | 'running' | 'post-run';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +46,8 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
   const [runError, setRunError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [pageState, setPageState] = useState<RunPageState>('pre-run');
+  const [runStartTime, setRunStartTime] = useState<Date | null>(null);
 
   // Ref for auto-scrolling to result section
   const resultSectionRef = useRef<HTMLDivElement>(null);
@@ -83,6 +89,8 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
     if (!targetEndpointId || !versionId) return;
 
     setRunError(null);
+    setPageState('running');
+    setRunStartTime(new Date());
 
     try {
       const result = await executeRun.mutateAsync({
@@ -101,6 +109,7 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to execute run';
       setRunError(message);
+      setPageState('pre-run');
     }
   };
 
@@ -116,15 +125,27 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
     }
   }, [endpointsData, selectedEndpointId]);
 
-  // Auto-scroll to result section when run completes
+  // Update page state based on run status
   useEffect(() => {
     if (currentRunData?.status === 'success' || currentRunData?.status === 'error') {
+      setPageState('post-run');
       // Small delay to ensure the Result section is rendered
       setTimeout(() => {
         resultSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
+    } else if (currentRunData?.status === 'queued' || currentRunData?.status === 'running') {
+      setPageState('running');
     }
   }, [currentRunData?.status]);
+
+  // Handle "Run Again" - reset to pre-run state
+  const handleRunAgain = () => {
+    setPageState('pre-run');
+    setCurrentRunId(null);
+    setSelectedRunId(null);
+    setRunStartTime(null);
+    setRunError(null);
+  };
 
   const handleSelectRun = (runId: string) => {
     setSelectedRunId(runId);
@@ -281,11 +302,15 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      {/* Main Content */}
-      <div className="p-4 sm:p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Left Column - Endpoints & Form */}
-          <div className="lg:col-span-2 space-y-6">
+      {/* Main Content - 35/65 Split Layout */}
+      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-56px)]">
+        {/* Left Panel - Input (35%) */}
+        <div
+          className={`w-full lg:w-[35%] lg:min-w-[350px] lg:max-w-[500px] border-b lg:border-b-0 lg:border-r border-[var(--border)] overflow-y-auto transition-opacity duration-200 ${
+            pageState === 'running' ? 'opacity-60' : pageState === 'post-run' ? 'opacity-50' : ''
+          }`}
+        >
+          <div className="p-4 sm:p-6 space-y-6">
             {/* Endpoint Selector */}
             <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4">
               <h2 className="text-sm font-medium text-[var(--text-primary)] mb-4">
@@ -305,9 +330,23 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
             {/* Form */}
             {selectedEndpointId && (
               <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4">
-                <h2 className="text-sm font-medium text-[var(--text-primary)] mb-4">
-                  Run Endpoint
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-medium text-[var(--text-primary)]">
+                    Run Endpoint
+                  </h2>
+                  {pageState === 'post-run' && (
+                    <button
+                      type="button"
+                      onClick={handleRunAgain}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Run Again
+                    </button>
+                  )}
+                </div>
                 {schemaLoading ? (
                   <div className="animate-pulse space-y-3">
                     <div className="h-10 bg-[var(--bg-tertiary)] rounded" />
@@ -345,16 +384,46 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
               </div>
             )}
 
-            {/* Result */}
-            {displayRun && displayRun.result !== undefined && (
+            {/* Run History - Hidden on mobile, shown below form on small desktop */}
+            <div className={`hidden lg:block xl:hidden ${showHistory ? '' : ''}`}>
+              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4">
+                <RunHistory
+                  runs={runs}
+                  selectedRunId={selectedRunId}
+                  onSelectRun={handleSelectRun}
+                  isLoading={runsLoading}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Output (65%) */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto" ref={resultSectionRef}>
+          <div className="p-4 sm:p-6 flex-1">
+            {/* Pre-Run State - Empty State */}
+            {pageState === 'pre-run' && !displayRun && (
+              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] h-full min-h-[400px] flex items-center justify-center">
+                <EmptyState />
+              </div>
+            )}
+
+            {/* Running State - Spinner with Timer */}
+            {pageState === 'running' && runStartTime && (
+              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] h-full min-h-[400px] flex items-center justify-center">
+                <RunningIndicator
+                  startTime={runStartTime}
+                  status={currentRunData?.status === 'queued' ? 'queued' : 'running'}
+                />
+              </div>
+            )}
+
+            {/* Post-Run State - Results */}
+            {pageState === 'post-run' && displayRun && displayRun.result !== undefined && (
               <div
-                ref={resultSectionRef}
-                className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4"
+                className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] overflow-hidden"
                 data-testid="result-section"
               >
-                <h2 className="text-sm font-medium text-[var(--text-primary)] mb-4">
-                  Result
-                </h2>
                 <ResultViewer
                   result={displayRun.result}
                   status={displayRun.status}
@@ -363,53 +432,69 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
               </div>
             )}
 
-            {/* Loading State for Current Run */}
-            {currentRunId &&
-              currentRunData &&
-              (currentRunData.status === 'queued' ||
-                currentRunData.status === 'running') && (
-                <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4">
-                  <div className="flex items-center gap-3">
-                    <svg className="w-4 h-4 animate-spin text-[var(--accent)]" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <div>
-                      <p className="text-sm font-medium text-[var(--text-primary)]">
-                        {currentRunData.status === 'queued'
-                          ? 'Run queued...'
-                          : 'Running...'}
-                      </p>
-                      <p className="text-xs text-[var(--text-tertiary)] font-mono">
-                        {currentRunId.substring(0, 8)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
+            {/* Show result from history selection even in pre-run state */}
+            {pageState === 'pre-run' && displayRun && displayRun.result !== undefined && (
+              <div
+                className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] overflow-hidden"
+                data-testid="result-section"
+              >
+                <ResultViewer
+                  result={displayRun.result}
+                  status={displayRun.status}
+                  duration_ms={displayRun.duration_ms}
+                />
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Right Column - Run History */}
-          <div className={`lg:col-span-1 ${showHistory ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4 lg:sticky lg:top-6">
-              <RunHistory
-                runs={runs}
-                selectedRunId={selectedRunId}
-                onSelectRun={handleSelectRun}
-                isLoading={runsLoading}
-              />
-            </div>
+        {/* Right Sidebar - Run History (XL screens only) */}
+        <div className={`hidden xl:block w-[280px] border-l border-[var(--border)] overflow-y-auto ${showHistory ? 'block' : ''}`}>
+          <div className="p-4 sticky top-0">
+            <RunHistory
+              runs={runs}
+              selectedRunId={selectedRunId}
+              onSelectRun={handleSelectRun}
+              isLoading={runsLoading}
+            />
           </div>
         </div>
       </div>
 
-      {/* Mobile History Overlay */}
+      {/* Mobile History Overlay + Panel */}
       {showHistory && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setShowHistory(false)}
-          aria-hidden="true"
-        />
+        <>
+          <div
+            className="lg:hidden fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowHistory(false)}
+            aria-hidden="true"
+          />
+          <div className="lg:hidden fixed right-0 top-0 bottom-0 w-[300px] max-w-[80vw] bg-[var(--bg-primary)] border-l border-[var(--border)] z-50 overflow-y-auto shadow-xl">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-medium text-[var(--text-primary)]">Run History</h2>
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] rounded"
+                  aria-label="Close history"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <RunHistory
+                runs={runs}
+                selectedRunId={selectedRunId}
+                onSelectRun={(runId) => {
+                  handleSelectRun(runId);
+                  setShowHistory(false);
+                }}
+                isLoading={runsLoading}
+              />
+            </div>
+          </div>
+        </>
       )}
 
       {/* Share Modal */}
