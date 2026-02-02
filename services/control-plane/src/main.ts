@@ -14,6 +14,7 @@ import openapi from './routes/openapi.js';
 import secrets from './routes/secrets.js';
 import contextRoutes from './routes/context';
 import { projectShare, shareLinks } from './routes/share.js';
+import deploy from './routes/deploy.js';
 import { rateLimitMiddleware } from './middleware/rate-limit';
 import { quotaMiddleware } from './middleware/quota';
 import { bodySizeLimitMiddleware, contentTypeMiddleware } from './middleware/request-validation';
@@ -212,6 +213,7 @@ app.route('/projects', openapi);       // /projects/:id/versions/:vid/extract-op
 app.route('/projects', secrets);       // /projects/:id/secrets
 app.route('/projects', contextRoutes); // /projects/:id/context
 app.route('/projects', projectShare);  // /projects/:id/share
+app.route('/projects', deploy);        // /projects/:id/deploy, /projects/:id/deploy/stream
 app.route('/share', shareLinks);       // /share/:share_id
 app.route('/runs', runs);
 
@@ -241,6 +243,10 @@ Available routes:
   GET    /projects/:id/context/:cid - Get context
   PUT    /projects/:id/context/:cid - Refresh context
   DELETE /projects/:id/context/:cid - Delete context
+  POST   /projects/:id/deploy       - Start deployment
+  GET    /projects/:id/deploy/stream - SSE deploy progress
+  GET    /projects/:id/deploy/status - Get deploy status
+  POST   /projects/:id/redeploy     - Redeploy with latest code
   POST   /runs                      - Execute endpoint
   GET    /runs/:id                  - Get run status
   POST   /projects/:id/share        - Create share link

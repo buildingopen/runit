@@ -21,6 +21,7 @@ export default function NewProjectPage() {
   const [sourceType, setSourceType] = useState<SourceType>('zip');
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittingStep, setSubmittingStep] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -29,7 +30,7 @@ export default function NewProjectPage() {
   const [zipBase64, setZipBase64] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // GitHub state
   const [githubUrl, setGithubUrl] = useState('');
@@ -91,7 +92,7 @@ export default function NewProjectPage() {
     const errors: Record<string, string> = {};
 
     if (!name.trim()) {
-      errors.name = 'Project name is required';
+      errors.name = 'App name is required';
     } else if (!isValidProjectName(name.trim())) {
       errors.name = 'Name must be 2-50 chars, start with letter/number, contain only letters, numbers, hyphens, underscores';
     }
@@ -125,6 +126,27 @@ export default function NewProjectPage() {
     setIsSubmitting(true);
     setError(null);
 
+    // Show progress steps based on source type
+    if (sourceType === 'github') {
+      setSubmittingStep('Cloning repository...');
+      // Simulate progress updates
+      const steps = [
+        { delay: 2000, text: 'Cloning repository...' },
+        { delay: 8000, text: 'Extracting OpenAPI schema...' },
+        { delay: 15000, text: 'Analyzing endpoints...' },
+      ];
+      steps.forEach(({ delay, text }) => {
+        setTimeout(() => {
+          if (isSubmitting) setSubmittingStep(text);
+        }, delay);
+      });
+    } else {
+      setSubmittingStep('Uploading and processing...');
+      setTimeout(() => {
+        if (isSubmitting) setSubmittingStep('Extracting OpenAPI schema...');
+      }, 2000);
+    }
+
     try {
       const response = await apiClient.createProject({
         name: name.trim(),
@@ -135,11 +157,14 @@ export default function NewProjectPage() {
           ...(githubBranch.trim() && { github_ref: githubBranch.trim() }),
         }),
       });
-      router.push(`/p/${response.project_id}`);
+      setSubmittingStep('Redirecting...');
+      // Redirect to configure page instead of run page
+      router.push(`/create/configure?project=${response.project_id}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create project';
+      const message = err instanceof Error ? err.message : 'Failed to create app';
       setError(message);
       setIsSubmitting(false);
+      setSubmittingStep('');
       // Scroll to error
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -162,7 +187,7 @@ export default function NewProjectPage() {
 
       {/* Content */}
       <div className="max-w-md mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-[18px] font-semibold text-[var(--text-primary)] mb-1">New Project</h1>
+        <h1 className="text-[18px] font-semibold text-[var(--text-primary)] mb-1">New App</h1>
         <p className="text-[13px] text-[var(--text-tertiary)] mb-6 sm:mb-8">
           Deploy a FastAPI app to ephemeral sandboxes
         </p>
@@ -174,7 +199,7 @@ export default function NewProjectPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-[var(--error)]">Failed to create project</p>
+              <p className="text-[13px] font-medium text-[var(--error)]">Failed to create app</p>
               <p className="text-[12px] text-[var(--error)]/80 mt-0.5">{error}</p>
             </div>
             <button
@@ -193,7 +218,7 @@ export default function NewProjectPage() {
           {/* Project Name */}
           <div>
             <label htmlFor="project-name" className="block text-[12px] font-medium text-[var(--text-secondary)] mb-1.5">
-              Project name <span className="text-[var(--error)]">*</span>
+              App name <span className="text-[var(--error)]">*</span>
             </label>
             <input
               id="project-name"
@@ -389,10 +414,10 @@ export default function NewProjectPage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Creating project...
+                {submittingStep || 'Creating app...'}
               </>
             ) : (
-              'Create Project'
+              'Create App'
             )}
           </button>
         </form>

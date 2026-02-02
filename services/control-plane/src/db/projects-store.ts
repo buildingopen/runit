@@ -8,11 +8,17 @@
 import { getServiceSupabaseClient, isSupabaseConfigured } from './supabase.js';
 import { v4 as uuidv4 } from 'uuid';
 
+export type ProjectStatus = 'draft' | 'deploying' | 'live' | 'failed';
+
 export interface Project {
   id: string;
   owner_id: string;
   slug: string;
   name: string;
+  status: ProjectStatus;
+  deployed_at: string | null;
+  deploy_error: string | null;
+  runtime_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +34,7 @@ export interface ProjectVersion {
   base_image_version: string | null;
   entrypoint: string | null;
   installed_packages: Record<string, unknown> | null;
+  detected_env_vars: string[];
   status: string;
   created_at: string;
 }
@@ -37,6 +44,7 @@ export interface Endpoint {
   path: string;
   method: string;
   summary?: string;
+  description?: string;
   parameters?: Record<string, unknown>[];
   requestBody?: Record<string, unknown>;
   responses?: Record<string, unknown>;
@@ -55,6 +63,7 @@ export interface CreateVersionInput {
   openapi?: Record<string, unknown> | null;
   endpoints?: Endpoint[] | null;
   entrypoint?: string | null;
+  detected_env_vars?: string[];
   status?: string;
 }
 
@@ -86,6 +95,10 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
     owner_id: input.owner_id,
     slug,
     name: input.name,
+    status: 'draft',
+    deployed_at: null,
+    deploy_error: null,
+    runtime_url: null,
     created_at: now,
     updated_at: now,
   };
@@ -103,6 +116,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
       owner_id: project.owner_id,
       slug: project.slug,
       name: project.name,
+      status: project.status,
     })
     .select()
     .single();
@@ -234,6 +248,49 @@ export async function updateProject(
   return data as Project;
 }
 
+/**
+ * Update project deployment status
+ */
+export async function updateProjectStatus(
+  projectId: string,
+  status: ProjectStatus,
+  options?: {
+    deployed_at?: string;
+    deploy_error?: string | null;
+    runtime_url?: string | null;
+  }
+): Promise<Project | null> {
+  const updates: Record<string, unknown> = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (options?.deployed_at) updates.deployed_at = options.deployed_at;
+  if (options?.deploy_error !== undefined) updates.deploy_error = options.deploy_error;
+  if (options?.runtime_url !== undefined) updates.runtime_url = options.runtime_url;
+
+  if (!isSupabaseConfigured()) {
+    const project = inMemoryProjects.get(projectId);
+    if (!project) return null;
+    Object.assign(project, updates);
+    return project;
+  }
+
+  const supabase = getServiceSupabaseClient();
+  const { data, error } = await supabase
+    .from('projects')
+    .update(updates)
+    .eq('id', projectId)
+    .select()
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as Project;
+}
+
 // =====================
 // Version Operations
 // =====================
@@ -256,6 +313,7 @@ export async function createVersion(input: CreateVersionInput): Promise<ProjectV
     base_image_version: null,
     entrypoint: input.entrypoint || null,
     installed_packages: null,
+    detected_env_vars: input.detected_env_vars || [],
     status: input.status || 'pending',
     created_at: now,
   };
@@ -276,6 +334,7 @@ export async function createVersion(input: CreateVersionInput): Promise<ProjectV
       openapi: version.openapi,
       endpoints: version.endpoints,
       entrypoint: version.entrypoint,
+      detected_env_vars: version.detected_env_vars,
       status: version.status,
     })
     .select()

@@ -22,6 +22,7 @@ export function OpenAPIForm({
   initialValues = {},
   submitLabel = 'Run',
   loadingLabel = 'Running...',
+  hideSubmitButton = false,
 }: OpenAPIFormProps) {
   const { isComplex, shouldUseJsonEditor } = useSchemaAnalysis(schema);
   const [useJsonEditor, setUseJsonEditor] = useState(shouldUseJsonEditor);
@@ -89,13 +90,15 @@ export function OpenAPIForm({
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:text-gray-500 text-white text-sm font-medium rounded transition-colors"
-        >
-          {isSubmitting ? loadingLabel : submitLabel}
-        </button>
+        {!hideSubmitButton && (
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:text-gray-500 text-white text-sm font-medium rounded transition-colors"
+          >
+            {isSubmitting ? loadingLabel : submitLabel}
+          </button>
+        )}
       </form>
     );
   }
@@ -115,13 +118,15 @@ export function OpenAPIForm({
 
       {schema.properties && renderSchemaFields(schema, formData, updateField)}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:text-gray-500 text-white text-sm font-medium rounded transition-colors"
-      >
-        {isSubmitting ? loadingLabel : submitLabel}
-      </button>
+      {!hideSubmitButton && (
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:text-gray-500 text-white text-sm font-medium rounded transition-colors"
+        >
+          {isSubmitting ? loadingLabel : submitLabel}
+        </button>
+      )}
     </form>
   );
 }

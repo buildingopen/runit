@@ -195,6 +195,7 @@ projects.post('/', async (c) => {
   let openapi: any = null;
   let endpoints: any[] = [];
   let entrypoint: string | null = null;
+  let detected_env_vars: string[] = [];
 
   if (code_bundle) {
     try {
@@ -202,7 +203,8 @@ projects.post('/', async (c) => {
       openapi = extracted.openapi;
       endpoints = extracted.endpoints;
       entrypoint = extracted.entrypoint;
-      console.log(`✅ Extracted ${endpoints.length} endpoints from ${project.name} (entrypoint: ${entrypoint})`);
+      detected_env_vars = extracted.detected_env_vars || [];
+      console.log(`✅ Extracted ${endpoints.length} endpoints from ${project.name} (entrypoint: ${entrypoint}, env vars: ${detected_env_vars.join(', ') || 'none'})`);
     } catch (error) {
       console.warn('⚠️  OpenAPI extraction failed (non-fatal):', error);
     }
@@ -216,15 +218,26 @@ projects.post('/', async (c) => {
     openapi,
     endpoints: endpoints as projectsStore.Endpoint[],
     entrypoint,
+    detected_env_vars,
     status: 'ready',
   });
 
-  const response: CreateProjectResponse = {
+  const response: CreateProjectResponse & {
+    detected_env_vars: string[];
+    endpoints: Array<{ id: string; method: string; path: string; summary?: string }>;
+  } = {
     project_id: project.id,
     project_slug: project.slug,
     version_id: version.id,
     version_hash: version.version_hash,
-    status: 'ready',
+    status: 'draft',
+    detected_env_vars,
+    endpoints: endpoints.map((ep) => ({
+      id: ep.id,
+      method: ep.method,
+      path: ep.path,
+      summary: ep.summary,
+    })),
   };
 
   return c.json(response, 201);
@@ -249,6 +262,7 @@ projects.get('/', async (c) => {
         project_id: p.id,
         project_slug: p.slug,
         name: p.name,
+        status: p.status,
         latest_version: latestVersion?.version_hash || '',
         created_at: p.created_at,
         updated_at: p.updated_at,
@@ -278,11 +292,25 @@ projects.get('/:id', async (c) => {
   // Get versions
   const versions = await projectsStore.listVersions(project_id);
 
-  const response: GetProjectResponse = {
+  // Get latest version for detected_env_vars
+  const latestVersion = versions[0];
+
+  const response: GetProjectResponse & {
+    status: string;
+    deployed_at: string | null;
+    deploy_error: string | null;
+    runtime_url: string | null;
+    detected_env_vars: string[];
+  } = {
     project_id: project.id,
     project_slug: project.slug,
     name: project.name,
     owner_id: project.owner_id,
+    status: project.status,
+    deployed_at: project.deployed_at,
+    deploy_error: project.deploy_error,
+    runtime_url: project.runtime_url,
+    detected_env_vars: latestVersion?.detected_env_vars || [],
     versions: versions.map(v => ({
       version_id: v.id,
       version_hash: v.version_hash,
@@ -361,9 +389,18 @@ projects.get('/:id/endpoints', async (c) => {
     return c.json({ error: 'OpenAPI not yet extracted for this version' }, 400);
   }
 
+  // Map id to endpoint_id for frontend compatibility
+  const mappedEndpoints = version.endpoints.map(ep => ({
+    endpoint_id: ep.id,
+    method: ep.method,
+    path: ep.path,
+    summary: ep.summary,
+    description: ep.description,
+  }));
+
   return c.json({
-    endpoints: version.endpoints,
-    total: version.endpoints.length,
+    endpoints: mappedEndpoints,
+    total: mappedEndpoints.length,
   });
 });
 
