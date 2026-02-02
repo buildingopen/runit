@@ -21,11 +21,17 @@ from pathlib import Path
 # Check if browser-use is available
 try:
     from browser_use import Agent
-    from langchain_anthropic import ChatAnthropic
+    # Support both Anthropic and Google Gemini
+    try:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        USE_GEMINI = True
+    except ImportError:
+        from langchain_anthropic import ChatAnthropic
+        USE_GEMINI = False
     BROWSER_USE_AVAILABLE = True
 except ImportError:
     BROWSER_USE_AVAILABLE = False
-    print("browser-use not installed. Run: pip install browser-use langchain-anthropic")
+    print("browser-use not installed. Run: pip install browser-use langchain-google-genai")
 
 BASE_URL = os.getenv("TEST_BASE_URL", "http://localhost:3000")
 API_URL = os.getenv("TEST_API_URL", "http://localhost:3001")
@@ -83,11 +89,17 @@ class BrowserUseTests:
         if not BROWSER_USE_AVAILABLE:
             raise RuntimeError("browser-use not installed")
 
-        self.llm = ChatAnthropic(
-            model_name="claude-sonnet-4-20250514",
-            timeout=60,
-            stop=None
-        )
+        if USE_GEMINI:
+            self.llm = ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash-exp",
+                google_api_key=os.getenv("GOOGLE_API_KEY"),
+            )
+        else:
+            self.llm = ChatAnthropic(
+                model_name="claude-sonnet-4-20250514",
+                timeout=60,
+                stop=None
+            )
         self.results = []
 
     async def run_test(self, name: str, task: str, success_check: str) -> bool:
@@ -285,10 +297,15 @@ async def main():
         print("Install with: pip install browser-use langchain-anthropic")
         return
 
-    # Check if ANTHROPIC_API_KEY is set
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        print("ERROR: ANTHROPIC_API_KEY environment variable not set")
-        return
+    # Check if API key is set
+    if USE_GEMINI:
+        if not os.getenv("GOOGLE_API_KEY"):
+            print("ERROR: GOOGLE_API_KEY environment variable not set")
+            return
+    else:
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            print("ERROR: ANTHROPIC_API_KEY environment variable not set")
+            return
 
     tests = BrowserUseTests()
     results = await tests.run_all_tests()
