@@ -5,9 +5,28 @@
  */
 
 import { spawn } from 'child_process';
-import { writeFileSync, unlinkSync } from 'fs';
+import { writeFileSync, unlinkSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Find Python with Modal installed (prefer venv)
+function findPython(): string {
+  // Try venv in project root (3 levels up from this file: src -> control-plane -> services -> execution-layer)
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const projectRoot = join(__dirname, '..', '..', '..');
+  const venvPython = join(projectRoot, '.venv', 'bin', 'python3');
+
+  if (existsSync(venvPython)) {
+    return venvPython;
+  }
+
+  // Fallback to system python
+  return 'python3';
+}
+
+const PYTHON_PATH = findPython();
 
 interface ModalExecutionRequest {
   run_id: string;
@@ -143,7 +162,7 @@ except Exception as e:
  */
 function executePythonScript(scriptPath: string, timeout: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const python = spawn('python3', [scriptPath]);
+    const python = spawn(PYTHON_PATH, [scriptPath]);
 
     let stdout = '';
     let stderr = '';
