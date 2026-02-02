@@ -83,18 +83,20 @@ for root, dirs, files in os.walk(app_dir):
     # Skip common non-code directories
     dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'node_modules', 'venv', '.venv']]
     for filename in files:
-        if filename.endswith('.py'):
+        if filename.endswith('.py') and filename != 'extract.py':
             filepath = os.path.join(root, filename)
             try:
                 with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
                     # Match os.environ["KEY"], os.environ.get("KEY"), os.getenv("KEY")
+                    # Use separate patterns for single/double quotes to avoid escaping issues
                     patterns = [
-                        r'os\\.environ\\[[\\'"]([A-Z_][A-Z0-9_]*)[\\'"]\\]',
-                        r'os\\.environ\\.get\\([\\'"]([A-Z_][A-Z0-9_]*)[\\'"\\)]',
-                        r'os\\.getenv\\([\\'"]([A-Z_][A-Z0-9_]*)[\\'"\\)]',
-                        r'environ\\.get\\([\\'"]([A-Z_][A-Z0-9_]*)[\\'"\\)]',
-                        r'environ\\[[\\'"]([A-Z_][A-Z0-9_]*)[\\'"]\\]',
+                        r'os\\.environ\\["([A-Z_][A-Z0-9_]*)"\\]',
+                        r"os\\.environ\\['([A-Z_][A-Z0-9_]*)'\\]",
+                        r'os\\.environ\\.get\\("([A-Z_][A-Z0-9_]*)"',
+                        r"os\\.environ\\.get\\('([A-Z_][A-Z0-9_]*)'",
+                        r'os\\.getenv\\("([A-Z_][A-Z0-9_]*)"',
+                        r"os\\.getenv\\('([A-Z_][A-Z0-9_]*)'",
                     ]
                     for pattern in patterns:
                         matches = re.findall(pattern, content)
