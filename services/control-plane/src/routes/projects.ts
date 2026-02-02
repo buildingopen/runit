@@ -301,6 +301,7 @@ projects.get('/:id', async (c) => {
     deploy_error: string | null;
     runtime_url: string | null;
     detected_env_vars: string[];
+    endpoints: Array<{ id: string; method: string; path: string; summary?: string }>;
   } = {
     project_id: project.id,
     project_slug: project.slug,
@@ -311,6 +312,7 @@ projects.get('/:id', async (c) => {
     deploy_error: project.deploy_error,
     runtime_url: project.runtime_url,
     detected_env_vars: latestVersion?.detected_env_vars || [],
+    endpoints: latestVersion?.endpoints || [],
     versions: versions.map(v => ({
       version_id: v.id,
       version_hash: v.version_hash,
