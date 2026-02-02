@@ -33,6 +33,7 @@ export interface OpenAPIFormProps {
   initialValues?: Record<string, unknown>;
   submitLabel?: string;
   loadingLabel?: string;
+  hideSubmitButton?: boolean;
 }
 
 export interface FieldRendererProps {

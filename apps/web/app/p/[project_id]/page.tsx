@@ -1,26 +1,22 @@
-// ABOUTME: Project Run Page - main UI for selecting endpoints, filling forms, and viewing results
-// ABOUTME: 35/65 split layout with Pre-Run, Running, and Post-Run states
+// ABOUTME: Run Page - matches wireframe design exactly
+// ABOUTME: Full-page 35/65 split with Pre-Run, Running, Post-Run states
 
 'use client';
 
-import { useState, use, useEffect, useRef } from 'react';
+import { useState, use, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { EndpointSelector } from '@/components/run-page/EndpointSelector';
 import { OpenAPIFormThemed } from '@/components/OpenAPIFormThemed';
-import { ResultViewer } from '@/components/run-page/ResultViewer';
-import { RunHistory } from '@/components/run-page/RunHistory';
-import { ShareModal } from '@/components/ShareModal';
-import { RunningIndicator } from '@/components/run-page/RunningIndicator';
-import { EmptyState } from '@/components/run-page/EmptyState';
+import { AutoMappedOutput } from '@/components/run-page/AutoMappedOutput';
 import {
   useProject,
   useEndpoints,
   useEndpointSchema,
   useCreateRun,
   useRunStatus,
-  useRunsList,
 } from '@/lib/hooks/useProject';
+import { apiClient } from '@/lib/api/client';
 
 type RunPageState = 'pre-run' | 'running' | 'post-run';
 
@@ -37,46 +33,81 @@ interface PageProps {
   params: Promise<{
     project_id: string;
   }>;
+  searchParams: Promise<{
+    endpoint?: string;
+  }>;
 }
 
-function ProjectRunPage({ projectId }: { projectId: string }) {
-  const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
-  const [runError, setRunError] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
+function RunPage({ projectId, endpointParam }: { projectId: string; endpointParam?: string }) {
+  const router = useRouter();
   const [pageState, setPageState] = useState<RunPageState>('pre-run');
   const [runStartTime, setRunStartTime] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [currentRunId, setCurrentRunId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'formatted' | 'raw'>('formatted');
+  const [isRedeploying, setIsRedeploying] = useState(false);
 
-  // Ref for auto-scrolling to result section
-  const resultSectionRef = useRef<HTMLDivElement>(null);
+  // Secrets state
+  const [showSecrets, setShowSecrets] = useState(false);
+  const [secrets, setSecrets] = useState<Array<{ key: string; value: string }>>([]);
+  const [newSecretKey, setNewSecretKey] = useState('');
+  const [newSecretValue, setNewSecretValue] = useState('');
+
+  const addSecret = () => {
+    if (newSecretKey.trim() && newSecretValue.trim()) {
+      setSecrets([...secrets, { key: newSecretKey.trim(), value: newSecretValue.trim() }]);
+      setNewSecretKey('');
+      setNewSecretValue('');
+    }
+  };
+
+  const removeSecret = (index: number) => {
+    setSecrets(secrets.filter((_, i) => i !== index));
+  };
 
   // Fetch project details
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
 
+  // Handle status-based routing
+  useEffect(() => {
+    if (!project) return;
+
+    const status = (project as any).status;
+    if (status === 'draft') {
+      router.push(`/create/configure?project=${projectId}`);
+    } else if (status === 'deploying') {
+      router.push(`/p/${projectId}/deploying`);
+    }
+  }, [project, projectId, router]);
+
+  // Handle redeploy
+  const handleRedeploy = async () => {
+    setIsRedeploying(true);
+    try {
+      await apiClient.redeploy(projectId);
+      router.push(`/p/${projectId}/deploying`);
+    } catch (err) {
+      console.error('Redeploy failed:', err);
+      setIsRedeploying(false);
+    }
+  };
+
   // Get latest version ID
   const versionId = project?.versions?.[project.versions.length - 1]?.version_id || null;
 
-  // Fetch endpoints
-  const {
-    data: endpointsData,
-    isLoading: endpointsLoading,
-    error: endpointsError,
-  } = useEndpoints(projectId, versionId || undefined);
+  // Fetch endpoints to get selected endpoint info
+  const { data: endpointsData } = useEndpoints(projectId, versionId || undefined);
+
+  // Determine selected endpoint (from URL param or first endpoint)
+  const selectedEndpointId = endpointParam || endpointsData?.endpoints?.[0]?.endpoint_id || null;
+  const selectedEndpoint = endpointsData?.endpoints?.find(e => e.endpoint_id === selectedEndpointId);
 
   // Fetch schema for selected endpoint
-  const {
-    data: schemaData,
-    isLoading: schemaLoading,
-    error: schemaError,
-  } = useEndpointSchema(projectId, versionId, selectedEndpointId);
-
-  // Fetch run history
-  const { data: runsData, isLoading: runsLoading } = useRunsList(projectId, 20);
-
-  // Fetch selected run status
-  const { data: runData } = useRunStatus(selectedRunId);
+  const { data: schemaData, isLoading: schemaLoading } = useEndpointSchema(
+    projectId,
+    versionId,
+    selectedEndpointId
+  );
 
   // Fetch current run status (auto-polling)
   const { data: currentRunData } = useRunStatus(currentRunId);
@@ -84,437 +115,469 @@ function ProjectRunPage({ projectId }: { projectId: string }) {
   // Execute run mutation
   const executeRun = useCreateRun();
 
-  const handleSubmit = async (formData: Record<string, unknown>, endpointId?: string) => {
-    const targetEndpointId = endpointId || selectedEndpointId;
-    if (!targetEndpointId || !versionId) return;
-
-    setRunError(null);
-    setPageState('running');
-    setRunStartTime(new Date());
-
-    try {
-      const result = await executeRun.mutateAsync({
-        project_id: projectId,
-        version_id: versionId,
-        endpoint_id: targetEndpointId,
-        json: formData,
-        lane: 'cpu',
-      });
-
-      // Set current run ID to enable polling
-      setCurrentRunId(result.run_id);
-      setSelectedRunId(result.run_id);
-      // Select the endpoint that was run
-      setSelectedEndpointId(targetEndpointId);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to execute run';
-      setRunError(message);
-      setPageState('pre-run');
-    }
-  };
-
-  // Quick run handler for endpoints without required parameters
-  const handleQuickRun = (endpointId: string) => {
-    handleSubmit({}, endpointId);
-  };
-
-  // Auto-select first endpoint when loaded
+  // Elapsed time counter
   useEffect(() => {
-    if (!selectedEndpointId && endpointsData?.endpoints?.length) {
-      setSelectedEndpointId(endpointsData.endpoints[0].endpoint_id);
+    if (pageState !== 'running' || !runStartTime) {
+      return;
     }
-  }, [endpointsData, selectedEndpointId]);
+
+    const interval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - runStartTime.getTime()) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pageState, runStartTime]);
 
   // Update page state based on run status
   useEffect(() => {
     if (currentRunData?.status === 'success' || currentRunData?.status === 'error') {
       setPageState('post-run');
-      // Small delay to ensure the Result section is rendered
-      setTimeout(() => {
-        resultSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
     } else if (currentRunData?.status === 'queued' || currentRunData?.status === 'running') {
       setPageState('running');
     }
   }, [currentRunData?.status]);
 
-  // Handle "Run Again" - reset to pre-run state
+  const handleSubmit = async (formData: Record<string, unknown>) => {
+    if (!selectedEndpointId || !versionId) return;
+
+    setPageState('running');
+    setRunStartTime(new Date());
+    setElapsedTime(0);
+
+    try {
+      const result = await executeRun.mutateAsync({
+        project_id: projectId,
+        version_id: versionId,
+        endpoint_id: selectedEndpointId,
+        json: formData,
+        lane: 'cpu',
+      });
+      setCurrentRunId(result.run_id);
+    } catch {
+      setPageState('pre-run');
+    }
+  };
+
   const handleRunAgain = () => {
     setPageState('pre-run');
     setCurrentRunId(null);
-    setSelectedRunId(null);
     setRunStartTime(null);
-    setRunError(null);
+    setElapsedTime(0);
   };
 
-  const handleSelectRun = (runId: string) => {
-    setSelectedRunId(runId);
-    setCurrentRunId(null); // Stop polling current run
+  const handleCopyAll = () => {
+    if (!currentRunData?.result?.json) return;
+    const text = JSON.stringify(currentRunData.result.json, null, 2);
+    navigator.clipboard.writeText(text);
   };
 
+  // Format endpoint name for display
+  const endpointDisplayName = selectedEndpoint
+    ? selectedEndpoint.summary || `${selectedEndpoint.method} ${selectedEndpoint.path}`
+    : 'Loading...';
+
+  // Loading state
   if (projectLoading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center p-6">
-          <svg className="w-8 h-8 animate-spin text-[var(--accent)]" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="text-sm text-[var(--text-secondary)]">Loading project...</span>
+      <div className="h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-[var(--border-secondary)] border-t-[var(--accent)] rounded-full animate-spin" />
+          <span className="text-sm text-[var(--text-secondary)]">Loading...</span>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (projectError) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <div className="w-14 h-14 bg-[var(--error-subtle)] rounded-xl flex items-center justify-center mx-auto mb-5">
-            <svg className="w-7 h-7 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <div className="h-screen bg-[var(--bg-primary)] flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-[var(--error)]/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2">
-            Failed to load project
-          </h2>
-          <p className="text-[13px] text-[var(--text-tertiary)] mb-5">
-            {projectError instanceof Error ? projectError.message : 'Project not found or access denied'}
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Failed to load project</h2>
+          <p className="text-sm text-[var(--text-tertiary)] mb-6">
+            {projectError instanceof Error ? projectError.message : 'Project not found'}
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[13px] font-medium rounded-md"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium rounded-lg"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
             Back to Projects
           </Link>
         </div>
       </div>
     );
   }
-
-  if (endpointsError) {
-    return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <div className="w-14 h-14 bg-[var(--error-subtle)] rounded-xl flex items-center justify-center mx-auto mb-5">
-            <svg className="w-7 h-7 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
-          </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2">
-            Failed to load endpoints
-          </h2>
-          <p className="text-[13px] text-[var(--text-tertiary)] mb-5">
-            {endpointsError instanceof Error ? endpointsError.message : 'Could not fetch endpoints for this project'}
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[13px] font-medium rounded-md"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-            Back to Projects
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const endpoints = endpointsData?.endpoints || [];
-  const runs = runsData?.runs || [];
-  const displayRun = runData || currentRunData;
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
-      {/* Page Header */}
-      <header className="h-12 sm:h-14 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center min-w-0">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-            <span className="hidden sm:inline">Back</span>
-          </Link>
-          <div className="ml-3 sm:ml-4 pl-3 sm:pl-4 border-l border-[var(--border-subtle)] flex items-center gap-2 min-w-0">
-            <h1 className="text-[13px] font-medium text-[var(--text-primary)] truncate">
-              {project?.name || 'Project'}
-            </h1>
-            {versionId && (
-              <span className="hidden sm:inline px-1.5 py-0.5 text-[10px] text-[var(--text-tertiary)] font-mono bg-[var(--bg-tertiary)] rounded">
-                {versionId.substring(0, 7)}
-              </span>
-            )}
-          </div>
-        </div>
-        {/* Header actions */}
-        <div className="flex items-center gap-2">
-          {/* Share button */}
+    <div className="h-screen bg-[var(--bg-primary)] flex flex-col">
+      {/* Header */}
+      <header className="h-14 bg-[var(--bg-secondary)] border-b border-[var(--border)] flex items-center px-6 gap-4 flex-shrink-0">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back
+        </Link>
+        <span className="text-base font-semibold text-[var(--text-primary)]">
+          {endpointDisplayName}
+        </span>
+        <div className="ml-auto flex items-center gap-3">
+          {/* Redeploy button (only for live apps) */}
+          {(project as any)?.status === 'live' && (
+            <button
+              onClick={handleRedeploy}
+              disabled={isRedeploying}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors disabled:opacity-50"
+            >
+              <svg className={`w-4 h-4 ${isRedeploying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              {isRedeploying ? 'Redeploying...' : 'Redeploy'}
+            </button>
+          )}
+          {/* Env button */}
           <button
-            onClick={() => setShowShareModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors"
-            aria-label="Share project"
+            onClick={() => setShowSecrets(!showSecrets)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              showSecrets || secrets.length > 0
+                ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+            }`}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
             </svg>
-            <span className="hidden sm:inline">Share</span>
+            Env {secrets.length > 0 && `(${secrets.length})`}
           </button>
-
-          {/* Mobile: History toggle */}
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="lg:hidden p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] rounded-md"
-            aria-label={showHistory ? 'Hide history' : 'Show history'}
+          <span
+            className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+              pageState === 'running'
+                ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
+                : (project as any)?.status === 'failed'
+                ? 'bg-[var(--error)]/15 text-[var(--error)]'
+                : 'bg-[var(--success)]/15 text-[var(--success)]'
+            }`}
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
+            {pageState === 'running' ? 'Running...' : (project as any)?.status === 'failed' ? 'Failed' : 'Ready'}
+          </span>
         </div>
       </header>
 
-      {/* Run Error Banner */}
-      {runError && (
-        <div className="mx-4 sm:mx-6 mt-4 px-4 py-3 bg-[var(--error-subtle)] border border-[var(--error)]/20 rounded-lg flex items-start gap-3">
-          <svg className="w-5 h-5 text-[var(--error)] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-medium text-[var(--error)]">Run failed</p>
-            <p className="text-[12px] text-[var(--error)]/80 mt-0.5">{runError}</p>
+      {/* Failed State Banner */}
+      {(project as any)?.status === 'failed' && (project as any)?.deploy_error && (
+        <div className="px-6 py-3 bg-[var(--error)]/10 border-b border-[var(--error)]/20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <svg className="w-5 h-5 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <span className="text-sm text-[var(--error)]">
+              Deployment failed: {(project as any).deploy_error}
+            </span>
           </div>
           <button
-            onClick={() => setRunError(null)}
-            className="p-1 text-[var(--error)] hover:bg-[var(--error)]/10 rounded flex-shrink-0"
-            aria-label="Dismiss error"
+            onClick={handleRedeploy}
+            disabled={isRedeploying}
+            className="px-3 py-1.5 bg-[var(--error)] hover:bg-[var(--error)]/90 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-50"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            {isRedeploying ? 'Retrying...' : 'Try Again'}
           </button>
         </div>
       )}
 
-      {/* Main Content - 35/65 Split Layout */}
-      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-56px)]">
-        {/* Left Panel - Input (35%) */}
-        <div
-          className={`w-full lg:w-[35%] lg:min-w-[350px] lg:max-w-[500px] border-b lg:border-b-0 lg:border-r border-[var(--border)] overflow-y-auto transition-opacity duration-200 ${
-            pageState === 'running' ? 'opacity-60' : pageState === 'post-run' ? 'opacity-50' : ''
-          }`}
-        >
-          <div className="p-4 sm:p-6 space-y-6">
-            {/* Endpoint Selector */}
-            <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4">
-              <h2 className="text-sm font-medium text-[var(--text-primary)] mb-4">
-                Endpoints
-              </h2>
-              <EndpointSelector
-                endpoints={endpoints}
-                selectedId={selectedEndpointId}
-                onSelect={setSelectedEndpointId}
-                onQuickRun={handleQuickRun}
-                isLoading={endpointsLoading}
-                isRunning={executeRun.isPending}
-                runningEndpointId={executeRun.isPending ? selectedEndpointId : null}
-              />
+      {/* Env Panel */}
+      {showSecrets && (
+        <div className="bg-[var(--bg-secondary)] border-b border-[var(--border)] px-6 py-4">
+          <div className="max-w-xl">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-medium text-[var(--text-secondary)]">Environment Variables</span>
+              <span className="text-xs text-[var(--text-tertiary)]">(available as os.environ)</span>
             </div>
-
-            {/* Form */}
-            {selectedEndpointId && (
-              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-medium text-[var(--text-primary)]">
-                    Run Endpoint
-                  </h2>
-                  {pageState === 'post-run' && (
+            {/* Existing secrets */}
+            {secrets.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {secrets.map((secret, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <code className="flex-1 px-2 py-1 bg-[var(--bg-tertiary)] text-xs text-[var(--text-primary)] rounded font-mono">
+                      {secret.key}
+                    </code>
+                    <span className="text-xs text-[var(--text-tertiary)]">=</span>
+                    <code className="flex-1 px-2 py-1 bg-[var(--bg-tertiary)] text-xs text-[var(--text-tertiary)] rounded font-mono">
+                      ••••••••
+                    </code>
                     <button
-                      type="button"
-                      onClick={handleRunAgain}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded transition-colors"
+                      onClick={() => removeSecret(i)}
+                      className="p-1 text-[var(--text-tertiary)] hover:text-[var(--error)]"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6 18L18 6M6 6l12 12"/>
                       </svg>
-                      Run Again
-                    </button>
-                  )}
-                </div>
-                {schemaLoading ? (
-                  <div className="animate-pulse space-y-3">
-                    <div className="h-10 bg-[var(--bg-tertiary)] rounded" />
-                    <div className="h-10 bg-[var(--bg-tertiary)] rounded" />
-                    <div className="h-10 bg-[var(--bg-tertiary)] rounded" />
-                  </div>
-                ) : schemaError ? (
-                  <div className="px-3 py-2 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded text-sm text-[var(--error)]">
-                    Failed to load endpoint schema
-                  </div>
-                ) : schemaData?.schema ? (
-                  <OpenAPIFormThemed
-                    schema={schemaData.schema}
-                    onSubmit={handleSubmit}
-                    isSubmitting={executeRun.isPending}
-                    submitLabel="Run"
-                    loadingLabel="Running..."
-                  />
-                ) : (
-                  // No request body required (e.g., GET endpoints) - show simple Run button
-                  <div className="space-y-4">
-                    <p className="text-sm text-[var(--text-tertiary)]">
-                      This endpoint doesn&apos;t require a request body.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleSubmit({})}
-                      disabled={executeRun.isPending}
-                      className="w-full px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-tertiary)] text-white text-sm font-medium rounded transition-colors"
-                    >
-                      {executeRun.isPending ? 'Running...' : 'Run'}
                     </button>
                   </div>
-                )}
+                ))}
               </div>
             )}
-
-            {/* Run History - Hidden on mobile, shown below form on small desktop */}
-            <div className={`hidden lg:block xl:hidden ${showHistory ? '' : ''}`}>
-              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] p-4">
-                <RunHistory
-                  runs={runs}
-                  selectedRunId={selectedRunId}
-                  onSelectRun={handleSelectRun}
-                  isLoading={runsLoading}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Panel - Output (65%) */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto" ref={resultSectionRef}>
-          <div className="p-4 sm:p-6 flex-1">
-            {/* Pre-Run State - Empty State */}
-            {pageState === 'pre-run' && !displayRun && (
-              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] h-full min-h-[400px] flex items-center justify-center">
-                <EmptyState />
-              </div>
-            )}
-
-            {/* Running State - Spinner with Timer */}
-            {pageState === 'running' && runStartTime && (
-              <div className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] h-full min-h-[400px] flex items-center justify-center">
-                <RunningIndicator
-                  startTime={runStartTime}
-                  status={currentRunData?.status === 'queued' ? 'queued' : 'running'}
-                />
-              </div>
-            )}
-
-            {/* Post-Run State - Results */}
-            {pageState === 'post-run' && displayRun && displayRun.result !== undefined && (
-              <div
-                className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] overflow-hidden"
-                data-testid="result-section"
-              >
-                <ResultViewer
-                  result={displayRun.result}
-                  status={displayRun.status}
-                  duration_ms={displayRun.duration_ms}
-                />
-              </div>
-            )}
-
-            {/* Show result from history selection even in pre-run state */}
-            {pageState === 'pre-run' && displayRun && displayRun.result !== undefined && (
-              <div
-                className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border)] overflow-hidden"
-                data-testid="result-section"
-              >
-                <ResultViewer
-                  result={displayRun.result}
-                  status={displayRun.status}
-                  duration_ms={displayRun.duration_ms}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Sidebar - Run History (XL screens only) */}
-        <div className={`hidden xl:block w-[280px] border-l border-[var(--border)] overflow-y-auto ${showHistory ? 'block' : ''}`}>
-          <div className="p-4 sticky top-0">
-            <RunHistory
-              runs={runs}
-              selectedRunId={selectedRunId}
-              onSelectRun={handleSelectRun}
-              isLoading={runsLoading}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile History Overlay + Panel */}
-      {showHistory && (
-        <>
-          <div
-            className="lg:hidden fixed inset-0 bg-black/50 z-40"
-            onClick={() => setShowHistory(false)}
-            aria-hidden="true"
-          />
-          <div className="lg:hidden fixed right-0 top-0 bottom-0 w-[300px] max-w-[80vw] bg-[var(--bg-primary)] border-l border-[var(--border)] z-50 overflow-y-auto shadow-xl">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-medium text-[var(--text-primary)]">Run History</h2>
-                <button
-                  onClick={() => setShowHistory(false)}
-                  className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] rounded"
-                  aria-label="Close history"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <RunHistory
-                runs={runs}
-                selectedRunId={selectedRunId}
-                onSelectRun={(runId) => {
-                  handleSelectRun(runId);
-                  setShowHistory(false);
-                }}
-                isLoading={runsLoading}
+            {/* Add new secret */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newSecretKey}
+                onChange={(e) => setNewSecretKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
+                placeholder="KEY"
+                className="w-32 px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border)] rounded text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
               />
+              <span className="text-xs text-[var(--text-tertiary)]">=</span>
+              <input
+                type="password"
+                value={newSecretValue}
+                onChange={(e) => setNewSecretValue(e.target.value)}
+                placeholder="value"
+                className="flex-1 px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border)] rounded text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+                onKeyDown={(e) => e.key === 'Enter' && addSecret()}
+              />
+              <button
+                onClick={addSecret}
+                disabled={!newSecretKey.trim() || !newSecretValue.trim()}
+                className="px-3 py-1.5 bg-[var(--accent)] text-white text-xs font-medium rounded disabled:opacity-50"
+              >
+                Add
+              </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Share Modal */}
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        projectId={projectId}
-        selectedEndpointId={selectedEndpointId}
-        endpoints={endpoints}
-      />
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col md:flex-row min-h-0">
+        {/* Input Panel (35%) */}
+        <div
+          className={`w-full md:w-[35%] md:min-w-[360px] md:max-w-[480px] bg-[var(--bg-secondary)] border-b md:border-b-0 md:border-r border-[var(--border)] flex flex-col transition-opacity duration-300 ${
+            pageState === 'running' ? 'opacity-60 pointer-events-none' : ''
+          } ${pageState === 'post-run' ? 'opacity-50' : ''}`}
+        >
+          {/* Panel Header */}
+          <div className="p-6 border-b border-[var(--border)]">
+            <div className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
+              Input
+            </div>
+            <h2 className="text-xl font-semibold text-[var(--text-primary)]">Enter Details</h2>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
+              Provide the information below to run this endpoint
+            </p>
+          </div>
+
+          {/* Form Body */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            {schemaLoading ? (
+              <div className="space-y-4">
+                <div className="h-12 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+                <div className="h-12 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+                <div className="h-12 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+              </div>
+            ) : schemaData?.schema ? (
+              <OpenAPIFormThemed
+                schema={schemaData.schema}
+                onSubmit={handleSubmit}
+                isSubmitting={executeRun.isPending}
+                submitLabel=""
+                loadingLabel=""
+                hideSubmitButton
+              />
+            ) : (
+              <p className="text-sm text-[var(--text-tertiary)]">
+                This endpoint doesn&apos;t require any input parameters.
+              </p>
+            )}
+          </div>
+
+          {/* Form Footer */}
+          <div className="p-5 border-t border-[var(--border)] bg-[var(--bg-tertiary)]">
+            {pageState === 'pre-run' && (
+              <button
+                onClick={() => handleSubmit({})}
+                disabled={executeRun.isPending}
+                className="w-full py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-base font-semibold rounded-lg flex items-center justify-center gap-2.5 transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Run
+              </button>
+            )}
+            {pageState === 'running' && (
+              <button
+                disabled
+                className="w-full py-4 bg-[var(--bg-elevated)] text-[var(--text-tertiary)] text-base font-semibold rounded-lg flex items-center justify-center gap-2.5 cursor-not-allowed"
+              >
+                <div className="w-4 h-4 border-2 border-[var(--text-tertiary)] border-t-transparent rounded-full animate-spin" />
+                Running...
+              </button>
+            )}
+            {pageState === 'post-run' && (
+              <button
+                onClick={handleRunAgain}
+                className="w-full py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-base font-semibold rounded-lg flex items-center justify-center gap-2.5 transition-colors pointer-events-auto opacity-100"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M1 4v6h6M23 20v-6h-6"/>
+                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                </svg>
+                Run Again
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Output Panel (65%) */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-primary)]">
+          {/* Output Header */}
+          <div className="h-[76px] px-7 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-secondary)] flex-shrink-0">
+            {/* Status */}
+            <div className="flex items-center gap-3">
+              {pageState === 'pre-run' && (
+                <span className="px-3.5 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] text-sm font-medium rounded-lg">
+                  Waiting
+                </span>
+              )}
+              {pageState === 'running' && (
+                <>
+                  <span className="px-3.5 py-1.5 bg-[var(--accent)]/15 text-[var(--accent)] text-sm font-medium rounded-lg">
+                    Running
+                  </span>
+                  <span className="text-sm text-[var(--text-tertiary)]">
+                    Elapsed: {elapsedTime}s
+                  </span>
+                </>
+              )}
+              {pageState === 'post-run' && currentRunData && (
+                <>
+                  <span
+                    className={`px-3.5 py-1.5 text-sm font-medium rounded-lg ${
+                      currentRunData.status === 'success'
+                        ? 'bg-[var(--success)]/15 text-[var(--success)]'
+                        : 'bg-[var(--error)]/15 text-[var(--error)]'
+                    }`}
+                  >
+                    {currentRunData.status === 'success' ? 'Success' : 'Error'}
+                  </span>
+                  <span className="text-sm text-[var(--text-tertiary)]">
+                    Completed in {((currentRunData.duration_ms || 0) / 1000).toFixed(1)}s
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCopyAll}
+                disabled={pageState !== 'post-run'}
+                className="flex items-center gap-2 px-3.5 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copy All
+              </button>
+              <div className="flex gap-1 bg-[var(--bg-tertiary)] p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('formatted')}
+                  disabled={pageState !== 'post-run'}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    viewMode === 'formatted'
+                      ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Formatted
+                </button>
+                <button
+                  onClick={() => setViewMode('raw')}
+                  disabled={pageState !== 'post-run'}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    viewMode === 'raw'
+                      ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  Raw JSON
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Output Body */}
+          <div className="flex-1 p-7 overflow-y-auto">
+            {/* Pre-run: Empty state */}
+            {pageState === 'pre-run' && (
+              <div className="h-full flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl flex items-center justify-center mb-6">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--text-tertiary)]">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No results yet</h3>
+                <p className="text-sm text-[var(--text-tertiary)] max-w-[300px]">
+                  Fill in the required fields and click Run to see the output here
+                </p>
+              </div>
+            )}
+
+            {/* Running: Spinner state */}
+            {pageState === 'running' && (
+              <div className="h-full flex flex-col items-center justify-center text-center">
+                <div className="w-12 h-12 border-3 border-[var(--border-secondary)] border-t-[var(--accent)] rounded-full animate-spin mb-6" />
+                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Running...</h3>
+                <p className="text-sm text-[var(--text-tertiary)] font-mono">
+                  Elapsed: {elapsedTime}s
+                </p>
+              </div>
+            )}
+
+            {/* Post-run: Results */}
+            {pageState === 'post-run' && currentRunData?.result && (
+              <>
+                {viewMode === 'formatted' && currentRunData.result.json ? (
+                  <AutoMappedOutput data={currentRunData.result.json} />
+                ) : (
+                  <pre className="p-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-x-auto">
+                    <code className="text-sm text-[var(--text-primary)] font-mono">
+                      {JSON.stringify(currentRunData.result.json || currentRunData.result, null, 2)}
+                    </code>
+                  </pre>
+                )}
+
+                {/* Error message if present */}
+                {currentRunData.result.error_message && (
+                  <div className="mt-6 p-4 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded-lg">
+                    <h4 className="text-sm font-medium text-[var(--error)] mb-1">Error</h4>
+                    <p className="text-sm text-[var(--error)]/80">{currentRunData.result.error_message}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
 
-export default function Page({ params }: PageProps) {
+export default function Page({ params, searchParams }: PageProps) {
   const resolvedParams = use(params);
+  const resolvedSearchParams = use(searchParams);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ProjectRunPage projectId={resolvedParams.project_id} />
+      <RunPage projectId={resolvedParams.project_id} endpointParam={resolvedSearchParams.endpoint} />
     </QueryClientProvider>
   );
 }

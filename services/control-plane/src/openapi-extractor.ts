@@ -22,6 +22,7 @@ interface ExtractedOpenAPI {
     requires_gpu?: boolean;
   }>;
   entrypoint: string;  // e.g., "api:app" - detected entrypoint
+  detected_env_vars: string[];  // Environment variable keys found in code
 }
 
 /**
@@ -75,11 +76,38 @@ if app is None:
     print(json.dumps({"error": "Could not find FastAPI app (tried main:app, app:app, api:app, server:app)"}))
     sys.exit(1)
 
+# Detect environment variables used in code
+import re
+detected_env_vars = set()
+for root, dirs, files in os.walk(app_dir):
+    # Skip common non-code directories
+    dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'node_modules', 'venv', '.venv']]
+    for filename in files:
+        if filename.endswith('.py'):
+            filepath = os.path.join(root, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    # Match os.environ["KEY"], os.environ.get("KEY"), os.getenv("KEY")
+                    patterns = [
+                        r'os\\.environ\\[[\\'"]([A-Z_][A-Z0-9_]*)[\\'"]\\]',
+                        r'os\\.environ\\.get\\([\\'"]([A-Z_][A-Z0-9_]*)[\\'"\\)]',
+                        r'os\\.getenv\\([\\'"]([A-Z_][A-Z0-9_]*)[\\'"\\)]',
+                        r'environ\\.get\\([\\'"]([A-Z_][A-Z0-9_]*)[\\'"\\)]',
+                        r'environ\\[[\\'"]([A-Z_][A-Z0-9_]*)[\\'"]\\]',
+                    ]
+                    for pattern in patterns:
+                        matches = re.findall(pattern, content)
+                        detected_env_vars.update(matches)
+            except Exception:
+                pass
+
 # Extract OpenAPI spec
 try:
     openapi_spec = app.openapi()
-    # Add entrypoint to the response
+    # Add entrypoint and detected env vars to the response
     openapi_spec["x_entrypoint"] = detected_entrypoint
+    openapi_spec["x_detected_env_vars"] = list(detected_env_vars)
     print(json.dumps(openapi_spec))
 except Exception as e:
     print(json.dumps({"error": f"Failed to extract OpenAPI: {str(e)}"}))
@@ -123,14 +151,17 @@ except Exception as e:
       }
     }
 
-    // Extract entrypoint from the response
+    // Extract entrypoint and detected env vars from the response
     const entrypoint = openapi.x_entrypoint || 'main:app';
+    const detected_env_vars = (openapi.x_detected_env_vars || []) as string[];
     delete openapi.x_entrypoint;  // Remove from stored spec
+    delete openapi.x_detected_env_vars;
 
     return {
       openapi,
       endpoints,
       entrypoint,
+      detected_env_vars,
     };
   } finally {
     // Clean up (best effort)

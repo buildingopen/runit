@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { apiClient, type Project } from '../lib/api/client';
+import { apiClient, type Project, type ProjectStatus } from '../lib/api/client';
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -20,7 +20,7 @@ export default function HomePage() {
       setProjects(response.projects || []);
       setRetryCount(0);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load projects';
+      const message = err instanceof Error ? err.message : 'Failed to load apps';
       setError(message);
       // Auto-retry on first failure after 2 seconds
       if (retryCount < 1) {
@@ -55,7 +55,7 @@ export default function HomePage() {
       setProjects(projects.filter(p => p.project_id !== projectId));
       setDeleteConfirm(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete project');
+      setError(err instanceof Error ? err.message : 'Failed to delete app');
       setDeleteConfirm(null);
     } finally {
       setDeleting(null);
@@ -67,7 +67,7 @@ export default function HomePage() {
       {/* Page Header */}
       <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-6">
         <div className="flex items-center gap-3">
-          <h1 className="text-[13px] font-semibold text-[var(--text-primary)]">Projects</h1>
+          <h1 className="text-[13px] font-semibold text-[var(--text-primary)]">Apps</h1>
           {!loading && projects.length > 0 && (
             <span className="px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] rounded">
               {projects.length}
@@ -124,9 +124,9 @@ export default function HomePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <h2 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1.5">No projects yet</h2>
+            <h2 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1.5">No apps yet</h2>
             <p className="text-[13px] text-[var(--text-tertiary)] mb-5 max-w-[280px]">
-              Get started by creating your first FastAPI project
+              Get started by creating your first FastAPI app
             </p>
             <Link
               href="/new"
@@ -135,7 +135,7 @@ export default function HomePage() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              Create Project
+              New App
             </Link>
           </div>
         ) : (
@@ -171,7 +171,7 @@ export default function HomePage() {
                 </svg>
               </div>
               <div>
-                <h3 id="delete-modal-title" className="text-[14px] font-semibold text-[var(--text-primary)]">Delete project?</h3>
+                <h3 id="delete-modal-title" className="text-[14px] font-semibold text-[var(--text-primary)]">Delete app?</h3>
                 <p className="text-[12px] text-[var(--text-tertiary)]">This action cannot be undone</p>
               </div>
             </div>
@@ -198,6 +198,35 @@ export default function HomePage() {
   );
 }
 
+// Get the appropriate link based on project status
+function getProjectLink(projectId: string, status: ProjectStatus | undefined): string {
+  switch (status) {
+    case 'draft':
+      return `/create/configure?project=${projectId}`;
+    case 'deploying':
+      return `/p/${projectId}/deploying`;
+    case 'live':
+    case 'failed':
+    default:
+      return `/p/${projectId}`;
+  }
+}
+
+// Get status badge config
+function getStatusBadge(status: ProjectStatus | undefined): { label: string; className: string } {
+  switch (status) {
+    case 'draft':
+      return { label: 'Draft', className: 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]' };
+    case 'deploying':
+      return { label: 'Deploying', className: 'bg-[var(--accent)]/15 text-[var(--accent)]' };
+    case 'failed':
+      return { label: 'Failed', className: 'bg-[var(--error)]/15 text-[var(--error)]' };
+    case 'live':
+    default:
+      return { label: 'Live', className: 'bg-[var(--success-subtle)] text-[var(--success)]' };
+  }
+}
+
 function ProjectRow({
   project,
   deleteConfirm,
@@ -212,11 +241,13 @@ function ProjectRow({
   onDelete: (id: string) => void;
 }) {
   const latestVersion = project.versions?.[project.versions.length - 1];
+  const projectLink = getProjectLink(project.project_id, project.status);
+  const statusBadge = getStatusBadge(project.status);
 
   return (
     <div className="group flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors">
       <Link
-        href={`/p/${project.project_id}`}
+        href={projectLink}
         className="flex items-center gap-3 flex-1 min-w-0"
       >
         {/* Icon */}
@@ -230,8 +261,8 @@ function ProjectRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium text-[13px] text-[var(--text-primary)] truncate">{project.name}</span>
-            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-[var(--success-subtle)] text-[var(--success)] rounded">
-              Ready
+            <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${statusBadge.className}`}>
+              {statusBadge.label}
             </span>
           </div>
           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[var(--text-tertiary)]">
@@ -258,7 +289,7 @@ function ProjectRow({
           </svg>
         </button>
         <Link
-          href={`/p/${project.project_id}`}
+          href={projectLink}
           className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-active)] rounded-md"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

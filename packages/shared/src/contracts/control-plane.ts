@@ -19,12 +19,16 @@ export interface CreateProjectRequest {
   github_ref?: string;  // branch, tag, or commit SHA
 }
 
+export type ProjectStatus = 'draft' | 'deploying' | 'live' | 'failed';
+
 export interface CreateProjectResponse {
   project_id: string;
   project_slug: string;
   version_id: string;
   version_hash: string;
-  status: 'building' | 'ready' | 'failed';
+  status: ProjectStatus;
+  detected_env_vars?: string[];
+  endpoints?: Array<{ id: string; method: string; path: string; summary?: string }>;
   error?: string;
 }
 

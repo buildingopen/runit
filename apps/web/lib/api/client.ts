@@ -25,11 +25,18 @@ async function getAccessToken(): Promise<string | null> {
   }
 }
 
+export type ProjectStatus = 'draft' | 'deploying' | 'live' | 'failed';
+
 export interface Project {
   project_id: string;
   project_slug: string;
   name: string;
   owner_id: string;
+  status: ProjectStatus;
+  deployed_at?: string | null;
+  deploy_error?: string | null;
+  runtime_url?: string | null;
+  detected_env_vars?: string[];
   created_at: string;
   updated_at: string;
   versions?: ProjectVersion[];
@@ -57,7 +64,9 @@ export interface CreateProjectResponse {
   project_slug: string;
   version_id: string;
   version_hash: string;
-  status: string;
+  status: ProjectStatus;
+  detected_env_vars: string[];
+  endpoints: Array<{ id: string; method: string; path: string; summary?: string }>;
 }
 
 class APIClient {
@@ -67,12 +76,13 @@ class APIClient {
     this.baseURL = baseURL;
   }
 
-  async request<T>(path: string, options?: RequestInit): Promise<T> {
+  async request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
     const url = `${this.baseURL}${path}`;
 
-    // Add timeout to prevent hanging requests
+    // Add timeout to prevent hanging requests (default 10s, configurable)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const timeoutMs = options?.timeout || 10000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     // Get auth token if available
     const token = await getAccessToken();
@@ -130,11 +140,12 @@ class APIClient {
     return this.request<Project>(`/projects/${projectId}`);
   }
 
-  // Create project
+  // Create project (longer timeout for GitHub cloning)
   async createProject(data: CreateProjectRequest) {
     return this.request<CreateProjectResponse>('/projects', {
       method: 'POST',
       body: JSON.stringify(data),
+      timeout: 120000, // 2 minute timeout for GitHub cloning + OpenAPI extraction
     });
   }
 
@@ -316,6 +327,69 @@ class APIClient {
     return this.request<{ status: string }>(`/projects/${projectId}`, {
       method: 'DELETE',
     });
+  }
+
+  // Update project
+  async updateProject(projectId: string, data: { name?: string; slug?: string }) {
+    return this.request<Project>(`/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Set secrets for a project
+  async setSecrets(projectId: string, secrets: Array<{ key: string; value: string }>) {
+    // Set each secret individually
+    await Promise.all(
+      secrets.map((secret) =>
+        this.request(`/projects/${projectId}/secrets`, {
+          method: 'POST',
+          body: JSON.stringify({ key: secret.key, value: secret.value }),
+        })
+      )
+    );
+    return { status: 'ok' };
+  }
+
+  // Start deployment
+  async startDeploy(projectId: string) {
+    return this.request<{
+      status: string;
+      streamUrl: string;
+    }>(`/projects/${projectId}/deploy`, {
+      method: 'POST',
+      timeout: 30000,
+    });
+  }
+
+  // Get deploy status (non-SSE)
+  async getDeployStatus(projectId: string) {
+    return this.request<{
+      status: ProjectStatus;
+      step?: string;
+      progress?: number;
+      message?: string;
+      error?: string;
+      deployed_at?: string;
+      deploy_error?: string;
+    }>(`/projects/${projectId}/deploy/status`);
+  }
+
+  // Redeploy project
+  async redeploy(projectId: string) {
+    return this.request<{
+      status: string;
+      streamUrl: string;
+    }>(`/projects/${projectId}/redeploy`, {
+      method: 'POST',
+      timeout: 30000,
+    });
+  }
+
+  // Create EventSource for deploy streaming
+  createDeployStream(projectId: string): EventSource {
+    const url = `${this.baseURL}/projects/${projectId}/deploy/stream`;
+    return new EventSource(url);
   }
 }
 
