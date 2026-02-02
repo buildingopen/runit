@@ -196,13 +196,27 @@ function ConfigurePageContent() {
             <p className="text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
               Detected Endpoints
             </p>
-            <div className="text-[12px] text-[var(--text-secondary)]">
-              {project?.versions?.length ? (
-                <p className="italic text-[var(--text-tertiary)]">
-                  Endpoints will be available after deployment
-                </p>
+            <div className="space-y-1.5">
+              {project?.endpoints && project.endpoints.length > 0 ? (
+                project.endpoints.map((ep: { id: string; method: string; path: string; summary?: string }) => (
+                  <div key={ep.id} className="flex items-center gap-2">
+                    <span className={`px-1.5 py-0.5 text-[10px] font-mono font-medium rounded ${
+                      ep.method === 'GET' ? 'bg-emerald-500/15 text-emerald-400' :
+                      ep.method === 'POST' ? 'bg-blue-500/15 text-blue-400' :
+                      ep.method === 'PUT' ? 'bg-amber-500/15 text-amber-400' :
+                      ep.method === 'DELETE' ? 'bg-red-500/15 text-red-400' :
+                      'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
+                    }`}>
+                      {ep.method}
+                    </span>
+                    <span className="text-[12px] font-mono text-[var(--text-secondary)]">{ep.path}</span>
+                    {ep.summary && (
+                      <span className="text-[11px] text-[var(--text-tertiary)]">— {ep.summary}</span>
+                    )}
+                  </div>
+                ))
               ) : (
-                <p className="italic text-[var(--text-tertiary)]">No endpoints detected</p>
+                <p className="text-[12px] italic text-[var(--text-tertiary)]">No endpoints detected</p>
               )}
             </div>
           </div>
