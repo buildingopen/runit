@@ -29,11 +29,10 @@ function getMasterKey(): Buffer {
   const masterKeyEnv = process.env.MASTER_ENCRYPTION_KEY;
 
   if (!masterKeyEnv) {
-    // For development, use a default key
-    // WARNING: Never use this in production!
-    console.warn('WARNING: No MASTER_ENCRYPTION_KEY set, using default (INSECURE)');
-    // Exactly 32 bytes for AES-256
-    return Buffer.from('dev-master-key-32-bytes-long!!!!', 'utf-8');
+    throw new Error(
+      'MASTER_ENCRYPTION_KEY environment variable is required. ' +
+      'Generate one with: openssl rand -base64 32'
+    );
   }
 
   // Derive key from env var using PBKDF2

@@ -4,6 +4,7 @@
  * Source of truth for projects, versions, runs, secrets, and sharing.
  */
 
+import 'dotenv/config';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
@@ -20,6 +21,16 @@ import { quotaMiddleware } from './middleware/quota';
 import { bodySizeLimitMiddleware, contentTypeMiddleware } from './middleware/request-validation';
 import { authMiddleware } from './middleware/auth';
 import { loggerMiddleware, devLoggerMiddleware } from './middleware/logger';
+import { securityHeadersMiddleware } from './middleware/security-headers';
+import { validateEnv } from './lib/env';
+import { initSentry, captureException } from './lib/sentry';
+import { logger } from './lib/logger';
+
+// Validate environment variables at boot
+validateEnv();
+
+// Initialize Sentry (async, non-blocking)
+initSentry().catch(() => {});
 
 const app = new Hono();
 
@@ -33,25 +44,44 @@ app.onError((err, c) => {
     }, 400);
   }
 
-  // Log unexpected errors
-  console.error('Unhandled error:', err);
+  // Log and track unexpected errors
+  logger.error('Unhandled error', err);
+  captureException(err instanceof Error ? err : new Error(String(err)));
   return c.json({
     error: 'Internal server error',
   }, 500);
 });
 
-// CORS for web UI - allow all localhost ports for development
+// CORS - production-aware origin allowlist
+const allowedOrigins = (() => {
+  const envOrigins = process.env.CORS_ORIGINS;
+  if (envOrigins) {
+    return envOrigins.split(',').map((o) => o.trim()).filter(Boolean);
+  }
+  return []; // No explicit origins configured
+})();
+
 app.use('/*', cors({
   origin: (origin) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
+    // Allow requests with no origin (server-to-server, curl)
     if (!origin) return '*';
-    // Allow any localhost port in development
-    if (origin.startsWith('http://localhost:')) return origin;
-    if (origin.startsWith('http://127.0.0.1:')) return origin;
+
+    // Check explicit allowlist first
+    if (allowedOrigins.includes(origin)) return origin;
+
+    // In development, allow localhost
+    if (process.env.NODE_ENV !== 'production') {
+      if (origin.startsWith('http://localhost:')) return origin;
+      if (origin.startsWith('http://127.0.0.1:')) return origin;
+    }
+
     return null;
   },
   credentials: true,
 }));
+
+// Security headers
+app.use('/*', securityHeadersMiddleware);
 
 // Request logging - use dev logger in development, structured logger in production
 const isProduction = process.env.NODE_ENV === 'production';
@@ -88,7 +118,11 @@ app.get('/', (c) => {
 });
 
 app.get('/health', (c) => {
-  return c.json({ status: 'healthy' });
+  return c.json({
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // OpenAPI specification for this API
@@ -257,7 +291,40 @@ Available routes:
 Modal Runtime: execution-layer-runtime (deployed)
 `);
 
-serve({
+const server = serve({
   fetch: app.fetch,
   port,
+});
+
+// Graceful shutdown handler
+function shutdown(signal: string) {
+  console.log(`\n[${signal}] Shutting down gracefully...`);
+
+  // Stop accepting new connections
+  server.close(() => {
+    console.log('Server closed. Exiting.');
+    process.exit(0);
+  });
+
+  // Force exit after 10s if connections don't drain
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Capture unhandled errors
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled rejection', reason instanceof Error ? reason : new Error(String(reason)));
+  captureException(reason instanceof Error ? reason : new Error(String(reason)));
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught exception', error);
+  captureException(error);
+  // Exit on uncaught exception - let the process manager restart
+  process.exit(1);
 });

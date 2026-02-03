@@ -4,12 +4,18 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL && typeof window !== 'undefined') {
+  console.error('NEXT_PUBLIC_API_URL is not configured');
+}
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 /**
- * Get the current user's access token from Supabase
+ * Get the current user's access token from Supabase.
+ * Returns null if not authenticated.
  */
 async function getAccessToken(): Promise<string | null> {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -18,8 +24,20 @@ async function getAccessToken(): Promise<string | null> {
 
   try {
     const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token || null;
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error || !session) {
+      return null;
+    }
+
+    // Check if token is close to expiry (< 60s) and refresh
+    const expiresAt = session.expires_at;
+    if (expiresAt && expiresAt * 1000 - Date.now() < 60000) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      return refreshed.session?.access_token || session.access_token;
+    }
+
+    return session.access_token;
   } catch {
     return null;
   }
@@ -39,8 +57,9 @@ export interface Project {
   detected_env_vars?: string[];
   created_at: string;
   updated_at: string;
+  endpoints?: Array<{ id: string; method: string; path: string; summary?: string }>;
   versions?: ProjectVersion[];
-  latest_version?: string;  // From list endpoint (version hash)
+  latest_version?: string;
 }
 
 export interface ProjectVersion {
@@ -54,9 +73,9 @@ export interface ProjectVersion {
 export interface CreateProjectRequest {
   name: string;
   source_type: 'zip' | 'github';
-  zip_data?: string;       // For ZIP uploads (base64)
-  github_url?: string;     // For GitHub imports
-  github_ref?: string;     // Branch/tag (optional, defaults to main)
+  zip_data?: string;
+  github_url?: string;
+  github_ref?: string;
 }
 
 export interface CreateProjectResponse {
@@ -72,19 +91,22 @@ export interface CreateProjectResponse {
 class APIClient {
   private baseURL: string;
 
-  constructor(baseURL: string = API_BASE_URL) {
-    this.baseURL = baseURL;
+  constructor(baseURL?: string) {
+    this.baseURL = baseURL || API_BASE_URL || '';
   }
 
   async request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
+    if (!this.baseURL) {
+      throw new Error('API URL is not configured. Set NEXT_PUBLIC_API_URL environment variable.');
+    }
+
     const url = `${this.baseURL}${path}`;
 
-    // Add timeout to prevent hanging requests (default 10s, configurable)
     const controller = new AbortController();
     const timeoutMs = options?.timeout || 10000;
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    // Get auth token if available
+    // Get auth token
     const token = await getAccessToken();
 
     try {
@@ -145,7 +167,7 @@ class APIClient {
     return this.request<CreateProjectResponse>('/projects', {
       method: 'POST',
       body: JSON.stringify(data),
-      timeout: 120000, // 2 minute timeout for GitHub cloning + OpenAPI extraction
+      timeout: 120000,
     });
   }
 
@@ -178,8 +200,6 @@ class APIClient {
       parameters?: any[];
     }>(`/projects/${projectId}/versions/${versionId}/endpoints/${endpointId}/schema`);
 
-    // Map to expected format - request_schema is the input schema (for POST/PUT/PATCH)
-    // For GET endpoints, request_schema will be undefined
     return {
       endpoint: {
         id: response.endpoint_id,
@@ -339,7 +359,6 @@ class APIClient {
 
   // Set secrets for a project
   async setSecrets(projectId: string, secrets: Array<{ key: string; value: string }>) {
-    // Set each secret individually
     await Promise.all(
       secrets.map((secret) =>
         this.request(`/projects/${projectId}/secrets`, {
@@ -372,6 +391,7 @@ class APIClient {
       error?: string;
       deployed_at?: string;
       deploy_error?: string;
+      runtime_url?: string;
     }>(`/projects/${projectId}/deploy/status`);
   }
 
@@ -388,6 +408,9 @@ class APIClient {
 
   // Create EventSource for deploy streaming
   createDeployStream(projectId: string): EventSource {
+    if (!this.baseURL) {
+      throw new Error('API URL is not configured');
+    }
     const url = `${this.baseURL}/projects/${projectId}/deploy/stream`;
     return new EventSource(url);
   }

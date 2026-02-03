@@ -2,6 +2,7 @@
  * Modal Client - Bridge between control-plane and Modal runtime
  *
  * This module calls the deployed Modal functions to execute user code.
+ * Uses JSON file passing instead of string interpolation to prevent injection.
  */
 
 import { spawn } from 'child_process';
@@ -12,7 +13,6 @@ import { fileURLToPath } from 'url';
 
 // Find Python with Modal installed (prefer venv)
 function findPython(): string {
-  // Try venv in project root (3 levels up from this file: src -> control-plane -> services -> execution-layer)
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
   const projectRoot = join(__dirname, '..', '..', '..');
@@ -22,11 +22,53 @@ function findPython(): string {
     return venvPython;
   }
 
-  // Fallback to system python
   return 'python3';
 }
 
 const PYTHON_PATH = findPython();
+
+// Fixed Python runner script - reads payload from JSON file, no interpolation
+const MODAL_RUNNER_SCRIPT = `
+import modal
+import json
+import sys
+
+def main():
+    if len(sys.argv) < 2:
+        print(json.dumps({"status": "error", "error_message": "No payload file provided"}))
+        sys.exit(1)
+
+    payload_path = sys.argv[1]
+    with open(payload_path, "r") as f:
+        payload = json.load(f)
+
+    lane = payload.get("lane", "cpu")
+    func_name = f"run_endpoint_{lane}"
+
+    fn = modal.Function.from_name(
+        "execution-layer-runtime",
+        func_name,
+        environment_name="main"
+    )
+
+    try:
+        result = fn.remote(payload)
+        print(json.dumps(result))
+    except Exception as e:
+        print(json.dumps({
+            "run_id": payload.get("run_id", "unknown"),
+            "status": "error",
+            "http_status": 500,
+            "response_body": None,
+            "duration_ms": 0,
+            "error_class": "MODAL_EXECUTION_ERROR",
+            "error_message": str(e),
+        }))
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+`;
 
 interface ModalExecutionRequest {
   run_id: string;
@@ -62,77 +104,43 @@ interface ModalExecutionResult {
 }
 
 /**
- * Convert JSON to Python-compatible string
- * Replaces true/false/null with True/False/None
- */
-function jsonToPython(obj: any): string {
-  return JSON.stringify(obj)
-    .replace(/\btrue\b/g, 'True')
-    .replace(/\bfalse\b/g, 'False')
-    .replace(/\bnull\b/g, 'None');
-}
-
-/**
  * Execute endpoint on Modal runtime
  *
- * This calls the deployed Modal function using Python SDK
+ * Uses JSON file passing to avoid command injection.
+ * The Python runner script is fixed (no string interpolation).
  */
 export async function executeOnModal(request: ModalExecutionRequest): Promise<ModalExecutionResult> {
-  // Create Python script to call Modal
-  const pythonScript = `
-import modal
-import json
-import sys
+  const runId = request.run_id.replace(/[^a-zA-Z0-9_-]/g, '');
+  const payloadPath = join(tmpdir(), `modal-payload-${runId}.json`);
+  const scriptPath = join(tmpdir(), `modal-runner-${runId}.py`);
 
-# Get deployed function
-run_endpoint_${request.lane} = modal.Function.from_name(
-    "execution-layer-runtime",
-    "run_endpoint_${request.lane}",
-    environment_name="main"
-)
+  // Write payload as JSON file (no interpolation)
+  const payload = {
+    run_id: request.run_id,
+    code_bundle: request.code_bundle,
+    entrypoint: request.entrypoint || 'main:app',
+    endpoint: request.endpoint,
+    request_data: request.request_data,
+    env: {},
+    secrets_ref: request.secrets_ref || null,
+    context: {},
+    deps_hash: 'no-deps',
+    project_id: 'test-project',
+    deterministic: false,
+    timeout_seconds: request.timeout_seconds,
+    lane: request.lane,
+  };
 
-# Prepare payload
-payload = {
-    "run_id": "${request.run_id}",
-    "code_bundle": """${request.code_bundle}""",
-    "entrypoint": "${request.entrypoint || 'main:app'}",
-    "endpoint": "${request.endpoint}",
-    "request_data": ${jsonToPython(request.request_data)},
-    "env": {},
-    "secrets_ref": ${request.secrets_ref ? `"${request.secrets_ref}"` : 'None'},
-    "context": {},
-    "deps_hash": "no-deps",
-    "project_id": "test-project",
-    "deterministic": False,
-    "timeout_seconds": ${request.timeout_seconds},
-}
-
-# Execute
-try:
-    result = run_endpoint_${request.lane}.remote(payload)
-    print(json.dumps(result))
-except Exception as e:
-    print(json.dumps({
-        "run_id": "${request.run_id}",
-        "status": "error",
-        "http_status": 500,
-        "response_body": None,
-        "duration_ms": 0,
-        "error_class": "MODAL_EXECUTION_ERROR",
-        "error_message": str(e),
-    }))
-    sys.exit(1)
-`;
-
-  // Write script to temp file
-  const scriptPath = join(tmpdir(), `modal-exec-${request.run_id}.py`);
-  writeFileSync(scriptPath, pythonScript);
+  writeFileSync(payloadPath, JSON.stringify(payload));
+  writeFileSync(scriptPath, MODAL_RUNNER_SCRIPT);
 
   try {
-    // Execute Python script
-    const result = await executePythonScript(scriptPath, request.timeout_seconds + 10);
+    const result = await executePythonScript(
+      scriptPath,
+      [payloadPath],
+      request.timeout_seconds + 10
+    );
 
-    // Parse result
     const parsed = JSON.parse(result);
 
     return {
@@ -148,21 +156,23 @@ except Exception as e:
       suggested_fix: parsed.suggested_fix,
     };
   } finally {
-    // Clean up temp file
-    try {
-      unlinkSync(scriptPath);
-    } catch (err) {
-      // Ignore cleanup errors
+    // Clean up temp files
+    for (const path of [payloadPath, scriptPath]) {
+      try {
+        unlinkSync(path);
+      } catch {
+        // Ignore cleanup errors
+      }
     }
   }
 }
 
 /**
- * Execute Python script and return stdout
+ * Execute Python script with arguments and return stdout
  */
-function executePythonScript(scriptPath: string, timeout: number): Promise<string> {
+function executePythonScript(scriptPath: string, args: string[], timeout: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const python = spawn(PYTHON_PATH, [scriptPath]);
+    const python = spawn(PYTHON_PATH, [scriptPath, ...args]);
 
     let stdout = '';
     let stderr = '';

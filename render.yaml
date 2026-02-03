@@ -1,0 +1,89 @@
+# Render Blueprint - Execution Layer
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Next.js Web Frontend
+  - type: web
+    name: execution-layer-web
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: npm ci && npx turbo run build --filter=@runtime-ai/web
+    startCommand: cd apps/web && npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        fromGroup: supabase
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        fromGroup: supabase
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: execution-layer-api
+          type: web
+          property: url
+    autoDeploy: true
+    branch: main
+
+  # Hono Control Plane API
+  - type: web
+    name: execution-layer-api
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: npm ci && npx turbo run build --filter=@runtime-ai/control-plane
+    startCommand: cd services/control-plane && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: SUPABASE_URL
+        fromGroup: supabase
+      - key: SUPABASE_ANON_KEY
+        fromGroup: supabase
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        fromGroup: supabase
+      - key: MASTER_ENCRYPTION_KEY
+        fromGroup: encryption
+      - key: MODAL_TOKEN_ID
+        fromGroup: modal
+      - key: MODAL_TOKEN_SECRET
+        fromGroup: modal
+      - key: CORS_ORIGINS
+        fromGroup: cors
+    autoDeploy: true
+    branch: main
+
+envVarGroups:
+  - name: supabase
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+
+  - name: encryption
+    envVars:
+      - key: MASTER_ENCRYPTION_KEY
+        generateValue: true
+
+  - name: modal
+    envVars:
+      - key: MODAL_TOKEN_ID
+        sync: false
+      - key: MODAL_TOKEN_SECRET
+        sync: false
+
+  - name: cors
+    envVars:
+      - key: CORS_ORIGINS
+        sync: false

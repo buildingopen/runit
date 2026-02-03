@@ -2,9 +2,16 @@
  * Secrets management tests
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import { encryptSecret, decryptSecret, redactSecrets } from '../src/crypto/kms';
 import { storeSecret, getProjectSecrets, deleteSecret, clearAllSecrets } from '../src/db/secrets-store';
+
+// Ensure MASTER_ENCRYPTION_KEY is set for tests
+beforeAll(() => {
+  if (!process.env.MASTER_ENCRYPTION_KEY) {
+    process.env.MASTER_ENCRYPTION_KEY = 'dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch';
+  }
+});
 
 describe('KMS Encryption', () => {
   it('should encrypt and decrypt a secret', async () => {

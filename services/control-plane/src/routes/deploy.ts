@@ -7,6 +7,7 @@ import { streamSSE } from 'hono/streaming';
 import { getAuthContext } from '../middleware/auth.js';
 import * as projectsStore from '../db/projects-store.js';
 import * as deployState from '../lib/deploy-state.js';
+import { runDeployment } from '../lib/deploy-bridge.js';
 
 const deploy = new Hono();
 
@@ -16,9 +17,12 @@ const deploy = new Hono();
 deploy.post('/:id/deploy', async (c) => {
   const projectId = c.req.param('id');
 
-  // Get authenticated user
+  // Require authenticated user
   const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || 'anonymous';
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
 
   // Get project
   const project = await projectsStore.getProject(projectId);
@@ -27,7 +31,7 @@ deploy.post('/:id/deploy', async (c) => {
   }
 
   // Verify ownership
-  if (project.owner_id !== userId && userId !== 'anonymous') {
+  if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
 
@@ -50,7 +54,7 @@ deploy.post('/:id/deploy', async (c) => {
     deploy_error: null,
   });
 
-  // Start async deployment process
+  // Start async deployment process (real Modal integration)
   runDeployment(projectId, version).catch((err) => {
     console.error('Deployment failed:', err);
   });
@@ -136,9 +140,12 @@ deploy.get('/:id/deploy/stream', async (c) => {
 deploy.post('/:id/redeploy', async (c) => {
   const projectId = c.req.param('id');
 
-  // Get authenticated user
+  // Require authenticated user
   const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || 'anonymous';
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
 
   // Get project
   const project = await projectsStore.getProject(projectId);
@@ -147,7 +154,7 @@ deploy.post('/:id/redeploy', async (c) => {
   }
 
   // Verify ownership
-  if (project.owner_id !== userId && userId !== 'anonymous') {
+  if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
 
@@ -170,7 +177,7 @@ deploy.post('/:id/redeploy', async (c) => {
     deploy_error: null,
   });
 
-  // Start async deployment process
+  // Start async deployment process (real Modal integration)
   runDeployment(projectId, version).catch((err) => {
     console.error('Redeploy failed:', err);
   });
@@ -199,6 +206,7 @@ deploy.get('/:id/deploy/status', async (c) => {
       status: project.status,
       deployed_at: project.deployed_at,
       deploy_error: project.deploy_error,
+      runtime_url: project.runtime_url,
     });
   }
 
@@ -210,70 +218,5 @@ deploy.get('/:id/deploy/status', async (c) => {
     error: state.error,
   });
 });
-
-/**
- * Run the actual deployment process
- * This is a simulation - in production this would:
- * 1. Install dependencies on Modal
- * 2. Build the container
- * 3. Start the sandbox
- * 4. Run health checks
- */
-async function runDeployment(
-  projectId: string,
-  version: projectsStore.ProjectVersion
-): Promise<void> {
-  try {
-    // Step 1: Installing dependencies (simulated)
-    deployState.updateDeployProgress(projectId, 'installing_deps', 10, 'Installing dependencies...');
-    await sleep(1500);
-
-    deployState.updateDeployProgress(projectId, 'installing_deps', 25, 'Resolving packages...');
-    await sleep(1000);
-
-    // Step 2: Building
-    deployState.updateDeployProgress(projectId, 'building', 40, 'Building container...');
-    await sleep(1500);
-
-    deployState.updateDeployProgress(projectId, 'building', 55, 'Optimizing build...');
-    await sleep(1000);
-
-    // Step 3: Starting
-    deployState.updateDeployProgress(projectId, 'starting', 70, 'Starting sandbox...');
-    await sleep(1500);
-
-    // Step 4: Health check
-    deployState.updateDeployProgress(projectId, 'health_check', 85, 'Running health check...');
-    await sleep(1000);
-
-    deployState.updateDeployProgress(projectId, 'health_check', 95, 'Verifying endpoints...');
-    await sleep(500);
-
-    // Complete
-    deployState.completeDeploy(projectId);
-
-    // Update project status
-    await projectsStore.updateProjectStatus(projectId, 'live', {
-      deployed_at: new Date().toISOString(),
-      deploy_error: null,
-      runtime_url: `https://${projectId}.runtime.ai`, // Placeholder URL
-    });
-
-    console.log(`✅ Deployment complete for project ${projectId}`);
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    deployState.failDeploy(projectId, errorMessage);
-
-    await projectsStore.updateProjectStatus(projectId, 'failed', {
-      deploy_error: errorMessage,
-    });
-
-    console.error(`❌ Deployment failed for project ${projectId}:`, err);
-  }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export default deploy;

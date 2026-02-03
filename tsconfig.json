@@ -18,10 +18,13 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@/db": ["./src/db"],
+      "@/db/*": ["./src/db/*"],
+      "@/lib/*": ["./src/lib/*"],
       "@execution-layer/shared": ["./packages/shared/src"],
       "@execution-layer/ui": ["./packages/ui/src"]
     }
   },
-  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "services/**/*.ts", "services/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "services/**/*.ts", "services/**/*.tsx"],
   "exclude": ["node_modules", "dist", "build", ".next", "agent-*/**", "**/__tests__/**", "**/*.test.ts", "**/*.spec.ts"]
 }

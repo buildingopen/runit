@@ -6,10 +6,14 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Environment variables
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Environment variables - read lazily to ensure dotenv has loaded
+function getEnvVars() {
+  return {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+}
 
 // Singleton instances
 let anonClient: SupabaseClient | null = null;
@@ -19,6 +23,7 @@ let serviceClient: SupabaseClient | null = null;
  * Check if Supabase is configured
  */
 export function isSupabaseConfigured(): boolean {
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnvVars();
   return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
 
@@ -27,6 +32,7 @@ export function isSupabaseConfigured(): boolean {
  * Used for operations that respect RLS
  */
 export function getSupabaseClient(): SupabaseClient {
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnvVars();
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error('Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.');
   }
@@ -48,6 +54,7 @@ export function getSupabaseClient(): SupabaseClient {
  * Used for admin operations that bypass RLS
  */
 export function getServiceSupabaseClient(): SupabaseClient {
+  const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = getEnvVars();
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Supabase service role is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
   }
@@ -69,6 +76,7 @@ export function getServiceSupabaseClient(): SupabaseClient {
  * Used for operations that should respect the user's permissions
  */
 export function getSupabaseClientWithToken(token: string): SupabaseClient {
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnvVars();
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error('Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.');
   }
