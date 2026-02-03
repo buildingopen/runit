@@ -7,7 +7,7 @@
 
 interface EnvVar {
   name: string;
-  required: 'always' | 'production';
+  required: 'always' | 'production' | 'optional';
   description: string;
 }
 
@@ -16,8 +16,8 @@ const ENV_VARS: EnvVar[] = [
   { name: 'SUPABASE_ANON_KEY', required: 'production', description: 'Supabase anonymous key' },
   { name: 'SUPABASE_SERVICE_ROLE_KEY', required: 'production', description: 'Supabase service role key' },
   { name: 'MASTER_ENCRYPTION_KEY', required: 'production', description: 'Master encryption key (base64, 32 bytes)' },
-  { name: 'MODAL_TOKEN_ID', required: 'production', description: 'Modal API token ID' },
-  { name: 'MODAL_TOKEN_SECRET', required: 'production', description: 'Modal API token secret' },
+  { name: 'MODAL_TOKEN_ID', required: 'optional', description: 'Modal API token ID (required for deployments)' },
+  { name: 'MODAL_TOKEN_SECRET', required: 'optional', description: 'Modal API token secret (required for deployments)' },
 ];
 
 /**
@@ -35,7 +35,9 @@ export function validateEnv(): void {
     const isEmpty = !value || value.trim() === '';
 
     if (isEmpty) {
-      if (envVar.required === 'always' || (envVar.required === 'production' && isProduction)) {
+      if (envVar.required === 'optional') {
+        warnings.push(`  - ${envVar.name}: ${envVar.description}`);
+      } else if (envVar.required === 'always' || (envVar.required === 'production' && isProduction)) {
         missing.push(`  - ${envVar.name}: ${envVar.description}`);
       } else {
         warnings.push(`  - ${envVar.name}: ${envVar.description}`);
