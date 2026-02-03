@@ -32,6 +32,9 @@ validateEnv();
 // Initialize Sentry (async, non-blocking)
 initSentry().catch(() => {});
 
+// Run database migrations (async, non-blocking — app starts regardless)
+import('./db/migrate-boot.js').catch(() => {});
+
 const app = new Hono();
 
 // Global error handler for JSON parse errors and other exceptions

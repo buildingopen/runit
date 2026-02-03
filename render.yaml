@@ -33,7 +33,6 @@ services:
     region: oregon
     plan: starter
     buildCommand: npm ci && npx turbo run build --filter=@runtime-ai/control-plane
-    preDeployCommand: cd services/control-plane && npx tsx src/db/migrate.ts
     startCommand: cd services/control-plane && npm start
     healthCheckPath: /health
     envVars:
