@@ -121,7 +121,7 @@ except Exception as e:
 
   try {
     // Execute Python script
-    const result = await executePythonScript(scriptPath, 30);
+    const result = await executePythonScript(scriptPath, 60);
 
     // Parse OpenAPI spec
     const openapi = JSON.parse(result);

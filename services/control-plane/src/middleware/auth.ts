@@ -41,10 +41,15 @@ export async function authMiddleware(c: Context, next: Next) {
     isAuthenticated: false,
   };
 
-  // Skip auth validation if Supabase is not configured (dev mode)
+  // In production, Supabase MUST be configured
   if (!isSupabaseConfigured()) {
-    // In dev mode without Supabase, create a mock user
-    if (process.env.NODE_ENV === 'development' || process.env.DEV_MODE === 'true') {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('FATAL: Supabase is not configured in production');
+      return c.json({ error: 'Server misconfiguration' }, 500);
+    }
+
+    // Dev mode only: create a mock user when Supabase is unavailable
+    if (process.env.DEV_MODE === 'true') {
       authContext.user = {
         id: 'dev-user-00000000-0000-0000-0000-000000000000',
         email: 'dev@localhost',

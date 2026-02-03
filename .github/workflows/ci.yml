@@ -32,6 +32,9 @@ jobs:
 
       - name: Test
         run: npm run test
+        env:
+          NODE_ENV: test
+          MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
 
   # Python Runner: Lint and Test
   python-runner:

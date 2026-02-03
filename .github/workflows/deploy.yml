@@ -115,8 +115,9 @@ jobs:
           MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
         run: modal deploy src/modal_app.py
 
-  # Web is deployed via Vercel GitHub integration
-  # No action needed here - Vercel auto-deploys on push to main
+  # Web + API deployed via Render Blueprint (render.yaml)
+  # Render auto-deploys on push to main
+  # No action needed here - Render handles zero-downtime deploys
 
   # Notify on completion
   notify:

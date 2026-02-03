@@ -1,9 +1,13 @@
 /**
- * ABOUTME: Quota enforcement middleware for run execution
- * ABOUTME: Tracks hourly and concurrent usage per user
+ * Quota Enforcement Middleware
+ *
+ * Tracks hourly and concurrent usage per authenticated user.
+ * Uses DB-backed quotas when Supabase is configured.
  */
 
 import type { Context, Next } from 'hono';
+import { getAuthContext } from './auth.js';
+import { isSupabaseConfigured, getServiceSupabaseClient } from '../db/supabase.js';
 
 interface QuotaUsage {
   cpuRunsThisHour: number;
@@ -13,7 +17,7 @@ interface QuotaUsage {
   hourlyResetAt: number;
 }
 
-// In-memory store for v0
+// In-memory store (fallback)
 const quotaStore = new Map<string, QuotaUsage>();
 
 const QUOTA_LIMITS = {
@@ -27,14 +31,12 @@ const QUOTA_LIMITS = {
   }
 };
 
-/**
- * Get or create quota usage for a user
- */
-function getQuotaUsage(userId: string): QuotaUsage {
+// --- In-memory helpers ---
+
+function getQuotaUsageMemory(userId: string): QuotaUsage {
   const now = Date.now();
   const existing = quotaStore.get(userId);
 
-  // Reset if hour has passed
   if (existing && now >= existing.hourlyResetAt) {
     quotaStore.delete(userId);
   }
@@ -45,7 +47,7 @@ function getQuotaUsage(userId: string): QuotaUsage {
       gpuRunsThisHour: 0,
       activeCpuRuns: new Set(),
       activeGpuRuns: new Set(),
-      hourlyResetAt: now + 3600_000 // 1 hour
+      hourlyResetAt: now + 3600_000
     };
     quotaStore.set(userId, usage);
     return usage;
@@ -54,26 +56,54 @@ function getQuotaUsage(userId: string): QuotaUsage {
   return quotaStore.get(userId)!;
 }
 
-/**
- * Reset quota for testing
- */
+// --- DB-backed helpers ---
+
+async function getOrCreateDBQuota(userId: string, lane: 'cpu' | 'gpu') {
+  const supabase = getServiceSupabaseClient();
+  const now = new Date();
+  const hourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours());
+
+  const { data: existing } = await supabase
+    .from('usage_quotas')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('period', 'hourly')
+    .gte('period_start', hourStart.toISOString())
+    .single();
+
+  if (existing) return existing;
+
+  // Create new period
+  const { data: created } = await supabase
+    .from('usage_quotas')
+    .upsert({
+      user_id: userId,
+      period: 'hourly',
+      period_start: hourStart.toISOString(),
+      cpu_run_count: 0,
+      gpu_run_count: 0,
+      active_cpu_runs: 0,
+      active_gpu_runs: 0,
+    }, { onConflict: 'user_id,period,period_start' })
+    .select()
+    .single();
+
+  return created;
+}
+
 export function resetQuota(userId: string): void {
   quotaStore.delete(userId);
 }
 
-/**
- * Check if user can start a new run
- */
 export function checkQuota(userId: string, lane: 'cpu' | 'gpu'): {
   allowed: boolean;
   reason?: string;
   runsRemaining?: number;
   concurrentRemaining?: number;
 } {
-  const usage = getQuotaUsage(userId);
+  const usage = getQuotaUsageMemory(userId);
   const limits = QUOTA_LIMITS[lane];
 
-  // Check hourly quota
   const runsThisHour = lane === 'cpu' ? usage.cpuRunsThisHour : usage.gpuRunsThisHour;
   if (runsThisHour >= limits.runsPerHour) {
     return {
@@ -83,7 +113,6 @@ export function checkQuota(userId: string, lane: 'cpu' | 'gpu'): {
     };
   }
 
-  // Check concurrent quota
   const activeRuns = lane === 'cpu' ? usage.activeCpuRuns : usage.activeGpuRuns;
   if (activeRuns.size >= limits.maxConcurrent) {
     return {
@@ -100,12 +129,34 @@ export function checkQuota(userId: string, lane: 'cpu' | 'gpu'): {
   };
 }
 
-/**
- * Track the start of a run
- */
-export function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
-  const usage = getQuotaUsage(userId);
+async function checkQuotaDB(userId: string, lane: 'cpu' | 'gpu'): Promise<{
+  allowed: boolean;
+  reason?: string;
+  runsRemaining?: number;
+  concurrentRemaining?: number;
+}> {
+  const quota = await getOrCreateDBQuota(userId, lane);
+  if (!quota) return { allowed: true, runsRemaining: QUOTA_LIMITS[lane].runsPerHour };
 
+  const limits = QUOTA_LIMITS[lane];
+  const count = lane === 'cpu' ? quota.cpu_run_count : quota.gpu_run_count;
+
+  if (count >= limits.runsPerHour) {
+    return {
+      allowed: false,
+      reason: `${lane.toUpperCase()} quota exceeded: ${limits.runsPerHour} runs per hour`,
+      runsRemaining: 0,
+    };
+  }
+
+  return {
+    allowed: true,
+    runsRemaining: limits.runsPerHour - count - 1,
+  };
+}
+
+export function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
+  const usage = getQuotaUsageMemory(userId);
   if (lane === 'cpu') {
     usage.cpuRunsThisHour++;
     usage.activeCpuRuns.add(runId);
@@ -113,13 +164,30 @@ export function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'
     usage.gpuRunsThisHour++;
     usage.activeGpuRuns.add(runId);
   }
-
   quotaStore.set(userId, usage);
+
+  // Also update DB if available
+  if (isSupabaseConfigured()) {
+    trackRunStartDB(userId, lane).catch(() => {});
+  }
 }
 
-/**
- * Track the completion of a run
- */
+async function trackRunStartDB(userId: string, lane: 'cpu' | 'gpu') {
+  const quota = await getOrCreateDBQuota(userId, lane);
+  if (!quota) return;
+
+  const supabase = getServiceSupabaseClient();
+  const updates: Record<string, number> = {};
+  if (lane === 'cpu') {
+    updates.cpu_run_count = (quota.cpu_run_count || 0) + 1;
+    updates.active_cpu_runs = (quota.active_cpu_runs || 0) + 1;
+  } else {
+    updates.gpu_run_count = (quota.gpu_run_count || 0) + 1;
+    updates.active_gpu_runs = (quota.active_gpu_runs || 0) + 1;
+  }
+  await supabase.from('usage_quotas').update(updates).eq('id', quota.id);
+}
+
 export function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
   const usage = quotaStore.get(userId);
   if (!usage) return;
@@ -129,25 +197,39 @@ export function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'g
   } else {
     usage.activeGpuRuns.delete(runId);
   }
-
   quotaStore.set(userId, usage);
+
+  if (isSupabaseConfigured()) {
+    trackRunCompleteDB(userId, lane).catch(() => {});
+  }
+}
+
+async function trackRunCompleteDB(userId: string, lane: 'cpu' | 'gpu') {
+  const quota = await getOrCreateDBQuota(userId, lane);
+  if (!quota) return;
+
+  const supabase = getServiceSupabaseClient();
+  const field = lane === 'cpu' ? 'active_cpu_runs' : 'active_gpu_runs';
+  const current = quota[field] || 0;
+  await supabase.from('usage_quotas').update({ [field]: Math.max(0, current - 1) }).eq('id', quota.id);
 }
 
 /**
  * Quota enforcement middleware
  */
 export async function quotaMiddleware(c: Context, next: Next) {
-  // Only apply to run endpoints
   const path = c.req.path;
   if (!path.includes('/runs') || c.req.method !== 'POST') {
     return next();
   }
 
-  // Get user ID from request header.
-  // Production: Replace with authenticated user ID from your auth system (e.g., Supabase auth, JWT claims)
-  const userId = c.req.header('x-user-id') || 'anonymous';
+  // Require authenticated user
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required for run execution' }, 401);
+  }
+  const userId = authContext.user.id;
 
-  // Get lane from request body
   const body = await c.req.json().catch(() => ({}));
   const lane = body.lane || 'cpu';
 
@@ -155,33 +237,25 @@ export async function quotaMiddleware(c: Context, next: Next) {
     return c.json({ error: 'Invalid lane. Must be "cpu" or "gpu"' }, 400);
   }
 
-  // Check quota
-  const result = checkQuota(userId, lane);
+  // Check quota (DB-backed if available)
+  let result;
+  if (isSupabaseConfigured()) {
+    try {
+      result = await checkQuotaDB(userId, lane);
+    } catch {
+      result = checkQuota(userId, lane);
+    }
+  } else {
+    result = checkQuota(userId, lane);
+  }
 
   if (!result.allowed) {
-    const usage = getQuotaUsage(userId);
     return c.json({
       error: 'Quota exceeded',
       message: result.reason,
-      quota: {
-        cpu: {
-          runsThisHour: usage.cpuRunsThisHour,
-          runsPerHour: QUOTA_LIMITS.cpu.runsPerHour,
-          activeConcurrent: usage.activeCpuRuns.size,
-          maxConcurrent: QUOTA_LIMITS.cpu.maxConcurrent
-        },
-        gpu: {
-          runsThisHour: usage.gpuRunsThisHour,
-          runsPerHour: QUOTA_LIMITS.gpu.runsPerHour,
-          activeConcurrent: usage.activeGpuRuns.size,
-          maxConcurrent: QUOTA_LIMITS.gpu.maxConcurrent
-        },
-        resetAt: new Date(usage.hourlyResetAt).toISOString()
-      }
     }, 429);
   }
 
-  // Add tracking helpers to context - runs.ts will call trackStart with actual runId
   c.set('quotaTracking', {
     userId,
     lane,
@@ -189,16 +263,12 @@ export async function quotaMiddleware(c: Context, next: Next) {
     trackComplete: (runId: string) => trackRunComplete(userId, runId, lane)
   });
 
-  // Set quota headers
   c.header('X-Quota-CPU-Remaining', result.runsRemaining?.toString() || '0');
   c.header('X-Quota-CPU-Concurrent', result.concurrentRemaining?.toString() || '0');
 
   return next();
 }
 
-/**
- * Admin endpoint to view quota stats
- */
 export function getQuotaStats() {
   const stats: Array<{
     userId: string;
@@ -220,8 +290,5 @@ export function getQuotaStats() {
     });
   }
 
-  return {
-    totalUsers: stats.length,
-    users: stats
-  };
+  return { totalUsers: stats.length, users: stats };
 }

@@ -13,7 +13,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    label: 'Projects',
+    label: 'Apps',
     href: '/',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -166,7 +166,7 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* New Project Button */}
+        {/* New App Button */}
         <div className="p-3 border-t border-[var(--border-subtle)]">
           <Link
             href="/new"
@@ -175,7 +175,7 @@ export function Sidebar() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            New Project
+            New App
           </Link>
         </div>
 

@@ -1,17 +1,20 @@
 /**
- * ABOUTME: Rate limiting middleware for API endpoints
- * ABOUTME: Prevents abuse with per-IP and per-user rate limits
+ * Rate Limiting Middleware
+ *
+ * Uses DB-backed rate limits when Supabase is configured,
+ * falls back to in-memory for development.
  */
 
 import type { Context, Next } from 'hono';
 import { getAuthContext } from './auth.js';
+import { isSupabaseConfigured, getServiceSupabaseClient } from '../db/supabase.js';
 
 interface RateLimitEntry {
   count: number;
   resetAt: number;
 }
 
-// In-memory store for v0
+// In-memory store (fallback for dev)
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 const LIMITS = {
@@ -20,8 +23,6 @@ const LIMITS = {
     windowMs: 60_000
   },
   anonymous: {
-    // Increased from 10 to 60 for better dev/demo experience
-    // In production, consider lower limits with auth-based increases
     requestsPerMinute: 60,
     windowMs: 60_000
   },
@@ -31,53 +32,65 @@ const LIMITS = {
   }
 };
 
-/**
- * Get rate limit key for request
- * Uses user ID for authenticated users, IP for anonymous
- */
 function getRateLimitKey(c: Context, prefix: string = 'api'): string {
   const authContext = getAuthContext(c);
 
-  // Use user ID for authenticated users
   if (authContext.isAuthenticated && authContext.user) {
     return `${prefix}:user:${authContext.user.id}`;
   }
 
-  // Fall back to IP-based rate limiting for anonymous users
   const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
   return `${prefix}:ip:${ip}`;
 }
 
 /**
- * Check and update rate limit
+ * DB-backed rate limit check
  */
-function checkRateLimit(key: string, limit: number, windowMs: number): {
+async function checkRateLimitDB(key: string, limit: number, windowMs: number): Promise<{
   allowed: boolean;
   remaining: number;
   resetAt: number;
-} {
-  const now = Date.now();
-  const entry = rateLimitStore.get(key);
+}> {
+  const supabase = getServiceSupabaseClient();
+  const now = new Date();
 
-  // No entry or expired window
-  if (!entry || now >= entry.resetAt) {
-    const resetAt = now + windowMs;
-    rateLimitStore.set(key, { count: 1, resetAt });
+  // Try to get existing entry
+  const { data: existing } = await supabase
+    .from('rate_limits')
+    .select('*')
+    .eq('key', key)
+    .single();
+
+  if (!existing || new Date(existing.window_start).getTime() + windowMs < now.getTime()) {
+    // No entry or expired - upsert new window
+    await supabase
+      .from('rate_limits')
+      .upsert({
+        key,
+        count: 1,
+        window_start: now.toISOString(),
+        window_ms: windowMs,
+      }, { onConflict: 'key' });
+
     return {
       allowed: true,
       remaining: limit - 1,
-      resetAt
+      resetAt: now.getTime() + windowMs,
     };
   }
 
-  // Within window
-  if (entry.count < limit) {
-    entry.count++;
-    rateLimitStore.set(key, entry);
+  // Within window - increment
+  if (existing.count < limit) {
+    await supabase
+      .from('rate_limits')
+      .update({ count: existing.count + 1 })
+      .eq('key', key);
+
+    const resetAt = new Date(existing.window_start).getTime() + windowMs;
     return {
       allowed: true,
-      remaining: limit - entry.count,
-      resetAt: entry.resetAt
+      remaining: limit - existing.count - 1,
+      resetAt,
     };
   }
 
@@ -85,30 +98,62 @@ function checkRateLimit(key: string, limit: number, windowMs: number): {
   return {
     allowed: false,
     remaining: 0,
-    resetAt: entry.resetAt
+    resetAt: new Date(existing.window_start).getTime() + windowMs,
   };
 }
 
 /**
- * Clean up expired entries
+ * In-memory rate limit check (fallback)
  */
-function cleanupExpiredEntries(): void {
+function checkRateLimitMemory(key: string, limit: number, windowMs: number): {
+  allowed: boolean;
+  remaining: number;
+  resetAt: number;
+} {
+  const now = Date.now();
+  const entry = rateLimitStore.get(key);
+
+  if (!entry || now >= entry.resetAt) {
+    const resetAt = now + windowMs;
+    rateLimitStore.set(key, { count: 1, resetAt });
+    return { allowed: true, remaining: limit - 1, resetAt };
+  }
+
+  if (entry.count < limit) {
+    entry.count++;
+    rateLimitStore.set(key, entry);
+    return { allowed: true, remaining: limit - entry.count, resetAt: entry.resetAt };
+  }
+
+  return { allowed: false, remaining: 0, resetAt: entry.resetAt };
+}
+
+async function checkRateLimit(key: string, limit: number, windowMs: number) {
+  if (isSupabaseConfigured()) {
+    try {
+      return await checkRateLimitDB(key, limit, windowMs);
+    } catch {
+      // Fall back to in-memory on DB error
+      return checkRateLimitMemory(key, limit, windowMs);
+    }
+  }
+  return checkRateLimitMemory(key, limit, windowMs);
+}
+
+// Cleanup expired in-memory entries every 5 minutes
+setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of rateLimitStore.entries()) {
     if (now >= entry.resetAt) {
       rateLimitStore.delete(key);
     }
   }
-}
-
-// Cleanup every 5 minutes
-setInterval(cleanupExpiredEntries, 5 * 60 * 1000);
+}, 5 * 60 * 1000);
 
 /**
- * Rate limiting middleware for general API requests
+ * Rate limiting middleware
  */
 export async function rateLimitMiddleware(c: Context, next: Next) {
-  // Skip rate limiting in development mode
   if (process.env.NODE_ENV === 'development' || process.env.DISABLE_RATE_LIMIT === 'true') {
     return next();
   }
@@ -118,9 +163,8 @@ export async function rateLimitMiddleware(c: Context, next: Next) {
   const isAuthenticated = authContext.isAuthenticated;
 
   const config = isAuthenticated ? LIMITS.authenticated : LIMITS.anonymous;
-  const result = checkRateLimit(key, config.requestsPerMinute, config.windowMs);
+  const result = await checkRateLimit(key, config.requestsPerMinute, config.windowMs);
 
-  // Set rate limit headers
   c.header('X-RateLimit-Limit', config.requestsPerMinute.toString());
   c.header('X-RateLimit-Remaining', result.remaining.toString());
   c.header('X-RateLimit-Reset', result.resetAt.toString());
@@ -148,7 +192,7 @@ export async function shareLinkRateLimitMiddleware(c: Context, next: Next) {
   }
 
   const key = `share:${shareLinkId}`;
-  const result = checkRateLimit(key, LIMITS.shareLink.runsPerHour, LIMITS.shareLink.windowMs);
+  const result = await checkRateLimit(key, LIMITS.shareLink.runsPerHour, LIMITS.shareLink.windowMs);
 
   c.header('X-RateLimit-Limit', LIMITS.shareLink.runsPerHour.toString());
   c.header('X-RateLimit-Remaining', result.remaining.toString());
@@ -165,19 +209,12 @@ export async function shareLinkRateLimitMiddleware(c: Context, next: Next) {
   return next();
 }
 
-/**
- * Reset rate limit for testing
- */
 export function resetRateLimit(key: string): void {
   rateLimitStore.delete(key);
 }
 
-/**
- * Admin endpoint to view rate limit stats
- */
 export function getRateLimitStats() {
   const stats: Array<{key: string; count: number; resetAt: string}> = [];
-
   for (const [key, entry] of rateLimitStore.entries()) {
     stats.push({
       key,
@@ -185,9 +222,5 @@ export function getRateLimitStats() {
       resetAt: new Date(entry.resetAt).toISOString()
     });
   }
-
-  return {
-    totalEntries: stats.length,
-    entries: stats
-  };
+  return { totalEntries: stats.length, entries: stats };
 }
