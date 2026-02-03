@@ -407,6 +407,36 @@ projects.get('/:id/endpoints', async (c) => {
 });
 
 /**
+ * DELETE /projects/:id - Delete a project and all its data
+ */
+projects.delete('/:id', async (c) => {
+  const project_id = c.req.param('id');
+
+  // Require authenticated user
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
+
+  // Get project
+  const project = await projectsStore.getProject(project_id);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+
+  // Verify ownership
+  if (project.owner_id !== userId) {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
+
+  // Delete project (cascades to versions, secrets, contexts, share links via DB)
+  await projectsStore.deleteProject(project_id);
+
+  return c.json({ success: true, project_id });
+});
+
+/**
  * GET /projects/:id/runs - List runs for a project
  */
 projects.get('/:id/runs', async (c) => {
