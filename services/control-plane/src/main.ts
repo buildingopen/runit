@@ -125,6 +125,52 @@ app.get('/health', (c) => {
   });
 });
 
+// Deep health check — verifies external dependencies
+app.get('/health/deep', async (c) => {
+  const checks: Record<string, { status: string; latency_ms?: number; error?: string }> = {};
+
+  // Check Supabase
+  try {
+    const start = Date.now();
+    const { isSupabaseConfigured } = await import('./db/supabase.js');
+    if (isSupabaseConfigured()) {
+      const { getServiceSupabaseClient } = await import('./db/supabase.js');
+      const supabase = getServiceSupabaseClient();
+      const { error } = await supabase.from('projects').select('id').limit(1);
+      checks.supabase = error
+        ? { status: 'degraded', latency_ms: Date.now() - start, error: error.message }
+        : { status: 'healthy', latency_ms: Date.now() - start };
+    } else {
+      checks.supabase = { status: 'not_configured' };
+    }
+  } catch (err) {
+    checks.supabase = { status: 'unhealthy', error: err instanceof Error ? err.message : String(err) };
+  }
+
+  // Check Modal
+  try {
+    const hasModal = !!(process.env.MODAL_TOKEN_ID && process.env.MODAL_TOKEN_SECRET);
+    checks.modal = hasModal
+      ? { status: 'configured' }
+      : { status: 'not_configured' };
+  } catch {
+    checks.modal = { status: 'unhealthy' };
+  }
+
+  const overall = Object.values(checks).every((ch) => ch.status === 'healthy' || ch.status === 'configured')
+    ? 'healthy'
+    : Object.values(checks).some((ch) => ch.status === 'unhealthy')
+      ? 'unhealthy'
+      : 'degraded';
+
+  return c.json({
+    status: overall,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    checks,
+  }, overall === 'unhealthy' ? 503 : 200);
+});
+
 // OpenAPI specification for this API
 app.get('/openapi.json', (c) => {
   return c.json({

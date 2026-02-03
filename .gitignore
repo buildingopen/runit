@@ -19,6 +19,7 @@ build/
 *.egg-info/
 .next/
 out/
+.turbo/
 
 # IDE
 .vscode/
