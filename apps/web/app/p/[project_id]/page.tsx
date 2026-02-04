@@ -46,6 +46,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'formatted' | 'raw'>('formatted');
   const [isRedeploying, setIsRedeploying] = useState(false);
+  const [redeployStep, setRedeployStep] = useState<string | null>(null);
 
   // Secrets state
   const [showSecrets, setShowSecrets] = useState(false);
@@ -83,12 +84,45 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   // Handle redeploy
   const handleRedeploy = async () => {
     setIsRedeploying(true);
+    setRedeployStep('Starting redeploy...');
     try {
       await apiClient.redeploy(projectId);
-      router.push(`/p/${projectId}/deploying`);
+
+      // Connect to SSE stream for progress updates
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const eventSource = new EventSource(`${API_BASE_URL}/projects/${projectId}/deploy/stream`);
+
+      eventSource.addEventListener('status', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setRedeployStep(data.message || data.step);
+        } catch { /* ignore parse errors */ }
+      });
+
+      eventSource.addEventListener('complete', () => {
+        eventSource.close();
+        router.push(`/p/${projectId}/deploying`);
+      });
+
+      eventSource.addEventListener('error', () => {
+        eventSource.close();
+        router.push(`/p/${projectId}/deploying`);
+      });
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        router.push(`/p/${projectId}/deploying`);
+      };
+
+      // Fallback: redirect after 10s regardless
+      setTimeout(() => {
+        eventSource.close();
+        router.push(`/p/${projectId}/deploying`);
+      }, 10000);
     } catch (err) {
       console.error('Redeploy failed:', err);
       setIsRedeploying(false);
+      setRedeployStep(null);
     }
   };
 
@@ -232,16 +266,23 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
         <div className="ml-auto flex items-center gap-3">
           {/* Redeploy button (only for live apps) */}
           {(project as any)?.status === 'live' && (
-            <button
-              onClick={handleRedeploy}
-              disabled={isRedeploying}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors disabled:opacity-50"
-            >
-              <svg className={`w-4 h-4 ${isRedeploying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-              </svg>
-              {isRedeploying ? 'Redeploying...' : 'Redeploy'}
-            </button>
+            <div className="flex items-center gap-2">
+              {isRedeploying && redeployStep && (
+                <span className="text-xs text-[var(--text-tertiary)] max-w-[200px] truncate">
+                  {redeployStep}
+                </span>
+              )}
+              <button
+                onClick={handleRedeploy}
+                disabled={isRedeploying}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors disabled:opacity-50"
+              >
+                <svg className={`w-4 h-4 ${isRedeploying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                {isRedeploying ? 'Redeploying...' : 'Redeploy'}
+              </button>
+            </div>
           )}
           {/* Env button */}
           <button

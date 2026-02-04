@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
@@ -11,6 +11,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+
+  // Prefetch the dashboard route to warm it up
+  useEffect(() => {
+    router.prefetch('/');
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,14 +32,15 @@ export default function LoginPage() {
 
       if (authError) {
         setError(authError.message);
+        setLoading(false);
         return;
       }
 
+      setRedirecting(true);
       router.push('/');
       router.refresh();
     } catch {
       setError('An unexpected error occurred');
-    } finally {
       setLoading(false);
     }
   }
@@ -90,7 +97,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {redirecting ? 'Redirecting...' : loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 
