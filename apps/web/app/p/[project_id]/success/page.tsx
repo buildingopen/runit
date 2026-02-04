@@ -11,6 +11,17 @@ interface PageProps {
   }>;
 }
 
+// Simple hash-based emoji picker for consistent project emojis
+function getProjectEmoji(name: string): string {
+  const emojis = ['🌤️', '✍️', '🔗', '🎨', '🚀', '📊', '🤖', '🔧', '📦', '⚡', '🎯', '🌍'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash |= 0;
+  }
+  return emojis[Math.abs(hash) % emojis.length];
+}
+
 export default function SuccessPage({ params }: PageProps) {
   const router = useRouter();
   const resolvedParams = use(params);
@@ -19,7 +30,6 @@ export default function SuccessPage({ params }: PageProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(true);
 
   useEffect(() => {
     async function loadProject() {
@@ -44,16 +54,9 @@ export default function SuccessPage({ params }: PageProps) {
     }
 
     loadProject();
-
-    // Hide confetti after a few seconds
-    const timer = setTimeout(() => {
-      setShowConfetti(false);
-    }, 3000);
-
-    return () => clearTimeout(timer);
   }, [projectId, router]);
 
-  const appUrl = project?.runtime_url || `https://runtime.ai/p/${projectId}`;
+  const appUrl = project?.runtime_url || `exec.run/${project?.name || projectId}`;
 
   const handleCopy = async () => {
     try {
@@ -85,148 +88,90 @@ export default function SuccessPage({ params }: PageProps) {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col relative overflow-hidden">
-      {/* Confetti Animation */}
-      {showConfetti && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(50)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute animate-confetti"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: '-20px',
-                animationDelay: `${Math.random() * 2}s`,
-                animationDuration: `${2 + Math.random() * 2}s`,
-              }}
-            >
-              <div
-                className="w-2 h-2 rounded-sm"
-                style={{
-                  backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'][
-                    Math.floor(Math.random() * 5)
-                  ],
-                  transform: `rotate(${Math.random() * 360}deg)`,
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+  const emoji = project ? getProjectEmoji(project.name) : '🚀';
 
-      {/* Header */}
-      <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-2">
+  return (
+    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-6">
+      <div className="w-full max-w-[480px] text-center py-16">
+        {/* Emoji */}
+        <div className="text-[72px] mb-2 animate-bounce-in">{emoji}</div>
+
+        {/* Live Badge */}
+        <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[var(--success)]/10 rounded-full text-[var(--success)] text-[13px] font-semibold mb-5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          Live
+        </div>
+
+        {/* Title */}
+        <h1 className="text-[32px] font-bold text-[var(--text-primary)] mb-2">
+          {project?.name || 'Your app'} is ready!
+        </h1>
+        <p className="text-[16px] text-[var(--text-secondary)] mb-8">
+          Share it with anyone &mdash; they can run it instantly
+        </p>
+
+        {/* URL Box */}
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5 mb-6">
+          <div className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-3">
+            Your app link
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={appUrl}
+              readOnly
+              className="flex-1 py-3.5 px-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[15px] font-mono text-[var(--text-primary)] text-center"
+            />
+            <button
+              onClick={handleCopy}
+              className="px-5 py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[14px] font-semibold rounded-lg transition-colors"
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+
+        {/* Share on X */}
+        <div className="flex justify-center mb-8">
+          <button
+            onClick={handleShareTwitter}
+            className="flex items-center gap-2 px-5 py-3 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-[13px] font-medium hover:bg-[var(--bg-hover)] hover:border-[var(--text-tertiary)] transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+            Share on X
+          </button>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 justify-center">
           <Link
             href="/"
-            className="text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+            className="px-8 py-4 bg-transparent border border-[var(--border)] text-[var(--text-secondary)] text-[16px] font-semibold rounded-[10px] hover:bg-[var(--bg-hover)] transition-colors"
           >
-            Apps
+            &larr; Back to apps
           </Link>
-          <svg className="w-3 h-3 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-          <span className="text-[13px] font-medium text-[var(--text-primary)]">{project?.name}</span>
-        </div>
-        <span className="px-2 py-0.5 text-[10px] font-medium bg-[var(--success)]/15 text-[var(--success)] rounded">
-          Live
-        </span>
-      </header>
-
-      {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          {/* Success Icon */}
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-[var(--success)]/15 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Title */}
-          <h1 className="text-[24px] font-bold text-[var(--text-primary)] mb-2">
-            Your app is live!
-          </h1>
-          <p className="text-[14px] text-[var(--text-tertiary)] mb-8">
-            {project?.name} has been deployed successfully
-          </p>
-
-          {/* URL Card */}
-          <div className="mb-6 p-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] text-[var(--text-tertiary)] mb-1">Share this URL</p>
-                <p className="text-[13px] font-mono text-[var(--text-primary)] truncate">
-                  {appUrl}
-                </p>
-              </div>
-              <button
-                onClick={handleCopy}
-                className="flex-shrink-0 px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border)] rounded-md transition-colors"
-                title="Copy URL"
-              >
-                {copied ? (
-                  <svg className="w-4 h-4 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="space-y-3">
-            <Link
-              href={`/p/${projectId}`}
-              className="w-full px-4 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[14px] font-medium rounded-md transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-              </svg>
-              Run Your App
-            </Link>
-
-            <button
-              onClick={handleShareTwitter}
-              className="w-full px-4 py-3 bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] border border-[var(--border)] text-[var(--text-secondary)] text-[14px] font-medium rounded-md transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-              Share on X
-            </button>
-
-            <Link
-              href="/"
-              className="w-full px-4 py-3 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] text-[14px] font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              Back to Apps
-            </Link>
-          </div>
+          <Link
+            href={`/p/${projectId}`}
+            className="px-8 py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[16px] font-semibold rounded-[10px] transition-colors"
+          >
+            Run it now &rarr;
+          </Link>
         </div>
       </div>
 
-      {/* Confetti keyframes */}
       <style jsx>{`
-        @keyframes confetti {
-          0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(100vh) rotate(720deg);
-            opacity: 0;
-          }
+        @keyframes bounce-in {
+          0% { transform: scale(0); }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); }
         }
-        .animate-confetti {
-          animation: confetti linear forwards;
+        .animate-bounce-in {
+          animation: bounce-in 0.6s ease-out;
         }
       `}</style>
     </div>

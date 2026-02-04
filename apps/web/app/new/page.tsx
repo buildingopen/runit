@@ -1,48 +1,28 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { apiClient } from '../../lib/api/client';
 
-type SourceType = 'zip' | 'github';
-
-// Validation helpers
-const isValidProjectName = (name: string): boolean => {
-  return /^[a-zA-Z0-9][a-zA-Z0-9-_]*$/.test(name) && name.length >= 2 && name.length <= 50;
-};
-
 const isValidGithubUrl = (url: string): boolean => {
-  return /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+/.test(url);
+  return /^https?:\/\/github\.com\/[\w.-]+\/[\w.-]+/.test(url);
 };
 
 export default function NewProjectPage() {
   const router = useRouter();
-  const [sourceType, setSourceType] = useState<SourceType>('zip');
-  const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittingStep, setSubmittingStep] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // GitHub state
+  const [githubUrl, setGithubUrl] = useState('');
 
   // ZIP state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [zipBase64, setZipBase64] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // GitHub state
-  const [githubUrl, setGithubUrl] = useState('');
-  const [githubBranch, setGithubBranch] = useState('');
-
-  // Focus name input on mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      document.getElementById('project-name')?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (file: File) => {
     if (!file.name.endsWith('.zip')) {
@@ -74,11 +54,6 @@ export default function NewProjectPage() {
       setIsProcessingFile(false);
     };
     reader.readAsDataURL(file);
-
-    if (!name) {
-      const suggestedName = file.name.replace('.zip', '').replace(/[^a-zA-Z0-9-_]/g, '-');
-      setName(suggestedName);
-    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -88,124 +63,114 @@ export default function NewProjectPage() {
     if (file) handleFileSelect(file);
   };
 
-  const getValidationErrors = (): Record<string, string> => {
-    const errors: Record<string, string> = {};
-
-    if (!name.trim()) {
-      errors.name = 'App name is required';
-    } else if (!isValidProjectName(name.trim())) {
-      errors.name = 'Name must be 2-50 chars, start with letter/number, contain only letters, numbers, hyphens, underscores';
+  // Derive project name from GitHub URL or file name
+  const deriveProjectName = (sourceType: 'github' | 'zip'): string => {
+    if (sourceType === 'github' && githubUrl) {
+      const match = githubUrl.match(/github\.com\/[\w-]+\/([\w.-]+)/);
+      if (match) return match[1].replace('.git', '').replace(/[^a-zA-Z0-9-_]/g, '-');
     }
-
-    if (sourceType === 'zip') {
-      if (!zipBase64 && !isProcessingFile) {
-        errors.source = 'Please upload a ZIP file';
-      }
-    } else {
-      if (!githubUrl) {
-        errors.source = 'GitHub URL is required';
-      } else if (!isValidGithubUrl(githubUrl)) {
-        errors.source = 'Please enter a valid GitHub URL (e.g., https://github.com/owner/repo)';
-      }
+    if (sourceType === 'zip' && selectedFile) {
+      return selectedFile.name.replace('.zip', '').replace(/[^a-zA-Z0-9-_]/g, '-');
     }
-
-    return errors;
+    return 'my-app';
   };
 
-  const validationErrors = getValidationErrors();
-  const isValid = Object.keys(validationErrors).length === 0 && !isProcessingFile;
+  const handleGithubConnect = async () => {
+    if (!githubUrl.trim()) {
+      setError('Please enter a GitHub URL');
+      return;
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    // Auto-prepend https:// if missing
+    let fullUrl = githubUrl.trim();
+    if (fullUrl.startsWith('github.com/')) {
+      fullUrl = `https://${fullUrl}`;
+    }
 
-    // Mark all fields as touched
-    setTouched({ name: true, source: true });
-
-    if (!isValid || isSubmitting) return;
+    if (!isValidGithubUrl(fullUrl)) {
+      setError('Please enter a valid GitHub URL (e.g., github.com/user/repo)');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
+    setSubmittingStep('Connecting to GitHub...');
 
-    // Show progress steps based on source type
-    if (sourceType === 'github') {
-      setSubmittingStep('Cloning repository...');
-      // Simulate progress updates
-      const steps = [
-        { delay: 2000, text: 'Cloning repository...' },
-        { delay: 8000, text: 'Extracting OpenAPI schema...' },
-        { delay: 15000, text: 'Analyzing endpoints...' },
-      ];
-      steps.forEach(({ delay, text }) => {
-        setTimeout(() => {
-          if (isSubmitting) setSubmittingStep(text);
-        }, delay);
-      });
-    } else {
-      setSubmittingStep('Uploading and processing...');
-      setTimeout(() => {
-        if (isSubmitting) setSubmittingStep('Extracting OpenAPI schema...');
-      }, 2000);
-    }
+    const steps = [
+      { delay: 2000, text: 'Cloning repository...' },
+      { delay: 8000, text: 'Extracting OpenAPI schema...' },
+      { delay: 15000, text: 'Analyzing endpoints...' },
+    ];
+    steps.forEach(({ delay, text }) => {
+      setTimeout(() => setSubmittingStep(text), delay);
+    });
 
     try {
+      const name = deriveProjectName('github');
       const response = await apiClient.createProject({
-        name: name.trim(),
-        source_type: sourceType,
-        ...(sourceType === 'zip' && { zip_data: zipBase64 }),
-        ...(sourceType === 'github' && {
-          github_url: githubUrl.trim(),
-          ...(githubBranch.trim() && { github_ref: githubBranch.trim() }),
-        }),
+        name,
+        source_type: 'github',
+        github_url: fullUrl,
       });
       setSubmittingStep('Redirecting...');
-      // Redirect to configure page instead of run page
+      router.push(`/create/configure?project=${response.project_id}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to connect';
+      setError(message);
+      setIsSubmitting(false);
+      setSubmittingStep('');
+    }
+  };
+
+  const handleZipUpload = async () => {
+    if (!zipBase64 || isProcessingFile) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    setSubmittingStep('Uploading and processing...');
+
+    setTimeout(() => setSubmittingStep('Extracting OpenAPI schema...'), 2000);
+
+    try {
+      const name = deriveProjectName('zip');
+      const response = await apiClient.createProject({
+        name,
+        source_type: 'zip',
+        zip_data: zipBase64,
+      });
+      setSubmittingStep('Redirecting...');
       router.push(`/create/configure?project=${response.project_id}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create app';
       setError(message);
       setIsSubmitting(false);
       setSubmittingStep('');
-      // Scroll to error
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      {/* Page Header */}
-      <header className="h-12 border-b border-[var(--border-subtle)] flex items-center px-4 sm:px-6">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-          </svg>
-          Back
-        </Link>
-      </header>
-
-      {/* Content */}
-      <div className="max-w-md mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-[18px] font-semibold text-[var(--text-primary)] mb-1">New App</h1>
-        <p className="text-[13px] text-[var(--text-tertiary)] mb-6 sm:mb-8">
-          Deploy a FastAPI app to ephemeral sandboxes
-        </p>
+      <div className="max-w-[560px] mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-[24px] font-bold text-[var(--text-primary)] mb-1.5">Create a mini app</h1>
+          <p className="text-[14px] text-[var(--text-secondary)]">Import your code</p>
+        </div>
 
         {/* Error Banner */}
         {error && (
-          <div className="mb-6 px-4 py-3 bg-[var(--error-subtle)] border border-[var(--error)]/20 rounded-lg flex items-start gap-3">
-            <svg className="w-5 h-5 text-[var(--error)] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-[var(--error)]">Failed to create app</p>
-              <p className="text-[12px] text-[var(--error)]/80 mt-0.5">{error}</p>
+          <div className="mb-6 px-4 py-3 bg-[var(--error-subtle)] border border-[var(--error)]/20 rounded-xl flex items-start gap-3">
+            <div className="w-8 h-8 bg-[var(--error)] rounded-full flex items-center justify-center flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0 pt-1">
+              <p className="text-[14px] font-semibold text-[var(--error)]">{error}</p>
             </div>
             <button
               onClick={() => setError(null)}
-              className="p-1 text-[var(--error)] hover:bg-[var(--error)]/10 rounded"
-              aria-label="Dismiss error"
+              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -214,233 +179,123 @@ export default function NewProjectPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-          {/* Project Name */}
-          <div>
-            <label htmlFor="project-name" className="block text-[12px] font-medium text-[var(--text-secondary)] mb-1.5">
-              App name <span className="text-[var(--error)]">*</span>
-            </label>
-            <input
-              id="project-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => setTouched(t => ({ ...t, name: true }))}
-              placeholder="my-api"
-              maxLength={50}
-              autoComplete="off"
-              aria-invalid={touched.name && !!validationErrors.name}
-              aria-describedby={touched.name && validationErrors.name ? 'name-error' : undefined}
-              className={`w-full px-3 py-2 bg-[var(--bg-secondary)] border rounded-md text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 transition-colors ${
-                touched.name && validationErrors.name
-                  ? 'border-[var(--error)] focus:border-[var(--error)] focus:ring-[var(--error)]'
-                  : 'border-[var(--border)] focus:border-[var(--accent)] focus:ring-[var(--accent)]'
-              }`}
-            />
-            {touched.name && validationErrors.name && (
-              <p id="name-error" className="mt-1.5 text-[11px] text-[var(--error)]">
-                {validationErrors.name}
-              </p>
-            )}
+        {/* Loading State */}
+        {isSubmitting ? (
+          <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-10 text-center">
+            <div className="w-8 h-8 border-3 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin mx-auto mb-4" />
+            <div className="text-[14px] text-[var(--text-secondary)]">{submittingStep}</div>
+            <div className="text-[12px] text-[var(--text-tertiary)] mt-1">Scanning for FastAPI endpoints</div>
           </div>
-
-          {/* Source Type */}
-          <div>
-            <label className="block text-[12px] font-medium text-[var(--text-secondary)] mb-1.5">
-              Source <span className="text-[var(--error)]">*</span>
-            </label>
-            <div className="flex p-1 bg-[var(--bg-secondary)] rounded-md border border-[var(--border)]" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={sourceType === 'zip'}
-                onClick={() => { setSourceType('zip'); setTouched(t => ({ ...t, source: false })); }}
-                className={`flex-1 px-3 py-1.5 text-[13px] font-medium rounded transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
-                  sourceType === 'zip'
-                    ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-                }`}
-              >
-                ZIP Upload
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={sourceType === 'github'}
-                onClick={() => { setSourceType('github'); setTouched(t => ({ ...t, source: false })); }}
-                className={`flex-1 px-3 py-1.5 text-[13px] font-medium rounded transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
-                  sourceType === 'github'
-                    ? 'bg-[var(--bg-hover)] text-[var(--text-primary)] shadow-sm'
-                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-                }`}
-              >
-                GitHub
-              </button>
-            </div>
-          </div>
-
-          {/* Source Input */}
-          {sourceType === 'zip' ? (
-            <div role="tabpanel">
-              {selectedFile ? (
-                <div className="flex items-center gap-3 px-3 py-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-md">
-                  <div className="w-9 h-9 bg-[var(--bg-tertiary)] rounded-md flex items-center justify-center flex-shrink-0">
-                    {isProcessingFile ? (
-                      <svg className="w-4 h-4 text-[var(--accent)] animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{selectedFile.name}</p>
-                    <p className="text-[11px] text-[var(--text-tertiary)]">
-                      {isProcessingFile ? 'Processing...' : `${(selectedFile.size / 1024).toFixed(1)} KB`}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedFile(null); setZipBase64(''); setIsProcessingFile(false); }}
-                    disabled={isProcessingFile}
-                    className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md disabled:opacity-50 transition-colors"
-                    aria-label="Remove file"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ) : (
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
-                  tabIndex={0}
-                  role="button"
-                  aria-label="Upload ZIP file"
-                  className={`flex flex-col items-center justify-center py-8 sm:py-10 border-2 border-dashed rounded-md cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
-                    isDragging
-                      ? 'border-[var(--accent)] bg-[var(--accent-subtle)]'
-                      : touched.source && validationErrors.source
-                      ? 'border-[var(--error)] hover:border-[var(--error)]'
-                      : 'border-[var(--border)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-secondary)]'
-                  }`}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".zip"
-                    onChange={(e) => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]); e.target.value = ''; }}
-                    className="hidden"
-                    aria-hidden="true"
-                  />
-                  <svg className="w-8 h-8 text-[var(--text-tertiary)] mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        ) : (
+          <>
+            {/* GitHub Section (Primary) */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-6">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-10 h-10 bg-[var(--bg-tertiary)] rounded-[10px] flex items-center justify-center text-[var(--text-primary)]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                   </svg>
-                  <p className="text-[13px] text-[var(--text-secondary)] mb-1 text-center px-4">
-                    Drop ZIP file here or <span className="text-[var(--accent)] font-medium">browse</span>
-                  </p>
-                  <p className="text-[11px] text-[var(--text-tertiary)]">Max 50MB</p>
                 </div>
-              )}
-              {touched.source && validationErrors.source && sourceType === 'zip' && (
-                <p className="mt-1.5 text-[11px] text-[var(--error)]">{validationErrors.source}</p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4" role="tabpanel">
-              <div>
-                <label htmlFor="github-url" className="block text-[12px] font-medium text-[var(--text-secondary)] mb-1.5">
-                  Repository URL <span className="text-[var(--error)]">*</span>
-                </label>
-                <input
-                  id="github-url"
-                  type="url"
-                  value={githubUrl}
-                  onChange={(e) => {
-                    setGithubUrl(e.target.value);
-                    if (!name && e.target.value) {
-                      const match = e.target.value.match(/github\.com\/[\w-]+\/([\w.-]+)/);
-                      if (match) setName(match[1].replace('.git', '').replace(/[^a-zA-Z0-9-_]/g, '-'));
-                    }
-                  }}
-                  onBlur={() => setTouched(t => ({ ...t, source: true }))}
-                  placeholder="https://github.com/owner/repo"
-                  autoComplete="off"
-                  aria-invalid={touched.source && !!validationErrors.source}
-                  aria-describedby={touched.source && validationErrors.source ? 'github-error' : undefined}
-                  className={`w-full px-3 py-2 bg-[var(--bg-secondary)] border rounded-md text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 transition-colors ${
-                    touched.source && validationErrors.source
-                      ? 'border-[var(--error)] focus:border-[var(--error)] focus:ring-[var(--error)]'
-                      : 'border-[var(--border)] focus:border-[var(--accent)] focus:ring-[var(--accent)]'
-                  }`}
-                />
-                {touched.source && validationErrors.source && sourceType === 'github' && (
-                  <p id="github-error" className="mt-1.5 text-[11px] text-[var(--error)]">{validationErrors.source}</p>
-                )}
+                <div>
+                  <div className="text-[15px] font-semibold text-[var(--text-primary)]">Connect GitHub repo</div>
+                  <div className="text-[13px] text-[var(--text-secondary)]">We&apos;ll detect endpoints and dependencies</div>
+                </div>
               </div>
-              <div>
-                <label htmlFor="github-branch" className="block text-[12px] font-medium text-[var(--text-secondary)] mb-1.5">
-                  Branch <span className="text-[var(--text-tertiary)] font-normal">(optional, defaults to main)</span>
-                </label>
+              <div className="flex gap-2">
                 <input
-                  id="github-branch"
                   type="text"
-                  value={githubBranch}
-                  onChange={(e) => setGithubBranch(e.target.value)}
-                  placeholder="main"
+                  value={githubUrl}
+                  onChange={(e) => setGithubUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleGithubConnect()}
+                  placeholder="github.com/user/repo"
                   autoComplete="off"
-                  className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-md text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-colors"
+                  className="flex-1 py-3.5 px-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] transition-colors"
                 />
+                <button
+                  onClick={handleGithubConnect}
+                  className="px-6 py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[14px] font-semibold rounded-lg transition-colors"
+                >
+                  Connect
+                </button>
               </div>
             </div>
-          )}
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={!isValid || isSubmitting}
-            className="w-full px-4 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed text-white text-[13px] font-medium rounded-md transition-all flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
-          >
-            {isSubmitting ? (
-              <>
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                {submittingStep || 'Creating app...'}
-              </>
+            {/* Or Divider */}
+            <div className="text-center text-[12px] text-[var(--text-tertiary)] my-4">or</div>
+
+            {/* ZIP Upload Section (Secondary) */}
+            {selectedFile ? (
+              <div className="flex items-center gap-3 px-4 py-3.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">
+                <div className="w-8 h-8 bg-[var(--bg-tertiary)] rounded-md flex items-center justify-center flex-shrink-0">
+                  {isProcessingFile ? (
+                    <svg className="w-4 h-4 text-[var(--accent)] animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-[var(--text-primary)] truncate">{selectedFile.name}</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)]">
+                    {isProcessingFile ? 'Processing...' : `${(selectedFile.size / 1024).toFixed(1)} KB`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedFile(null); setZipBase64(''); setIsProcessingFile(false); }}
+                  disabled={isProcessingFile}
+                  className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-md disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleZipUpload}
+                  disabled={!zipBase64 || isProcessingFile}
+                  className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[13px] font-semibold rounded-lg disabled:opacity-50 transition-colors"
+                >
+                  Upload
+                </button>
+              </div>
             ) : (
-              'Create App'
+              <div
+                onDrop={handleDrop}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onClick={() => fileInputRef.current?.click()}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
+                tabIndex={0}
+                role="button"
+                aria-label="Upload ZIP file"
+                className={`flex items-center gap-3 px-4 py-3.5 border border-dashed rounded-lg cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                  isDragging
+                    ? 'border-[var(--accent)] bg-[var(--accent)]/5'
+                    : 'border-[var(--border)] hover:border-[var(--text-tertiary)] hover:bg-[var(--accent)]/5'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".zip"
+                  onChange={(e) => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]); e.target.value = ''; }}
+                  className="hidden"
+                  aria-hidden="true"
+                />
+                <div className="w-8 h-8 bg-[var(--bg-tertiary)] rounded-md flex items-center justify-center flex-shrink-0 text-[var(--text-tertiary)]">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                  </svg>
+                </div>
+                <span className="text-[13px] text-[var(--text-secondary)]">Drop project folder or .zip</span>
+              </div>
             )}
-          </button>
-        </form>
-
-        {/* Requirements */}
-        <div className="mt-10 pt-6 border-t border-[var(--border-subtle)]">
-          <h3 className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-tertiary)] mb-3">Requirements</h3>
-          <ul className="space-y-2">
-            {[
-              { code: 'main.py', text: 'with FastAPI app' },
-              { code: 'app', text: 'variable name' },
-              { code: 'requirements.txt', text: 'for dependencies' },
-            ].map((item, i) => (
-              <li key={i} className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-                <svg className="w-3.5 h-3.5 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-                <code className="text-[var(--text-primary)] font-mono text-[11px] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded">{item.code}</code>
-                <span>{item.text}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, KeyboardEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient, type Project } from '../../../lib/api/client';
@@ -18,6 +18,10 @@ function ConfigurePageContent() {
   // Environment variables state
   const [envVars, setEnvVars] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Tags state
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
 
   // Load project data
   useEffect(() => {
@@ -38,6 +42,11 @@ function ConfigurePageContent() {
           initialEnvVars[key] = '';
         });
         setEnvVars(initialEnvVars);
+
+        // Initialize tags from project data
+        if ((data as any).tags && (data as any).tags.length > 0) {
+          setTags((data as any).tags);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load project');
       } finally {
@@ -48,9 +57,6 @@ function ConfigurePageContent() {
     loadProject();
   }, [projectId]);
 
-  // Get first endpoint for preview
-  const firstEndpoint = project?.versions?.[0] ? null : null; // We'll need to fetch endpoints
-
   // Check if all required env vars are filled
   const detectedEnvVars = project?.detected_env_vars || [];
   const allEnvVarsFilled = detectedEnvVars.length === 0 ||
@@ -60,6 +66,28 @@ function ConfigurePageContent() {
     setEnvVars((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleAddTag = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (tag && !tags.includes(tag)) {
+      setTags([...tags, tag]);
+    }
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setTags(tags.filter(t => t !== tag));
+  };
+
+  const handleTagKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      handleAddTag();
+    }
+    if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      setTags(tags.slice(0, -1));
+    }
+  };
+
   const handleDeploy = async () => {
     if (!projectId || !allEnvVarsFilled) return;
 
@@ -67,7 +95,7 @@ function ConfigurePageContent() {
     setError(null);
 
     try {
-      // First, save secrets if any
+      // Save secrets if any
       const secretsToSave = Object.entries(envVars)
         .filter(([_, value]) => value.trim())
         .map(([key, value]) => ({ key, value }));
@@ -123,124 +151,102 @@ function ConfigurePageContent() {
     );
   }
 
+  const endpoints = project?.endpoints || [];
+
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      {/* Header */}
-      <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/new"
-            className="flex items-center gap-2 text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-            Back
-          </Link>
-          <span className="text-[var(--border)]">|</span>
-          <span className="text-[13px] font-medium text-[var(--text-primary)]">{project?.name}</span>
+      <div className="max-w-[560px] mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-[24px] font-bold text-[var(--text-primary)] mb-1.5">Configure your app</h1>
+          <p className="text-[14px] text-[var(--text-secondary)]">{project?.name}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 text-[10px] font-medium bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] rounded">
-            Step 2 of 3
-          </span>
-        </div>
-      </header>
-
-      {/* Content */}
-      <div className="max-w-lg mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-[18px] font-semibold text-[var(--text-primary)] mb-1">Configure</h1>
-        <p className="text-[13px] text-[var(--text-tertiary)] mb-8">
-          Review your app and provide any required environment variables
-        </p>
 
         {/* Error Banner */}
         {error && (
-          <div className="mb-6 px-4 py-3 bg-[var(--error-subtle)] border border-[var(--error)]/20 rounded-lg flex items-start gap-3">
-            <svg className="w-5 h-5 text-[var(--error)] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-[var(--error)]">Deployment failed</p>
-              <p className="text-[12px] text-[var(--error)]/80 mt-0.5">{error}</p>
+          <div className="mb-6 px-5 py-4 bg-[var(--error-subtle)] border border-[var(--error)]/20 rounded-xl">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="w-8 h-8 bg-[var(--error)] rounded-full flex items-center justify-center flex-shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </div>
+              <span className="text-[14px] font-semibold text-[var(--error)]">Deployment failed</span>
             </div>
+            <p className="text-[13px] text-[var(--text-secondary)] ml-[42px]">{error}</p>
             <button
               onClick={() => setError(null)}
-              className="p-1 text-[var(--error)] hover:bg-[var(--error)]/10 rounded"
+              className="inline-flex items-center gap-1.5 mt-4 ml-[42px] px-4 py-2.5 bg-transparent border border-[var(--border)] rounded-lg text-[13px] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 4v6h6M23 20v-6h-6"/>
+                <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/>
               </svg>
+              Try again
             </button>
           </div>
         )}
 
-        {/* App Info Card */}
-        <div className="mb-6 p-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-[var(--bg-tertiary)] to-[var(--bg-hover)] border border-[var(--border)] rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+        {/* Detected Endpoints */}
+        {endpoints.length > 0 && (
+          <div className="mb-6 p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-[10px]">
+            <div className="flex items-center gap-2 text-[var(--success)] text-[13px] font-medium mb-2.5">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
               </svg>
+              Detected {endpoints.length} endpoint{endpoints.length !== 1 ? 's' : ''}
             </div>
-            <div>
-              <h3 className="text-[14px] font-medium text-[var(--text-primary)]">{project?.name}</h3>
-              <p className="text-[11px] text-[var(--text-tertiary)] font-mono">
-                {project?.versions?.[0]?.version_hash?.substring(0, 7) || 'v1'}
-              </p>
+            <div className="flex flex-wrap gap-2">
+              {endpoints.map((ep: { id: string; path: string }) => (
+                <span key={ep.id} className="px-3 py-1.5 bg-[var(--bg-secondary)] rounded-md text-[13px] font-mono text-[var(--text-secondary)]">
+                  {ep.path}
+                </span>
+              ))}
             </div>
           </div>
+        )}
 
-          {/* Endpoint Preview */}
-          <div className="pt-3 border-t border-[var(--border)]">
-            <p className="text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
-              Detected Endpoints
-            </p>
-            <div className="space-y-1.5">
-              {project?.endpoints && project.endpoints.length > 0 ? (
-                project.endpoints.map((ep: { id: string; method: string; path: string; summary?: string }) => (
-                  <div key={ep.id} className="flex items-center gap-2">
-                    <span className={`px-1.5 py-0.5 text-[10px] font-mono font-medium rounded ${
-                      ep.method === 'GET' ? 'bg-emerald-500/15 text-emerald-400' :
-                      ep.method === 'POST' ? 'bg-blue-500/15 text-blue-400' :
-                      ep.method === 'PUT' ? 'bg-amber-500/15 text-amber-400' :
-                      ep.method === 'DELETE' ? 'bg-red-500/15 text-red-400' :
-                      'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
-                    }`}>
-                      {ep.method}
-                    </span>
-                    <span className="text-[12px] font-mono text-[var(--text-secondary)]">{ep.path}</span>
-                    {ep.summary && (
-                      <span className="text-[11px] text-[var(--text-tertiary)]">— {ep.summary}</span>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-[12px] italic text-[var(--text-tertiary)]">No endpoints detected</p>
-              )}
-            </div>
+        {/* Tags */}
+        <div className="mb-6">
+          <div className="text-[13px] font-medium text-[var(--text-secondary)] mb-2">Tags</div>
+          <div className="flex flex-wrap gap-2 p-2.5 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg min-h-[44px] items-center focus-within:border-[var(--accent)] transition-colors">
+            {tags.map((tag) => (
+              <span key={tag} className="flex items-center gap-1 px-2 py-1 bg-[var(--bg-tertiary)] rounded text-[12px] text-[var(--text-secondary)]">
+                {tag}
+                <button onClick={() => handleRemoveTag(tag)} className="opacity-60 hover:opacity-100 cursor-pointer text-[var(--text-tertiary)]">
+                  &times;
+                </button>
+              </span>
+            ))}
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagKeyDown}
+              onBlur={handleAddTag}
+              placeholder={tags.length === 0 ? 'Add tags...' : 'Add more...'}
+              className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
+            />
           </div>
+          <p className="text-[11px] text-[var(--text-tertiary)] mt-1.5">Auto-detected from imports</p>
         </div>
 
         {/* Environment Variables */}
-        {detectedEnvVars.length > 0 && (
-          <div className="mb-6">
-            <label className="block text-[12px] font-medium text-[var(--text-secondary)] mb-2">
-              Environment Variables <span className="text-[var(--error)]">*</span>
-            </label>
-            <p className="text-[11px] text-[var(--text-tertiary)] mb-3">
-              These variables were detected in your code and are required for deployment
-            </p>
-            <div className="space-y-3">
+        <div className="mb-6">
+          <div className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)] mb-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            Environment Variables
+          </div>
+          {detectedEnvVars.length > 0 ? (
+            <div className="space-y-2.5">
               {detectedEnvVars.map((key) => (
-                <div key={key}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <code className="text-[11px] font-mono text-[var(--text-primary)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded">
-                      {key}
-                    </code>
-                    {!envVars[key]?.trim() && touched[key] && (
-                      <span className="text-[10px] text-[var(--error)]">Required</span>
-                    )}
+                <div key={key} className="flex items-center gap-2.5">
+                  <div className="w-[140px] px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-md text-[12px] font-mono text-[var(--text-secondary)] flex-shrink-0">
+                    {key}
                   </div>
                   <input
                     type="password"
@@ -248,40 +254,34 @@ function ConfigurePageContent() {
                     onChange={(e) => handleEnvVarChange(key, e.target.value)}
                     onBlur={() => setTouched((prev) => ({ ...prev, [key]: true }))}
                     placeholder="Enter value..."
-                    className={`w-full px-3 py-2 bg-[var(--bg-secondary)] border rounded-md text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 transition-colors ${
+                    className={`flex-1 px-3 py-2.5 bg-[var(--bg-primary)] border rounded-md text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none transition-colors ${
                       !envVars[key]?.trim() && touched[key]
-                        ? 'border-[var(--error)] focus:border-[var(--error)] focus:ring-[var(--error)]'
-                        : 'border-[var(--border)] focus:border-[var(--accent)] focus:ring-[var(--accent)]'
+                        ? 'border-[var(--error)] focus:border-[var(--error)]'
+                        : 'border-[var(--border)] focus:border-[var(--accent)]'
                     }`}
                   />
                 </div>
               ))}
+              <div className="flex items-center gap-1 text-[11px] text-[var(--text-tertiary)] mt-2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 16v-4M12 8h.01"/>
+                </svg>
+                Stored encrypted, never exposed in shared links
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* No Env Vars Message */}
-        {detectedEnvVars.length === 0 && (
-          <div className="mb-6 p-4 bg-[var(--success-subtle)] border border-[var(--success)]/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-[var(--success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
-              <p className="text-[13px] text-[var(--success)]">
-                No environment variables required
-              </p>
+          ) : (
+            <div className="p-4 bg-[var(--bg-secondary)] border border-dashed border-[var(--border)] rounded-lg text-center text-[var(--text-tertiary)] text-[13px]">
+              No environment variables detected
             </div>
-            <p className="text-[11px] text-[var(--text-tertiary)] mt-1 ml-7">
-              Your app is ready to deploy
-            </p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Deploy Button */}
         <button
           onClick={handleDeploy}
           disabled={!allEnvVarsFilled || isDeploying}
-          className="w-full px-4 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed text-white text-[14px] font-medium rounded-md transition-all flex items-center justify-center gap-2 shadow-sm"
+          className="w-full py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-tertiary)] disabled:cursor-not-allowed text-[var(--bg-primary)] text-[15px] font-semibold rounded-[10px] transition-all flex items-center justify-center gap-2"
         >
           {isDeploying ? (
             <>
@@ -292,19 +292,9 @@ function ConfigurePageContent() {
               Starting deployment...
             </>
           ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 3l14 9-14 9V3z" />
-              </svg>
-              Deploy App
-            </>
+            <>Deploy &rarr;</>
           )}
         </button>
-
-        {/* Help Text */}
-        <p className="text-center text-[11px] text-[var(--text-tertiary)] mt-4">
-          Your app will be deployed to a secure, isolated sandbox
-        </p>
       </div>
     </div>
   );
