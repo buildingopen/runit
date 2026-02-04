@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { apiClient } from '../../lib/api/client';
+import { useAuth } from '../providers/AuthProvider';
 
 interface NavItem {
   label: string;
@@ -27,6 +28,7 @@ type ApiStatus = 'checking' | 'connected' | 'disconnected';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [apiStatus, setApiStatus] = useState<ApiStatus>('checking');
 
@@ -178,6 +180,30 @@ export function Sidebar() {
             New App
           </Link>
         </div>
+
+        {/* User Section */}
+        {user && (
+          <div className="px-3 py-3 border-t border-[var(--border-subtle)] flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-[var(--bg-hover)] flex items-center justify-center flex-shrink-0">
+              <svg className="w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+            </div>
+            <span className="flex-1 text-[11px] text-[var(--text-secondary)] truncate" title={user.email}>
+              {user.email}
+            </span>
+            <button
+              onClick={signOut}
+              className="p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Status */}
         <div className="px-4 py-3 border-t border-[var(--border-subtle)]">

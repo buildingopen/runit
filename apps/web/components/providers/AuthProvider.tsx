@@ -1,19 +1,22 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
 
 interface AuthState {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>({
   user: null,
   session: null,
   loading: true,
+  signOut: async () => {},
 });
 
 export function useAuth() {
@@ -21,18 +24,25 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
+  const router = useRouter();
+  const [authState, setAuthState] = useState<Omit<AuthState, 'signOut'>>({
     user: null,
     session: null,
     loading: true,
   });
+
+  const signOut = useCallback(async () => {
+    const supabase = getSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+  }, [router]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setState({
+      setAuthState({
         user: session?.user ?? null,
         session,
         loading: false,
@@ -42,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setState({
+        setAuthState({
           user: session?.user ?? null,
           session,
           loading: false,
@@ -56,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={state}>
+    <AuthContext.Provider value={{ ...authState, signOut }}>
       {children}
     </AuthContext.Provider>
   );
