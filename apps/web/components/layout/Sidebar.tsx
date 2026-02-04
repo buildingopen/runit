@@ -32,6 +32,8 @@ export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [apiStatus, setApiStatus] = useState<ApiStatus>('checking');
 
+  const isAuthPage = pathname === '/login' || pathname === '/signup';
+
   // Check API health on mount and periodically
   useEffect(() => {
     let retryCount = 0;
@@ -71,6 +73,8 @@ export function Sidebar() {
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
+
+  if (isAuthPage) return null;
 
   return (
     <>

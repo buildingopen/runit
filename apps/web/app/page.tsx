@@ -124,28 +124,30 @@ export default function HomePage() {
         ) : (
           <>
             {/* Search */}
-            <div className="relative mb-6">
-              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <circle cx="11" cy="11" r="8"/>
-                <path d="M21 21l-4.35-4.35"/>
-              </svg>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search apps..."
-                className="w-full py-3.5 pl-11 pr-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[10px] text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] transition-colors"
-              />
-            </div>
+            {projects.length >= 3 && (
+              <div className="relative mb-6">
+                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search apps..."
+                  className="w-full py-3.5 pl-11 pr-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-[10px] text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+                />
+              </div>
+            )}
 
             {/* App List */}
             <div className="flex flex-col gap-2">
               {/* New App Button */}
               <Link
                 href="/new"
-                className="flex items-center justify-center gap-2.5 py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[14px] font-medium rounded-xl transition-colors"
+                className="flex items-center justify-center gap-2 py-3 bg-[var(--bg-secondary)] border border-dashed border-[var(--border)] text-[var(--text-secondary)] text-[13px] font-medium rounded-xl hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
               >
-                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path d="M12 5v14M5 12h14"/>
                 </svg>
                 Create new app
@@ -234,7 +236,7 @@ function AppItem({ project, onDeleteClick }: { project: Project; onDeleteClick: 
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-semibold text-[var(--text-primary)]">{project.name}</div>
           <div className="text-[13px] text-[var(--text-secondary)] truncate">
-            {(project as any).description || getDefaultDescription(project.name)}
+            {(project as any).description || getDefaultDescription()}
           </div>
           {(project as any).tags && (project as any).tags.length > 0 && (
             <div className="flex items-center gap-2 mt-1.5">
@@ -295,6 +297,6 @@ function getProjectEmoji(name: string): string {
   return emojis[Math.abs(hash) % emojis.length];
 }
 
-function getDefaultDescription(name: string): string {
-  return `${name.replace(/[-_]/g, ' ')} app`;
+function getDefaultDescription(): string {
+  return 'FastAPI mini app';
 }
