@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OpenAPIFormThemed } from '@/components/OpenAPIFormThemed';
 import { AutoMappedOutput } from '@/components/run-page/AutoMappedOutput';
+import { EndpointSelector } from '@/components/run-page/EndpointSelector';
 import {
   useProject,
   useEndpoints,
@@ -58,6 +59,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   const [viewMode, setViewMode] = useState<'formatted' | 'raw'>('formatted');
   const [isRedeploying, setIsRedeploying] = useState(false);
   const [redeployStep, setRedeployStep] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   // Secrets state
   const [showSecrets, setShowSecrets] = useState(false);
@@ -280,13 +282,15 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
           onClick={() => {
             const url = window.location.href;
             navigator.clipboard.writeText(url);
+            setShareCopied(true);
+            setTimeout(() => setShareCopied(false), 2000);
           }}
           className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-[13px] font-medium hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
           </svg>
-          Share
+          {shareCopied ? 'Copied!' : 'Share'}
         </button>
       </header>
 
@@ -296,7 +300,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
         <div
           className={`w-full md:w-1/2 bg-[var(--bg-secondary)] border-b md:border-b-0 md:border-r border-[var(--border)] flex flex-col transition-opacity duration-300 ${
             pageState === 'running' ? 'opacity-60 pointer-events-none' : ''
-          } ${pageState === 'post-run' ? 'opacity-50' : ''}`}
+          }`}
         >
           {/* Panel Header */}
           <div className="px-7 py-5 border-b border-[var(--border)]">
@@ -305,8 +309,19 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
             </div>
           </div>
 
+          {/* Endpoint Selector */}
+          {endpointsData?.endpoints && endpointsData.endpoints.length > 1 && (
+            <div className="px-7 py-3 border-b border-[var(--border)]">
+              <EndpointSelector
+                endpoints={endpointsData.endpoints}
+                selectedId={selectedEndpointId}
+                onSelect={(id) => router.push(`/p/${projectId}?endpoint=${id}`)}
+              />
+            </div>
+          )}
+
           {/* Form Body */}
-          <div className="flex-1 px-7 py-5 overflow-y-auto">
+          <div className={`flex-1 px-7 py-5 overflow-y-auto ${pageState === 'post-run' ? 'opacity-50' : ''}`}>
             {schemaLoading ? (
               <div className="space-y-4">
                 <div className="h-12 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />

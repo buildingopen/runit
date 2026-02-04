@@ -156,6 +156,17 @@ function ConfigurePageContent() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-[560px] mx-auto px-6 py-12">
+        {/* Back Link */}
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] mb-6 transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to apps
+        </Link>
+
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-[24px] font-bold text-[var(--text-primary)] mb-1.5">Configure your app</h1>
@@ -229,7 +240,7 @@ function ConfigurePageContent() {
               className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
             />
           </div>
-          <p className="text-[11px] text-[var(--text-tertiary)] mt-1.5">Auto-detected from imports</p>
+          <p className="text-[11px] text-[var(--text-tertiary)] mt-1.5">Press Enter or comma to add a tag</p>
         </div>
 
         {/* Environment Variables */}
@@ -295,6 +306,16 @@ function ConfigurePageContent() {
             <>Deploy &rarr;</>
           )}
         </button>
+
+        {/* Cancel Link */}
+        <div className="text-center mt-3">
+          <Link
+            href="/"
+            className="text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            Cancel
+          </Link>
+        </div>
       </div>
     </div>
   );

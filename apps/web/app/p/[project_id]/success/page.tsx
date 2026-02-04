@@ -30,6 +30,7 @@ export default function SuccessPage({ params }: PageProps) {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
     async function loadProject() {
@@ -56,11 +57,14 @@ export default function SuccessPage({ params }: PageProps) {
     loadProject();
   }, [projectId, router]);
 
-  const appUrl = project?.runtime_url || `exec.run/${project?.name || projectId}`;
+  const runtimeUrl = project?.runtime_url;
+  const hasUrl = !!runtimeUrl;
+  const displayUrl = runtimeUrl || '';
 
   const handleCopy = async () => {
+    if (!hasUrl) return;
     try {
-      await navigator.clipboard.writeText(appUrl);
+      await navigator.clipboard.writeText(runtimeUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -70,8 +74,14 @@ export default function SuccessPage({ params }: PageProps) {
 
   const handleShareTwitter = () => {
     const text = `I just deployed ${project?.name || 'my app'} on Runtime!`;
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(appUrl)}`;
+    const shareUrl = hasUrl ? runtimeUrl : window.location.href;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleRunNow = () => {
+    setNavigating(true);
+    router.push(`/p/${projectId}`);
   };
 
   if (loading) {
@@ -118,20 +128,26 @@ export default function SuccessPage({ params }: PageProps) {
           <div className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-3">
             Your app link
           </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={appUrl}
-              readOnly
-              className="flex-1 py-3.5 px-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[15px] font-mono text-[var(--text-primary)] text-center"
-            />
-            <button
-              onClick={handleCopy}
-              className="px-5 py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[14px] font-semibold rounded-lg transition-colors"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
+          {hasUrl ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={displayUrl}
+                readOnly
+                className="flex-1 py-3.5 px-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[15px] font-mono text-[var(--text-primary)] text-center"
+              />
+              <button
+                onClick={handleCopy}
+                className="px-5 py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[14px] font-semibold rounded-lg transition-colors"
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          ) : (
+            <p className="text-[13px] text-[var(--text-tertiary)] py-3">
+              URL will be available once deployment is fully provisioned
+            </p>
+          )}
         </div>
 
         {/* Share on X */}
@@ -155,12 +171,23 @@ export default function SuccessPage({ params }: PageProps) {
           >
             &larr; Back to apps
           </Link>
-          <Link
-            href={`/p/${projectId}`}
-            className="px-8 py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[16px] font-semibold rounded-[10px] transition-colors"
+          <button
+            onClick={handleRunNow}
+            disabled={navigating}
+            className="px-8 py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[16px] font-semibold rounded-[10px] transition-colors disabled:opacity-70 flex items-center gap-2"
           >
-            Run it now &rarr;
-          </Link>
+            {navigating ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Loading...
+              </>
+            ) : (
+              <>Run it now &rarr;</>
+            )}
+          </button>
         </div>
       </div>
 

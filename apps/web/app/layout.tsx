@@ -5,6 +5,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Sidebar } from '../components/layout/Sidebar';
+import { MainContent } from '../components/layout/MainContent';
 import { AuthProvider } from '../components/providers/AuthProvider';
 import { QueryProvider } from '../components/providers/QueryProvider';
 
@@ -30,10 +31,7 @@ export default function RootLayout({
         <QueryProvider>
           <AuthProvider>
             <Sidebar />
-            {/* Sidebar margin: 220px on lg+, 0 on mobile (sidebar hidden) */}
-            <main className="lg:ml-[220px] min-h-screen transition-[margin] duration-200">
-              {children}
-            </main>
+            <MainContent>{children}</MainContent>
           </AuthProvider>
         </QueryProvider>
       </body>
