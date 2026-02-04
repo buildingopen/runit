@@ -20,6 +20,17 @@ import { apiClient } from '@/lib/api/client';
 
 type RunPageState = 'pre-run' | 'running' | 'post-run';
 
+// Simple hash-based emoji picker for consistent project emojis
+function getProjectEmoji(name: string): string {
+  const emojis = ['🌤️', '✍️', '🔗', '🎨', '🚀', '📊', '🤖', '🔧', '📦', '⚡', '🎯', '🌍'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash |= 0;
+  }
+  return emojis[Math.abs(hash) % emojis.length];
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -250,172 +261,52 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   return (
     <div className="h-screen bg-[var(--bg-primary)] flex flex-col">
       {/* Header */}
-      <header className="h-14 bg-[var(--bg-secondary)] border-b border-[var(--border)] flex items-center px-6 gap-4 flex-shrink-0">
+      <header className="h-16 bg-[var(--bg-secondary)] border-b border-[var(--border)] flex items-center px-6 gap-3.5 flex-shrink-0">
         <Link
           href="/"
-          className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+          className="w-9 h-9 flex items-center justify-center bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all flex-shrink-0"
+          title="Back to apps"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
-          Back
         </Link>
-        <span className="text-base font-semibold text-[var(--text-primary)]">
-          {endpointDisplayName}
-        </span>
-        <div className="ml-auto flex items-center gap-3">
-          {/* Redeploy button (only for live apps) */}
-          {(project as any)?.status === 'live' && (
-            <div className="flex items-center gap-2">
-              {isRedeploying && redeployStep && (
-                <span className="text-xs text-[var(--text-tertiary)] max-w-[200px] truncate">
-                  {redeployStep}
-                </span>
-              )}
-              <button
-                onClick={handleRedeploy}
-                disabled={isRedeploying}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors disabled:opacity-50"
-              >
-                <svg className={`w-4 h-4 ${isRedeploying ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
-                {isRedeploying ? 'Redeploying...' : 'Redeploy'}
-              </button>
-            </div>
-          )}
-          {/* Env button */}
-          <button
-            onClick={() => setShowSecrets(!showSecrets)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-              showSecrets || secrets.length > 0
-                ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
-            }`}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-            </svg>
-            Env {secrets.length > 0 && `(${secrets.length})`}
-          </button>
-          <span
-            className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-              pageState === 'running'
-                ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
-                : (project as any)?.status === 'failed'
-                ? 'bg-[var(--error)]/15 text-[var(--error)]'
-                : 'bg-[var(--success)]/15 text-[var(--success)]'
-            }`}
-          >
-            {pageState === 'running' ? 'Running...' : (project as any)?.status === 'failed' ? 'Failed' : 'Ready'}
-          </span>
+        <span className="text-[32px] flex-shrink-0">{project ? getProjectEmoji(project.name) : '🚀'}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-[16px] font-semibold text-[var(--text-primary)]">{project?.name || 'Loading...'}</div>
+          <div className="text-[13px] text-[var(--text-secondary)] truncate">{endpointDisplayName}</div>
         </div>
+        <button
+          onClick={() => {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url);
+          }}
+          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-[13px] font-medium hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+          </svg>
+          Share
+        </button>
       </header>
-
-      {/* Failed State Banner */}
-      {(project as any)?.status === 'failed' && (project as any)?.deploy_error && (
-        <div className="px-6 py-3 bg-[var(--error)]/10 border-b border-[var(--error)]/20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-[var(--error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
-            <span className="text-sm text-[var(--error)]">
-              Deployment failed: {(project as any).deploy_error}
-            </span>
-          </div>
-          <button
-            onClick={handleRedeploy}
-            disabled={isRedeploying}
-            className="px-3 py-1.5 bg-[var(--error)] hover:bg-[var(--error)]/90 text-white text-sm font-medium rounded-md transition-colors disabled:opacity-50"
-          >
-            {isRedeploying ? 'Retrying...' : 'Try Again'}
-          </button>
-        </div>
-      )}
-
-      {/* Env Panel */}
-      {showSecrets && (
-        <div className="bg-[var(--bg-secondary)] border-b border-[var(--border)] px-6 py-4">
-          <div className="max-w-xl">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-medium text-[var(--text-secondary)]">Environment Variables</span>
-              <span className="text-xs text-[var(--text-tertiary)]">(available as os.environ)</span>
-            </div>
-            {/* Existing secrets */}
-            {secrets.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {secrets.map((secret, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <code className="flex-1 px-2 py-1 bg-[var(--bg-tertiary)] text-xs text-[var(--text-primary)] rounded font-mono">
-                      {secret.key}
-                    </code>
-                    <span className="text-xs text-[var(--text-tertiary)]">=</span>
-                    <code className="flex-1 px-2 py-1 bg-[var(--bg-tertiary)] text-xs text-[var(--text-tertiary)] rounded font-mono">
-                      ••••••••
-                    </code>
-                    <button
-                      onClick={() => removeSecret(i)}
-                      className="p-1 text-[var(--text-tertiary)] hover:text-[var(--error)]"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M6 18L18 6M6 6l12 12"/>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Add new secret */}
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={newSecretKey}
-                onChange={(e) => setNewSecretKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
-                placeholder="KEY"
-                className="w-32 px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border)] rounded text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
-              />
-              <span className="text-xs text-[var(--text-tertiary)]">=</span>
-              <input
-                type="password"
-                value={newSecretValue}
-                onChange={(e) => setNewSecretValue(e.target.value)}
-                placeholder="value"
-                className="flex-1 px-2 py-1.5 bg-[var(--bg-primary)] border border-[var(--border)] rounded text-xs font-mono text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
-                onKeyDown={(e) => e.key === 'Enter' && addSecret()}
-              />
-              <button
-                onClick={addSecret}
-                disabled={!newSecretKey.trim() || !newSecretValue.trim()}
-                className="px-3 py-1.5 bg-[var(--accent)] text-white text-xs font-medium rounded disabled:opacity-50"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col md:flex-row min-h-0">
-        {/* Input Panel (35%) */}
+        {/* Input Panel (50%) */}
         <div
-          className={`w-full md:w-[35%] md:min-w-[360px] md:max-w-[480px] bg-[var(--bg-secondary)] border-b md:border-b-0 md:border-r border-[var(--border)] flex flex-col transition-opacity duration-300 ${
+          className={`w-full md:w-1/2 bg-[var(--bg-secondary)] border-b md:border-b-0 md:border-r border-[var(--border)] flex flex-col transition-opacity duration-300 ${
             pageState === 'running' ? 'opacity-60 pointer-events-none' : ''
           } ${pageState === 'post-run' ? 'opacity-50' : ''}`}
         >
           {/* Panel Header */}
-          <div className="p-6 border-b border-[var(--border)]">
-            <div className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
-              Input
+          <div className="px-7 py-5 border-b border-[var(--border)]">
+            <div className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+              Inputs
             </div>
-            <h2 className="text-xl font-semibold text-[var(--text-primary)]">Enter Details</h2>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Provide the information below to run this endpoint
-            </p>
           </div>
 
           {/* Form Body */}
-          <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex-1 px-7 py-5 overflow-y-auto">
             {schemaLoading ? (
               <div className="space-y-4">
                 <div className="h-12 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
@@ -439,15 +330,15 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
           </div>
 
           {/* Form Footer */}
-          <div className="p-5 border-t border-[var(--border)] bg-[var(--bg-tertiary)]">
+          <div className="px-7 py-5">
             {pageState === 'pre-run' && (
               <button
                 onClick={() => handleSubmit({})}
                 disabled={executeRun.isPending}
-                className="w-full py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-base font-semibold rounded-lg flex items-center justify-center gap-2.5 transition-colors"
+                className="w-full py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[15px] font-semibold rounded-[10px] flex items-center justify-center gap-2 transition-colors"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
                 </svg>
                 Run
               </button>
@@ -455,7 +346,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
             {pageState === 'running' && (
               <button
                 disabled
-                className="w-full py-4 bg-[var(--bg-elevated)] text-[var(--text-tertiary)] text-base font-semibold rounded-lg flex items-center justify-center gap-2.5 cursor-not-allowed"
+                className="w-full py-3.5 bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] text-[15px] font-semibold rounded-[10px] flex items-center justify-center gap-2 cursor-not-allowed"
               >
                 <div className="w-4 h-4 border-2 border-[var(--text-tertiary)] border-t-transparent rounded-full animate-spin" />
                 Running...
@@ -464,122 +355,88 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
             {pageState === 'post-run' && (
               <button
                 onClick={handleRunAgain}
-                className="w-full py-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-base font-semibold rounded-lg flex items-center justify-center gap-2.5 transition-colors pointer-events-auto opacity-100"
+                className="w-full py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[15px] font-semibold rounded-[10px] flex items-center justify-center gap-2 transition-colors pointer-events-auto opacity-100"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M1 4v6h6M23 20v-6h-6"/>
-                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
                 </svg>
-                Run Again
+                Run
               </button>
             )}
           </div>
         </div>
 
-        {/* Output Panel (65%) */}
-        <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-primary)]">
+        {/* Output Panel (50%) */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-secondary)]">
           {/* Output Header */}
-          <div className="h-[76px] px-7 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg-secondary)] flex-shrink-0">
+          <div className="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between flex-shrink-0">
             {/* Status */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {pageState === 'pre-run' && (
-                <span className="px-3.5 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] text-sm font-medium rounded-lg">
-                  Waiting
+                <span className="text-[13px] text-[var(--text-tertiary)]">
+                  Waiting for input
                 </span>
               )}
               {pageState === 'running' && (
-                <>
-                  <span className="px-3.5 py-1.5 bg-[var(--accent)]/15 text-[var(--accent)] text-sm font-medium rounded-lg">
-                    Running
-                  </span>
-                  <span className="text-sm text-[var(--text-tertiary)]">
-                    Elapsed: {elapsedTime}s
-                  </span>
-                </>
+                <span className="text-[13px] text-[var(--text-secondary)]">
+                  Running...
+                </span>
               )}
               {pageState === 'post-run' && currentRunData && (
                 <>
-                  <span
-                    className={`px-3.5 py-1.5 text-sm font-medium rounded-lg ${
-                      currentRunData.status === 'success'
-                        ? 'bg-[var(--success)]/15 text-[var(--success)]'
-                        : 'bg-[var(--error)]/15 text-[var(--error)]'
-                    }`}
-                  >
+                  <span className={`flex items-center gap-1.5 text-[13px] font-medium ${
+                    currentRunData.status === 'success' ? 'text-[var(--success)]' : 'text-[var(--error)]'
+                  }`}>
+                    {currentRunData.status === 'success' ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M15 9l-6 6M9 9l6 6"/>
+                      </svg>
+                    )}
                     {currentRunData.status === 'success' ? 'Success' : 'Error'}
                   </span>
-                  <span className="text-sm text-[var(--text-tertiary)]">
-                    Completed in {((currentRunData.duration_ms || 0) / 1000).toFixed(1)}s
+                  <span className="text-[12px] text-[var(--text-tertiary)]">
+                    {((currentRunData.duration_ms || 0)).toFixed(0)}ms
                   </span>
                 </>
               )}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-3">
+            {/* Copy */}
+            {pageState === 'post-run' && (
               <button
                 onClick={handleCopyAll}
-                disabled={pageState !== 'post-run'}
-                className="flex items-center gap-2 px-3.5 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-secondary)] rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-md text-[12px] text-[var(--text-secondary)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
                 </svg>
-                Copy All
+                Copy
               </button>
-              <div className="flex gap-1 bg-[var(--bg-tertiary)] p-1 rounded-lg">
-                <button
-                  onClick={() => setViewMode('formatted')}
-                  disabled={pageState !== 'post-run'}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    viewMode === 'formatted'
-                      ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  Formatted
-                </button>
-                <button
-                  onClick={() => setViewMode('raw')}
-                  disabled={pageState !== 'post-run'}
-                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    viewMode === 'raw'
-                      ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  Raw JSON
-                </button>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Output Body */}
-          <div className="flex-1 p-7 overflow-y-auto">
+          <div className="flex-1 p-5 overflow-y-auto">
             {/* Pre-run: Empty state */}
             {pageState === 'pre-run' && (
-              <div className="h-full flex flex-col items-center justify-center text-center">
-                <div className="w-20 h-20 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl flex items-center justify-center mb-6">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--text-tertiary)]">
-                    <polygon points="5 3 19 12 5 21 5 3"/>
-                  </svg>
-                </div>
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">No results yet</h3>
-                <p className="text-sm text-[var(--text-tertiary)] max-w-[300px]">
-                  Fill in the required fields and click Run to see the output here
-                </p>
+              <div className="h-full flex flex-col items-center justify-center text-center text-[var(--text-tertiary)]">
+                <div className="text-[40px] mb-3 opacity-40">▶</div>
+                <p className="text-[14px]">Run your app to see the output</p>
               </div>
             )}
 
             {/* Running: Spinner state */}
             {pageState === 'running' && (
               <div className="h-full flex flex-col items-center justify-center text-center">
-                <div className="w-12 h-12 border-3 border-[var(--border-secondary)] border-t-[var(--accent)] rounded-full animate-spin mb-6" />
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Running...</h3>
-                <p className="text-sm text-[var(--text-tertiary)] font-mono">
-                  Elapsed: {elapsedTime}s
-                </p>
+                <div className="w-8 h-8 border-3 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin mb-4" />
+                <p className="text-[14px] text-[var(--text-secondary)]">Executing your app...</p>
               </div>
             )}
 
