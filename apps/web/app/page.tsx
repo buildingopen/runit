@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { apiClient, type Project, type ProjectStatus } from '../lib/api/client';
 import { getProjectEmoji } from '../lib/utils';
 
@@ -11,8 +12,8 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const retryCountRef = useRef(0);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -20,18 +21,18 @@ export default function HomePage() {
       setError(null);
       const response = await apiClient.listProjects();
       setProjects(response.projects || []);
-      setRetryCount(0);
+      retryCountRef.current = 0;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load apps';
       setError(message);
-      if (retryCount < 1) {
-        setRetryCount(prev => prev + 1);
+      if (retryCountRef.current < 1) {
+        retryCountRef.current++;
         setTimeout(() => loadProjects(), 2000);
       }
     } finally {
       setLoading(false);
     }
-  }, [retryCount]);
+  }, []);
 
   useEffect(() => {
     loadProjects();
@@ -86,7 +87,7 @@ export default function HomePage() {
               <span className="text-[13px] text-[var(--error)] truncate">{error}</span>
             </div>
             <button
-              onClick={() => { setRetryCount(0); loadProjects(); }}
+              onClick={() => { retryCountRef.current = 0; loadProjects(); }}
               className="flex-shrink-0 px-3 py-1.5 text-[12px] font-medium text-[var(--error)] hover:bg-[var(--error)]/10 rounded-md transition-colors"
             >
               Retry
@@ -215,6 +216,7 @@ function getProjectLink(projectId: string, status: ProjectStatus | undefined): s
 }
 
 function AppItem({ project, onDeleteClick }: { project: Project; onDeleteClick: () => void }) {
+  const router = useRouter();
   const projectLink = getProjectLink(project.project_id, project.status);
   const isLive = project.status === 'live';
   const isFailed = project.status === 'failed';
@@ -258,8 +260,7 @@ function AppItem({ project, onDeleteClick }: { project: Project; onDeleteClick: 
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              // Navigate to run page
-              window.location.href = projectLink;
+              router.push(projectLink);
             }}
             className="w-9 h-9 flex items-center justify-center bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
             title="Run"

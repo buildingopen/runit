@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, use, useEffect } from 'react';
+import { useState, use, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -46,28 +46,9 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   const [runStartTime, setRunStartTime] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'formatted' | 'raw'>('formatted');
   const [isRedeploying, setIsRedeploying] = useState(false);
   const [redeployStep, setRedeployStep] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
-
-  // Secrets state
-  const [showSecrets, setShowSecrets] = useState(false);
-  const [secrets, setSecrets] = useState<Array<{ key: string; value: string }>>([]);
-  const [newSecretKey, setNewSecretKey] = useState('');
-  const [newSecretValue, setNewSecretValue] = useState('');
-
-  const addSecret = () => {
-    if (newSecretKey.trim() && newSecretValue.trim()) {
-      setSecrets([...secrets, { key: newSecretKey.trim(), value: newSecretValue.trim() }]);
-      setNewSecretKey('');
-      setNewSecretValue('');
-    }
-  };
-
-  const removeSecret = (index: number) => {
-    setSecrets(secrets.filter((_, i) => i !== index));
-  };
 
   // Fetch project details
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
@@ -84,6 +65,25 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
     }
   }, [project, projectId, router]);
 
+  // Refs for EventSource cleanup
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  // Cleanup EventSource on unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      eventSourceRef.current?.close();
+      eventSourceRef.current = null;
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+    };
+  }, []);
+
   // Handle redeploy
   const handleRedeploy = async () => {
     setIsRedeploying(true);
@@ -92,40 +92,42 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
       await apiClient.redeploy(projectId);
 
       // Connect to SSE stream for progress updates
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const eventSource = new EventSource(`${API_BASE_URL}/projects/${projectId}/deploy/stream`);
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+      const es = new EventSource(`${API_BASE_URL}/projects/${projectId}/deploy/stream`);
+      eventSourceRef.current = es;
 
-      eventSource.addEventListener('status', (e) => {
+      es.addEventListener('status', (e) => {
+        if (!mountedRef.current) return;
         try {
           const data = JSON.parse(e.data);
           setRedeployStep(data.message || data.step);
         } catch { /* ignore parse errors */ }
       });
 
-      eventSource.addEventListener('complete', () => {
-        eventSource.close();
-        router.push(`/p/${projectId}/deploying`);
+      es.addEventListener('complete', () => {
+        es.close();
+        eventSourceRef.current = null;
+        if (mountedRef.current) router.push(`/p/${projectId}/deploying`);
       });
 
-      eventSource.addEventListener('error', () => {
-        eventSource.close();
-        router.push(`/p/${projectId}/deploying`);
+      es.addEventListener('error', () => {
+        es.close();
+        eventSourceRef.current = null;
+        if (mountedRef.current) router.push(`/p/${projectId}/deploying`);
       });
-
-      eventSource.onerror = () => {
-        eventSource.close();
-        router.push(`/p/${projectId}/deploying`);
-      };
 
       // Fallback: redirect after 10s regardless
-      setTimeout(() => {
-        eventSource.close();
-        router.push(`/p/${projectId}/deploying`);
+      fallbackTimerRef.current = setTimeout(() => {
+        es.close();
+        eventSourceRef.current = null;
+        if (mountedRef.current) router.push(`/p/${projectId}/deploying`);
       }, 10000);
     } catch (err) {
       console.error('Redeploy failed:', err);
-      setIsRedeploying(false);
-      setRedeployStep(null);
+      if (mountedRef.current) {
+        setIsRedeploying(false);
+        setRedeployStep(null);
+      }
     }
   };
 
@@ -448,12 +450,12 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
             {/* Post-run: Results */}
             {pageState === 'post-run' && currentRunData?.result && (
               <>
-                {viewMode === 'formatted' && currentRunData.result.json ? (
+                {currentRunData.result.json ? (
                   <AutoMappedOutput data={currentRunData.result.json} />
                 ) : (
                   <pre className="p-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg overflow-x-auto">
                     <code className="text-sm text-[var(--text-primary)] font-mono">
-                      {JSON.stringify(currentRunData.result.json || currentRunData.result, null, 2)}
+                      {JSON.stringify(currentRunData.result, null, 2)}
                     </code>
                   </pre>
                 )}
