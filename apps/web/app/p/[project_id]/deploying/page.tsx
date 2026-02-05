@@ -68,15 +68,17 @@ export default function DeployingPage({ params }: PageProps) {
         }
 
         // Connect to SSE stream
-        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
         eventSource = new EventSource(`${API_BASE_URL}/projects/${projectId}/deploy/stream`);
 
         eventSource.addEventListener('status', (e) => {
           if (!mounted) return;
-          const data: DeployEvent = JSON.parse(e.data);
-          setCurrentStep(data.step);
-          setProgress(data.progress);
-          setMessage(data.message);
+          try {
+            const data: DeployEvent = JSON.parse(e.data);
+            setCurrentStep(data.step);
+            setProgress(data.progress);
+            setMessage(data.message);
+          } catch { /* ignore malformed SSE data */ }
         });
 
         eventSource.addEventListener('complete', () => {

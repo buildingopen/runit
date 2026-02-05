@@ -38,27 +38,29 @@ export function Sidebar() {
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 3;
+    let initialCheck = true;
 
     const checkHealth = async () => {
       try {
         await apiClient.health();
         setApiStatus('connected');
-        retryCount = 0; // Reset retry count on success
+        retryCount = 0;
+        initialCheck = false;
       } catch {
-        // On initial load, retry a few times before showing disconnected
-        if (apiStatus === 'checking' && retryCount < maxRetries) {
+        if (initialCheck && retryCount < maxRetries) {
           retryCount++;
-          setTimeout(checkHealth, 1000); // Retry after 1 second
+          setTimeout(checkHealth, 1000);
           return;
         }
+        initialCheck = false;
         setApiStatus('disconnected');
       }
     };
 
     checkHealth();
-    const interval = setInterval(checkHealth, 30000); // Check every 30s
+    const interval = setInterval(checkHealth, 30000);
     return () => clearInterval(interval);
-  }, [apiStatus]);
+  }, []);
 
   // Close sidebar on route change (mobile)
   useEffect(() => {

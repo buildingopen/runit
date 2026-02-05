@@ -23,9 +23,13 @@ export default function SuccessPage({ params }: PageProps) {
   const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
     async function loadProject() {
       try {
         const data = await apiClient.getProject(projectId);
+
+        if (!mounted) return;
         setProject(data);
 
         // If not live, redirect appropriately
@@ -37,14 +41,15 @@ export default function SuccessPage({ params }: PageProps) {
           router.push(`/p/${projectId}/deploying`);
           return;
         }
-      } catch (err) {
-        console.error('Failed to load project:', err);
+      } catch {
+        // Project load failed — UI will show fallback state
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
 
     loadProject();
+    return () => { mounted = false; };
   }, [projectId, router]);
 
   const runtimeUrl = project?.runtime_url;

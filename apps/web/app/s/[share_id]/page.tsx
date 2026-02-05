@@ -6,6 +6,7 @@
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api/client';
 
 interface PageProps {
   params: Promise<{
@@ -20,34 +21,30 @@ export default function ShareLinkPage({ params }: PageProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     async function handleShareLink() {
       try {
-        // Fetch share link data
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/share/${shareId}`);
+        const data = await apiClient.getShareLink(shareId);
 
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({ error: response.statusText }));
-          throw new Error(error.error || 'Failed to load share link');
-        }
-
-        const data = await response.json();
+        if (!mounted) return;
 
         // Redirect based on target type
         if (data.target_type === 'endpoint_template') {
-          // Redirect to project endpoint page
           router.push(`/p/${data.project.project_id}?endpoint=${data.target_ref}`);
         } else if (data.target_type === 'run_result') {
-          // Redirect to run result page
           router.push(`/r/${data.target_ref}`);
         } else {
           throw new Error('Invalid share link type');
         }
       } catch (err) {
+        if (!mounted) return;
         setError(err instanceof Error ? err.message : 'Failed to load share link');
       }
     }
 
     handleShareLink();
+    return () => { mounted = false; };
   }, [shareId, router]);
 
   if (error) {

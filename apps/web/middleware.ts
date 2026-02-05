@@ -11,10 +11,10 @@ import { createServerClient } from '@supabase/ssr';
 
 const PUBLIC_ROUTES = [
   '/',
-  '/login',
-  '/signup',
   '/auth',
 ];
+
+const AUTH_ROUTES = ['/login', '/signup'];
 
 const PUBLIC_PREFIXES = [
   '/auth/',
@@ -24,16 +24,11 @@ const PUBLIC_PREFIXES = [
   '/favicon',
 ];
 
-function isPublicRoute(pathname: string): boolean {
-  if (PUBLIC_ROUTES.includes(pathname)) return true;
-  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip public routes
-  if (isPublicRoute(pathname)) {
+  // Skip fully public routes (no auth check needed)
+  if (PUBLIC_ROUTES.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
@@ -67,16 +62,16 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to login
-  if (!user) {
+  // Redirect authenticated users away from login/signup
+  if (user && AUTH_ROUTES.includes(pathname)) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // Redirect unauthenticated users to login (skip for auth routes)
+  if (!user && !AUTH_ROUTES.includes(pathname)) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  // Redirect authenticated users away from login/signup
-  if (user && (pathname === '/login' || pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return response;
