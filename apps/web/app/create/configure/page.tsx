@@ -44,8 +44,8 @@ function ConfigurePageContent() {
         setEnvVars(initialEnvVars);
 
         // Initialize tags from project data
-        if ((data as any).tags && (data as any).tags.length > 0) {
-          setTags((data as any).tags);
+        if (data.tags && data.tags.length > 0) {
+          setTags(data.tags);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load project');

@@ -4,22 +4,12 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient, type Project } from '../../../../lib/api/client';
+import { getProjectEmoji } from '@/lib/utils';
 
 interface PageProps {
   params: Promise<{
     project_id: string;
   }>;
-}
-
-// Simple hash-based emoji picker for consistent project emojis
-function getProjectEmoji(name: string): string {
-  const emojis = ['🌤️', '✍️', '🔗', '🎨', '🚀', '📊', '🤖', '🔧', '📦', '⚡', '🎯', '🌍'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = ((hash << 5) - hash) + name.charCodeAt(i);
-    hash |= 0;
-  }
-  return emojis[Math.abs(hash) % emojis.length];
 }
 
 export default function SuccessPage({ params }: PageProps) {
