@@ -442,7 +442,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
             {/* Running: Spinner state */}
             {pageState === 'running' && (
               <div className="h-full flex flex-col items-center justify-center text-center">
-                <div className="w-8 h-8 border-3 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin mb-4" />
+                <div className="w-8 h-8 border-[3px] border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin mb-4" />
                 <p className="text-[14px] text-[var(--text-secondary)]">Executing your app...</p>
               </div>
             )}

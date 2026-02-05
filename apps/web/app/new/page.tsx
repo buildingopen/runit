@@ -99,8 +99,9 @@ export default function NewProjectPage() {
 
     const steps = [
       { delay: 2000, text: 'Cloning repository...' },
-      { delay: 8000, text: 'Extracting OpenAPI schema...' },
+      { delay: 8000, text: 'Extracting and analyzing code...' },
       { delay: 15000, text: 'Analyzing endpoints...' },
+      { delay: 25000, text: 'Still working... large repos may take a minute' },
     ];
     steps.forEach(({ delay, text }) => {
       setTimeout(() => setSubmittingStep(text), delay);
@@ -113,11 +114,24 @@ export default function NewProjectPage() {
         source_type: 'github',
         github_url: fullUrl,
       });
+      if (response.endpoints.length === 0) {
+        setError(
+          'No FastAPI endpoints detected in this repository. Make sure your project contains a FastAPI app (e.g., app = FastAPI() in main.py).'
+        );
+        setIsSubmitting(false);
+        setSubmittingStep('');
+        return;
+      }
+
       setSubmittingStep('Redirecting...');
       router.push(`/create/configure?project=${response.project_id}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to connect';
-      setError(message);
+      if (message.includes('timeout')) {
+        setError('Repository took too long to process. It may be too large or the server is busy. Please try again.');
+      } else {
+        setError(message);
+      }
       setIsSubmitting(false);
       setSubmittingStep('');
     }
@@ -139,11 +153,24 @@ export default function NewProjectPage() {
         source_type: 'zip',
         zip_data: zipBase64,
       });
+      if (response.endpoints.length === 0) {
+        setError(
+          'No FastAPI endpoints detected in this upload. Make sure your project contains a FastAPI app (e.g., app = FastAPI() in main.py).'
+        );
+        setIsSubmitting(false);
+        setSubmittingStep('');
+        return;
+      }
+
       setSubmittingStep('Redirecting...');
       router.push(`/create/configure?project=${response.project_id}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create app';
-      setError(message);
+      if (message.includes('timeout')) {
+        setError('Upload took too long to process. It may be too large or the server is busy. Please try again.');
+      } else {
+        setError(message);
+      }
       setIsSubmitting(false);
       setSubmittingStep('');
     }
@@ -194,7 +221,7 @@ export default function NewProjectPage() {
         {/* Loading State */}
         {isSubmitting ? (
           <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-10 text-center">
-            <div className="w-8 h-8 border-3 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-8 h-8 border-[3px] border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin mx-auto mb-4" />
             <div className="text-[14px] text-[var(--text-secondary)]">{submittingStep}</div>
             <div className="text-[12px] text-[var(--text-tertiary)] mt-1">Scanning for FastAPI endpoints</div>
           </div>
