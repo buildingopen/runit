@@ -32,7 +32,7 @@ export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [apiStatus, setApiStatus] = useState<ApiStatus>('checking');
 
-  const isAuthPage = pathname === '/login' || pathname === '/signup';
+  const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname.startsWith('/auth/reset-password');
 
   // Check API health on mount and periodically
   useEffect(() => {
