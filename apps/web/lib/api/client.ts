@@ -54,6 +54,8 @@ export interface Project {
   deployed_at?: string | null;
   deploy_error?: string | null;
   runtime_url?: string | null;
+  description?: string | null;
+  tags?: string[];
   detected_env_vars?: string[];
   created_at: string;
   updated_at: string;

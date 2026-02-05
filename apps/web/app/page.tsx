@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiClient, type Project, type ProjectStatus } from '../lib/api/client';
+import { getProjectEmoji } from '../lib/utils';
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -236,11 +237,11 @@ function AppItem({ project, onDeleteClick }: { project: Project; onDeleteClick: 
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-semibold text-[var(--text-primary)]">{project.name}</div>
           <div className="text-[13px] text-[var(--text-secondary)] truncate">
-            {(project as any).description || getDefaultDescription()}
+            {project.description || getDefaultDescription()}
           </div>
-          {(project as any).tags && (project as any).tags.length > 0 && (
+          {project.tags && project.tags.length > 0 && (
             <div className="flex items-center gap-2 mt-1.5">
-              {(project as any).tags.map((tag: string, i: number) => (
+              {project.tags.map((tag: string, i: number) => (
                 <span key={i} className="px-2 py-0.5 bg-[var(--bg-tertiary)] rounded text-[11px] text-[var(--text-tertiary)]">
                   {tag}
                 </span>
@@ -284,17 +285,6 @@ function AppItem({ project, onDeleteClick }: { project: Project; onDeleteClick: 
       </div>
     </div>
   );
-}
-
-// Simple hash-based emoji picker for consistent project emojis
-function getProjectEmoji(name: string): string {
-  const emojis = ['🌤️', '✍️', '🔗', '🎨', '🚀', '📊', '🤖', '🔧', '📦', '⚡', '🎯', '🌍'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = ((hash << 5) - hash) + name.charCodeAt(i);
-    hash |= 0;
-  }
-  return emojis[Math.abs(hash) % emojis.length];
 }
 
 function getDefaultDescription(): string {

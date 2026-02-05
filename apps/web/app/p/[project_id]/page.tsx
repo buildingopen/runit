@@ -18,19 +18,9 @@ import {
   useRunStatus,
 } from '@/lib/hooks/useProject';
 import { apiClient } from '@/lib/api/client';
+import { getProjectEmoji } from '@/lib/utils';
 
 type RunPageState = 'pre-run' | 'running' | 'post-run';
-
-// Simple hash-based emoji picker for consistent project emojis
-function getProjectEmoji(name: string): string {
-  const emojis = ['🌤️', '✍️', '🔗', '🎨', '🚀', '📊', '🤖', '🔧', '📦', '⚡', '🎯', '🌍'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = ((hash << 5) - hash) + name.charCodeAt(i);
-    hash |= 0;
-  }
-  return emojis[Math.abs(hash) % emojis.length];
-}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,7 +76,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   useEffect(() => {
     if (!project) return;
 
-    const status = (project as any).status;
+    const status = project.status;
     if (status === 'draft') {
       router.push(`/create/configure?project=${projectId}`);
     } else if (status === 'deploying') {
