@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react';
 import type { OpenAPISchema, SchemaAnalysis } from '../types';
-import { analyzeSchema, checkSchemaComplexity, getSchemaDepth } from '../utils/schema-helpers';
+import { analyzeSchema, checkSchemaComplexity } from '../utils/schema-helpers';
 
 export interface UseSchemaAnalysisReturn {
   analysis: SchemaAnalysis;

@@ -3,8 +3,8 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
-import type { OpenAPISchema, FormState } from '../types';
-import { isFieldRequired, getRequiredFields } from '../utils/schema-helpers';
+import type { OpenAPISchema } from '../types';
+import { getRequiredFields } from '../utils/schema-helpers';
 
 export interface UseFormStateOptions {
   schema: OpenAPISchema;
@@ -117,7 +117,7 @@ export function useFormState(options: UseFormStateOptions): UseFormStateReturn {
           if (error) {
             return { ...prev, [name]: error };
           }
-          const { [name]: _, ...rest } = prev;
+          const { [name]: _removed, ...rest } = prev;
           return rest;
         });
       }
