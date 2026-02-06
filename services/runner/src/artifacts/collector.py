@@ -1,9 +1,11 @@
 """
 ABOUTME: Artifact collector - Collects files from /artifacts directory
-ABOUTME: Uploads to S3-compatible storage and returns metadata with signed URLs
+ABOUTME: Supports inline base64 content (for testing/dev) or S3 storage (production)
 """
 
+import base64
 import mimetypes
+import os
 from pathlib import Path
 from typing import List
 
@@ -11,15 +13,24 @@ from typing import List
 MAX_ARTIFACTS = 50
 MAX_ARTIFACT_SIZE_MB = 10
 MAX_TOTAL_SIZE_MB = 50
+# Inline base64 for small artifacts (< 1MB each, < 5MB total)
+MAX_INLINE_SIZE_MB = 1
+MAX_INLINE_TOTAL_MB = 5
 
 
-def collect_artifacts(artifacts_dir: Path, logs: List[str] = None) -> List[dict]:
+def collect_artifacts(
+    artifacts_dir: Path,
+    logs: List[str] = None,
+    include_inline: bool = None,
+) -> List[dict]:
     """
     Collect all files from /artifacts directory.
 
     Args:
         artifacts_dir: Path to artifacts directory
         logs: Optional list to append log messages
+        include_inline: If True, include base64 content in response.
+                       Defaults to True if EL_INLINE_ARTIFACTS env is set.
 
     Returns:
         List of artifact metadata dicts:
@@ -27,7 +38,8 @@ def collect_artifacts(artifacts_dir: Path, logs: List[str] = None) -> List[dict]
             "name": str,
             "size": int,
             "mime": str,
-            "storage_ref": str
+            "storage_ref": str,
+            "content_base64": str (optional, for inline artifacts)
         }
 
     Rules:
@@ -41,6 +53,11 @@ def collect_artifacts(artifacts_dir: Path, logs: List[str] = None) -> List[dict]
 
     def log(msg: str):
         logs.append(msg)
+
+    # Determine if we should include inline content
+    if include_inline is None:
+        # Default to True if EL_INLINE_ARTIFACTS is set, or if we're in dev mode
+        include_inline = os.environ.get("EL_INLINE_ARTIFACTS", "true").lower() == "true"
 
     artifacts: List[dict] = []
 
@@ -59,6 +76,7 @@ def collect_artifacts(artifacts_dir: Path, logs: List[str] = None) -> List[dict]
     log(f"Found {len(files)} artifact files")
 
     total_size = 0
+    inline_total_size = 0
     collected_count = 0
 
     for file_path in files:
@@ -112,18 +130,32 @@ def collect_artifacts(artifacts_dir: Path, logs: List[str] = None) -> List[dict]
         # Relative path from artifacts_dir
         rel_path = file_path.relative_to(artifacts_dir)
 
-        # Upload to storage (placeholder for v0 - actual S3 upload would go here)
-        # For v0, we just record metadata
+        # Storage reference for S3 (if configured)
         storage_ref = f"artifacts/{collected_count}/{rel_path}"
 
-        artifacts.append(
-            {
-                "name": str(rel_path),
-                "size": file_size,
-                "mime": mime_type,
-                "storage_ref": storage_ref,
-            }
-        )
+        artifact = {
+            "name": str(rel_path),
+            "size": file_size,
+            "mime": mime_type,
+            "storage_ref": storage_ref,
+        }
+
+        # Include inline base64 content for small files when requested
+        # This enables artifacts to work without S3 configuration
+        if include_inline:
+            can_inline = (
+                file_size <= MAX_INLINE_SIZE_MB * 1024 * 1024
+                and inline_total_size + file_size <= MAX_INLINE_TOTAL_MB * 1024 * 1024
+            )
+            if can_inline:
+                try:
+                    content = file_path.read_bytes()
+                    artifact["content_base64"] = base64.b64encode(content).decode("ascii")
+                    inline_total_size += file_size
+                except Exception as e:
+                    log(f"WARNING: Failed to read artifact {rel_path}: {e}")
+
+        artifacts.append(artifact)
 
         total_size += file_size
         collected_count += 1
@@ -132,5 +164,7 @@ def collect_artifacts(artifacts_dir: Path, logs: List[str] = None) -> List[dict]
         f"Collected {collected_count} artifacts "
         f"({total_size / 1024 / 1024:.2f}MB total)"
     )
+    if include_inline and inline_total_size > 0:
+        log(f"Included {inline_total_size / 1024:.1f}KB inline content")
 
     return artifacts
