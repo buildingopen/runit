@@ -27,7 +27,7 @@ Runtime AI is a Modal-based execution platform that lets you upload any FastAPI 
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/runtime-ai.git
+git clone https://github.com/runtime-ai/execution-layer.git
 cd runtime-ai
 
 # Install dependencies
