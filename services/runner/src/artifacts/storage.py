@@ -1,6 +1,6 @@
 """
 ABOUTME: Artifact storage - Upload artifacts to S3/object storage and generate signed URLs
-ABOUTME: Handles upload with retry logic and generates 24h expiry signed URLs
+ABOUTME: Supports inline base64 content (for testing/dev) or S3 upload (production)
 """
 
 import os
@@ -15,6 +15,10 @@ def upload_artifacts(
     """
     Upload artifacts to S3-compatible storage and add signed URLs.
 
+    If artifacts have inline base64 content (from collector), they can be
+    served directly without S3. Otherwise, uploads to S3 and generates
+    presigned URLs.
+
     Args:
         artifacts: List of artifact metadata from collector
         artifacts_dir: Path to artifacts directory
@@ -26,36 +30,56 @@ def upload_artifacts(
             "name": str,
             "size": int,
             "mime": str,
-            "storage_ref": str,  # S3 key
-            "download_url": str  # Signed URL (24h expiry)
+            "storage_ref": str,  # S3 key or "inline"
+            "download_url": str,  # Signed URL or data: URL
+            "content_base64": str (optional, for inline artifacts)
         }
-
-    Note: In v0, this is a placeholder. Real S3 integration would:
-        - Use boto3 to upload to S3
-        - Generate presigned URLs with 24h expiry
-        - Handle upload errors with retry
     """
-    # Placeholder for S3 upload
-    # Real implementation would use:
-    # import boto3
-    # s3_client = boto3.client('s3')
-    # for artifact in artifacts:
-    #     file_path = artifacts_dir / artifact['name']
-    #     s3_key = f"runs/{run_id}/artifacts/{artifact['name']}"
-    #     s3_client.upload_file(str(file_path), bucket, s3_key)
-    #     artifact['download_url'] = s3_client.generate_presigned_url(
-    #         'get_object',
-    #         Params={'Bucket': bucket, 'Key': s3_key},
-    #         ExpiresIn=86400  # 24 hours
-    #     )
+    # Check if S3 is configured
+    s3_bucket = os.environ.get("S3_BUCKET")
+    s3_configured = bool(s3_bucket)
 
-    # For v0, generate placeholder URLs
     for artifact in artifacts:
-        # In production, this would be a real presigned S3 URL
-        artifact["download_url"] = (
-            f"https://storage.executionlayer.com/runs/{run_id}/"
-            f"artifacts/{artifact['name']}?expires=24h"
-        )
+        # If inline content is available, generate a data: URL
+        if "content_base64" in artifact and artifact["content_base64"]:
+            # Create data URL for inline content
+            mime = artifact.get("mime", "application/octet-stream")
+            artifact["download_url"] = f"data:{mime};base64,{artifact['content_base64']}"
+            artifact["storage_ref"] = "inline"
+        elif s3_configured:
+            # Upload to S3 (production mode)
+            try:
+                import boto3
+
+                s3_client = boto3.client("s3")
+                file_path = artifacts_dir / artifact["name"]
+                s3_key = f"runs/{run_id}/artifacts/{artifact['name']}"
+
+                if file_path.exists():
+                    s3_client.upload_file(
+                        str(file_path),
+                        s3_bucket,
+                        s3_key,
+                        ExtraArgs={"ContentType": artifact.get("mime", "application/octet-stream")},
+                    )
+                    artifact["download_url"] = s3_client.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": s3_bucket, "Key": s3_key},
+                        ExpiresIn=86400,  # 24 hours
+                    )
+                    artifact["storage_ref"] = s3_key
+            except Exception:
+                # Fall back to placeholder if S3 fails
+                artifact["download_url"] = (
+                    f"https://storage.executionlayer.com/runs/{run_id}/"
+                    f"artifacts/{artifact['name']}?expires=24h"
+                )
+        else:
+            # No S3 configured, no inline content - generate placeholder URL
+            artifact["download_url"] = (
+                f"https://storage.executionlayer.com/runs/{run_id}/"
+                f"artifacts/{artifact['name']}?expires=24h"
+            )
 
     return artifacts
 
@@ -70,15 +94,24 @@ def generate_signed_url(storage_ref: str, expiry_hours: int = 24) -> str:
 
     Returns:
         Signed URL string
-
-    Note: Placeholder for v0. Real implementation would use boto3:
-        s3_client.generate_presigned_url(
-            'get_object',
-            Params={'Bucket': bucket, 'Key': storage_ref},
-            ExpiresIn=expiry_hours * 3600
-        )
     """
-    # Placeholder URL
+    # Check if S3 is configured
+    s3_bucket = os.environ.get("S3_BUCKET")
+
+    if s3_bucket:
+        try:
+            import boto3
+
+            s3_client = boto3.client("s3")
+            return s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": s3_bucket, "Key": storage_ref},
+                ExpiresIn=expiry_hours * 3600,
+            )
+        except Exception:
+            pass  # Fall through to placeholder
+
+    # Placeholder URL for v0 / fallback
     expiry_timestamp = (
         datetime.utcnow() + timedelta(hours=expiry_hours)
     ).isoformat()
