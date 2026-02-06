@@ -31,7 +31,7 @@ export function OpenAPIForm({
   );
   const [jsonError, setJsonError] = useState<string | null>(null);
 
-  const { formData, updateField, validate, isValid } = useFormState({
+  const { formData, updateField, validate, isValid: _isValid } = useFormState({
     schema,
     initialValues,
   });

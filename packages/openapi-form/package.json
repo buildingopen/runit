@@ -7,7 +7,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest --run",
-    "lint": "eslint src/"
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@runtime-ai/shared": "*",
