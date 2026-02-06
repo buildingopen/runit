@@ -20,6 +20,7 @@ import {
   validateBase64,
   validateZipMagicBytes,
   validateZipDataSize,
+  validateZipDecompressionSafe,
 } from '../lib/validation-utils.js';
 import { getAuthContext, getAuthUser } from '../middleware/auth.js';
 import * as projectsStore from '../db/projects-store.js';
@@ -162,6 +163,12 @@ projects.post('/', async (c) => {
     if (!zipValidation.valid) {
       return c.json({ error: zipValidation.error }, 400);
     }
+
+    // Validate ZIP decompression is safe (zip bomb protection)
+    const decompressionValidation = validateZipDecompressionSafe(body.zip_data);
+    if (!decompressionValidation.valid) {
+      return c.json({ error: decompressionValidation.error }, 400);
+    }
   }
 
   // Validate GitHub-specific requirements
@@ -289,6 +296,13 @@ projects.get('/:id', async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
+  // Verify ownership (allow anonymous for dev mode)
+  const authContext = getAuthContext(c);
+  const userId = authContext.user?.id || 'anonymous';
+  if (project.owner_id !== userId && project.owner_id !== 'anonymous') {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
+
   // Get versions
   const versions = await projectsStore.listVersions(project_id);
 
@@ -375,6 +389,13 @@ projects.get('/:id/endpoints', async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
+  // Verify ownership (allow anonymous for dev mode)
+  const authContext = getAuthContext(c);
+  const userId = authContext.user?.id || 'anonymous';
+  if (project.owner_id !== userId && project.owner_id !== 'anonymous') {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
+
   // Get specific version or latest
   let version: projectsStore.ProjectVersion | null;
   if (version_id) {
@@ -442,6 +463,19 @@ projects.delete('/:id', async (c) => {
 projects.get('/:id/runs', async (c) => {
   const project_id = c.req.param('id');
   const limit = parseInt(c.req.query('limit') || '20');
+
+  // Get project and verify ownership
+  const project = await projectsStore.getProject(project_id);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+
+  // Verify ownership (allow anonymous for dev mode)
+  const authContext = getAuthContext(c);
+  const userId = authContext.user?.id || 'anonymous';
+  if (project.owner_id !== userId && project.owner_id !== 'anonymous') {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
 
   const runs = await runsStore.listProjectRuns(project_id, { limit });
 
