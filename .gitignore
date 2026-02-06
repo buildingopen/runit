@@ -77,3 +77,4 @@ supabase/.temp/
 
 # Repro bundles (owner-only, not in repo)
 repro-bundles/
+screenshots/
