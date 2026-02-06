@@ -181,6 +181,13 @@ runs.get('/:id', async (c) => {
     return c.json({ error: 'Run not found' }, 404);
   }
 
+  // Verify ownership (allow anonymous access to anonymous runs for share links)
+  const authContext = getAuthContext(c);
+  const userId = authContext.user?.id || 'anonymous';
+  if (run.owner_id !== userId && run.owner_id !== 'anonymous') {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
+
   const response: GetRunStatusResponse = {
     run_id: run.id,
     project_id: run.project_id,

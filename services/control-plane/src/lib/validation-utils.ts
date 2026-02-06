@@ -3,6 +3,7 @@
  * Provides base64 validation, ZIP validation, and name validation
  */
 
+import AdmZip from 'adm-zip';
 import { VALIDATION_LIMITS, VALIDATION_ERRORS } from '../config/validation.js';
 
 /**
@@ -100,4 +101,49 @@ export function validateZipDataSize(base64Data: string): { valid: boolean; error
   }
 
   return { valid: true };
+}
+
+/**
+ * Validate ZIP decompression is safe (zip bomb protection)
+ * Checks compression ratios and total decompressed size to prevent zip bombs
+ */
+export function validateZipDecompressionSafe(base64Data: string): { valid: boolean; error?: string } {
+  const MAX_DECOMPRESSED_SIZE = 500 * 1024 * 1024; // 500MB max decompressed
+  const MAX_PER_FILE_RATIO = 100; // Max 100:1 compression ratio per file
+  const MAX_OVERALL_RATIO = 50; // Max 50:1 overall compression ratio
+
+  try {
+    const buffer = Buffer.from(base64Data, 'base64');
+    const zip = new AdmZip(buffer);
+    const entries = zip.getEntries();
+
+    let totalUncompressed = 0;
+    const compressedSize = buffer.length;
+
+    for (const entry of entries) {
+      const uncompressedSize = entry.header.size;
+      const entryCompressedSize = entry.header.compressedSize;
+
+      totalUncompressed += uncompressedSize;
+
+      // Check ratio per file (skip if compressed size is 0 to avoid division by zero)
+      if (entryCompressedSize > 0 && uncompressedSize > entryCompressedSize * MAX_PER_FILE_RATIO) {
+        return { valid: false, error: 'Suspicious compression ratio detected in ZIP entry' };
+      }
+    }
+
+    // Total uncompressed max
+    if (totalUncompressed > MAX_DECOMPRESSED_SIZE) {
+      return { valid: false, error: 'ZIP would decompress to more than 500MB' };
+    }
+
+    // Overall ratio check (skip if compressed size is 0)
+    if (compressedSize > 0 && totalUncompressed > compressedSize * MAX_OVERALL_RATIO) {
+      return { valid: false, error: 'Suspicious overall compression ratio in ZIP' };
+    }
+
+    return { valid: true };
+  } catch {
+    return { valid: false, error: 'Failed to analyze ZIP structure' };
+  }
 }
