@@ -27,8 +27,8 @@ Runtime AI is a Modal-based execution platform that lets you upload any FastAPI 
 
 ```bash
 # Clone the repository
-git clone https://github.com/runtime-ai/execution-layer.git
-cd runtime-ai
+git clone https://github.com/federicodeponte/execution-layer.git
+cd execution-layer
 
 # Install dependencies
 npm install
@@ -66,7 +66,7 @@ cd services/control-plane && npm run dev
 cd services/runner && source venv/bin/activate && modal serve src/modal_app.py
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to access the web interface.
+Open [http://localhost:3001](http://localhost:3001) to access the web interface.
 
 ## Architecture
 
