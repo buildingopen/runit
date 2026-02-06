@@ -9,26 +9,22 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-const PUBLIC_ROUTES = [
-  '/',
-  '/auth',
-];
-
 const AUTH_ROUTES = ['/login', '/signup'];
 
-const PUBLIC_PREFIXES = [
-  '/auth/',
-  '/s/',      // Share links
-  '/r/',      // Run result viewers
-  '/_next/',
-  '/favicon',
+const PROTECTED_PREFIXES = [
+  '/new',
+  '/create/',
+  '/p/',
 ];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip fully public routes (no auth check needed)
-  if (PUBLIC_ROUTES.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
+  // Only run auth checks on protected routes and auth routes
+  const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
+  const isAuthRoute = AUTH_ROUTES.includes(pathname);
+
+  if (!isProtected && !isAuthRoute) {
     return NextResponse.next();
   }
 
