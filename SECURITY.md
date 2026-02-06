@@ -11,7 +11,7 @@
 If you discover a security vulnerability, please report it privately:
 
 1. **Do not** open a public GitHub issue
-2. Email security concerns to the maintainers
+2. Email security concerns to: **security@federicodeponte.com**
 3. Include a detailed description of the vulnerability
 4. Provide steps to reproduce if possible
 
@@ -35,11 +35,15 @@ We will respond within 48 hours and work with you to understand and resolve the 
 - File uploads are scanned and size-limited
 - ZIP extraction has path traversal protection
 
-## Known Limitations (v0)
+## Implemented Security Controls
 
-This is an early release. The following security enhancements are planned:
+- **Rate limiting** — Per-user and per-IP request throttling
+- **Quota enforcement** — CPU/GPU usage limits per user
+- **Authorization checks** — Ownership verification on all resources
+- **Zip bomb protection** — Compression ratio limits on uploads
 
-- Rate limiting per user/IP
+## Planned Enhancements
+
 - Enhanced audit logging
 - SOC 2 compliance controls
 - Container escape detection
