@@ -24,8 +24,8 @@ test.describe('Homepage', () => {
     const visibleCount = await executionLayerText.filter({ visible: true }).count();
     expect(visibleCount).toBeGreaterThan(0);
 
-    // Should have Projects section - main heading h1
-    await expect(page.locator('h1:has-text("Projects")')).toBeVisible();
+    // Should have main heading
+    await expect(page.locator('h1:has-text("Your Mini Apps")')).toBeVisible();
   });
 
   test('should have create project link', async ({ page }) => {
