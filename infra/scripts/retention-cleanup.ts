@@ -10,6 +10,7 @@
  */
 
 import { Pool } from 'pg';
+import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 
 interface CleanupConfig {
   runs: {
@@ -88,9 +89,37 @@ async function cleanupOldArtifacts(pool: Pool): Promise<number> {
     [retentionDate]
   );
 
-  // TODO: Delete from S3/object storage
-  // For now, just mark as deleted in DB
-  // In production, add S3 cleanup here
+  // Delete from S3 if configured
+  const s3Bucket = process.env.S3_BUCKET;
+  if (s3Bucket && result.rows.length > 0) {
+    const s3Client = new S3Client({});
+    const storageRefs = result.rows
+      .map((row) => row.storage_ref)
+      .filter((ref): ref is string => ref && ref !== 'inline');
+
+    if (storageRefs.length > 0) {
+      // S3 DeleteObjects supports up to 1000 keys per request
+      const batchSize = 1000;
+      for (let i = 0; i < storageRefs.length; i += batchSize) {
+        const batch = storageRefs.slice(i, i + batchSize);
+        try {
+          await s3Client.send(
+            new DeleteObjectsCommand({
+              Bucket: s3Bucket,
+              Delete: {
+                Objects: batch.map((key) => ({ Key: key })),
+                Quiet: true,
+              },
+            })
+          );
+          console.log(`  Deleted ${batch.length} objects from S3`);
+        } catch (error) {
+          console.error(`  Failed to delete S3 objects:`, error);
+          // Continue with other batches even if one fails
+        }
+      }
+    }
+  }
 
   return result.rowCount || 0;
 }
