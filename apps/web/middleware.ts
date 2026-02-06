@@ -20,6 +20,11 @@ const PROTECTED_PREFIXES = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Bypass auth in dev mode (for E2E tests)
+  if (process.env.DEV_MODE === 'true') {
+    return NextResponse.next();
+  }
+
   // Only run auth checks on protected routes and auth routes
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
   const isAuthRoute = AUTH_ROUTES.includes(pathname);
