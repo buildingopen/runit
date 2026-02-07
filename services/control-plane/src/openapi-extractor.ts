@@ -1,8 +1,10 @@
 /**
  * OpenAPI Extractor - Extract OpenAPI spec from FastAPI code
  *
- * This is a simplified version that uses Python to extract the OpenAPI spec.
- * Agent 3 has a more sophisticated implementation in TypeScript.
+ * Uses AST-based static analysis to extract endpoints without importing modules.
+ * This allows extraction to work even when dependencies are not installed.
+ *
+ * Fallback: If AST extraction finds no endpoints, tries runtime import (original approach).
  */
 
 import { spawn } from 'child_process';
@@ -32,7 +34,7 @@ export async function extractOpenAPIFromZip(zipBase64: string): Promise<Extracte
   const workDir = join(tmpdir(), `openapi-extract-${randomUUID()}`);
   mkdirSync(workDir, { recursive: true });
 
-  // Create Python script to extract OpenAPI
+  // Create Python script that uses AST-based extraction (no imports needed)
   const extractScript = `
 import base64
 import io
@@ -40,6 +42,8 @@ import json
 import sys
 import os
 import zipfile
+import ast
+import re
 from pathlib import Path
 
 # Decode and extract ZIP
@@ -53,10 +57,128 @@ items = [f for f in os.listdir(app_dir) if not f.startswith('.') and f != '__pyc
 if len(items) == 1 and os.path.isdir(os.path.join(app_dir, items[0])):
     app_dir = os.path.join(app_dir, items[0])
 
+def extract_endpoints_ast(filepath):
+    """Extract FastAPI endpoints using AST parsing (no import needed)."""
+    endpoints = []
+    app_var = None
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            source = f.read()
+        tree = ast.parse(source)
+    except:
+        return [], None
+
+    # Find FastAPI app variable name
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and isinstance(node.value, ast.Call):
+                    if isinstance(node.value.func, ast.Name) and node.value.func.id == 'FastAPI':
+                        app_var = target.id
+                    elif isinstance(node.value.func, ast.Attribute) and node.value.func.attr == 'FastAPI':
+                        app_var = target.id
+
+    if not app_var:
+        return [], None
+
+    # Find decorated functions (route handlers)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+            for decorator in node.decorator_list:
+                method = None
+                path = None
+
+                # Handle @app.get("/path"), @app.post("/path"), etc.
+                if isinstance(decorator, ast.Call):
+                    if isinstance(decorator.func, ast.Attribute):
+                        if isinstance(decorator.func.value, ast.Name) and decorator.func.value.id == app_var:
+                            method = decorator.func.attr.upper()
+                            if decorator.args and isinstance(decorator.args[0], ast.Constant):
+                                path = decorator.args[0].value
+
+                if method and path and method in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']:
+                    # Extract docstring as summary
+                    summary = None
+                    if (node.body and isinstance(node.body[0], ast.Expr) and
+                        isinstance(node.body[0].value, ast.Constant) and
+                        isinstance(node.body[0].value.value, str)):
+                        docstring = node.body[0].value.value
+                        summary = docstring.split('\\n')[0].strip()
+
+                    endpoints.append({
+                        'method': method,
+                        'path': path,
+                        'summary': summary,
+                        'function': node.name
+                    })
+
+    return endpoints, app_var
+
+# Find Python files and extract endpoints
+all_endpoints = []
+detected_entrypoint = None
+entrypoint_priority = ['main.py', 'app.py', 'api.py', 'server.py']
+
+for priority_file in entrypoint_priority:
+    filepath = os.path.join(app_dir, priority_file)
+    if os.path.exists(filepath):
+        endpoints, app_var = extract_endpoints_ast(filepath)
+        if endpoints:
+            all_endpoints = endpoints
+            module_name = priority_file.replace('.py', '')
+            detected_entrypoint = f"{module_name}:{app_var or 'app'}"
+            break
+
+# If AST extraction found endpoints, use them
+if all_endpoints:
+    # Detect environment variables from all Python files
+    detected_env_vars = set()
+    for root, dirs, files in os.walk(app_dir):
+        dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'node_modules', 'venv', '.venv']]
+        for filename in files:
+            if filename.endswith('.py'):
+                filepath = os.path.join(root, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                        patterns = [
+                            r'os\\.environ\\["([A-Z_][A-Z0-9_]*)"\\]',
+                            r"os\\.environ\\['([A-Z_][A-Z0-9_]*)'\\]",
+                            r'os\\.environ\\.get\\("([A-Z_][A-Z0-9_]*)"',
+                            r"os\\.environ\\.get\\('([A-Z_][A-Z0-9_]*)'",
+                            r'os\\.getenv\\("([A-Z_][A-Z0-9_]*)"',
+                            r"os\\.getenv\\('([A-Z_][A-Z0-9_]*)'",
+                        ]
+                        for pattern in patterns:
+                            matches = re.findall(pattern, content)
+                            detected_env_vars.update(matches)
+                except:
+                    pass
+
+    # Build OpenAPI-like response
+    openapi = {
+        "openapi": "3.0.0",
+        "info": {"title": "API", "version": "1.0.0"},
+        "paths": {}
+    }
+    for ep in all_endpoints:
+        if ep['path'] not in openapi['paths']:
+            openapi['paths'][ep['path']] = {}
+        openapi['paths'][ep['path']][ep['method'].lower()] = {
+            "summary": ep.get('summary', ''),
+            "operationId": ep.get('function', '')
+        }
+
+    openapi["x_entrypoint"] = detected_entrypoint
+    openapi["x_detected_env_vars"] = list(detected_env_vars)
+    openapi["x_extraction_method"] = "ast"
+    print(json.dumps(openapi))
+    sys.exit(0)
+
+# FALLBACK: Try runtime import (original approach) if AST found nothing
 # Add to Python path
 sys.path.insert(0, app_dir)
-
-# Change to app dir for relative imports
 os.chdir(app_dir)
 
 # Import the FastAPI app
