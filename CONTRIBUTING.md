@@ -9,12 +9,12 @@ Thank you for your interest in contributing to Runtime AI! This document provide
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/runtime-ai.git
+   git clone https://github.com/federicodeponte/runtime-ai.git
    cd runtime-ai
    ```
 3. Add the upstream remote:
    ```bash
-   git remote add upstream https://github.com/your-org/runtime-ai.git
+   git remote add upstream https://github.com/federicodeponte/runtime-ai.git
    ```
 
 ### Development Setup

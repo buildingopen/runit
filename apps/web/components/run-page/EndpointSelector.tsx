@@ -1,6 +1,6 @@
-// ABOUTME: Endpoint selection UI - displays list of endpoints with method, path, summary
-// ABOUTME: Highlights GPU endpoints and shows loading/error states
-// ABOUTME: Quick-run buttons for endpoints without required parameters
+// ABOUTME: Endpoint selection UI - displays list of actions with friendly names
+// ABOUTME: Prioritizes summary over technical paths for non-technical users
+// ABOUTME: Quick-run buttons for actions without required parameters
 
 'use client';
 
@@ -13,6 +13,23 @@ interface Endpoint {
   requires_gpu?: boolean;
   schema_ref?: string;
   has_request_body?: boolean;
+}
+
+// Get user-friendly display name for an endpoint
+function getDisplayName(endpoint: Endpoint): string {
+  if (endpoint.summary) {
+    return endpoint.summary;
+  }
+  // Fallback: convert path to friendly name
+  // "/generate" -> "Generate", "/health" -> "Health", "/users/{id}" -> "Users"
+  const pathName = endpoint.path
+    .split('/')[1] // Get first path segment
+    ?.replace(/[{}\-_]/g, ' ') // Remove braces and replace dashes/underscores
+    ?.trim();
+  if (pathName) {
+    return pathName.charAt(0).toUpperCase() + pathName.slice(1);
+  }
+  return endpoint.path;
 }
 
 interface EndpointSelectorProps {
@@ -47,9 +64,9 @@ export function EndpointSelector({
   if (endpoints.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-sm text-[var(--text-secondary)]">No endpoints found for this project.</p>
+        <p className="text-sm text-[var(--text-secondary)]">No actions found for this app.</p>
         <p className="text-xs text-[var(--text-tertiary)] mt-1">
-          Make sure your FastAPI app has endpoints defined.
+          Make sure your app has functions defined.
         </p>
       </div>
     );
@@ -68,7 +85,6 @@ export function EndpointSelector({
     <div className="space-y-1">
       {endpoints.map((endpoint) => {
         const isSelected = endpoint.endpoint_id === selectedId;
-        const methodColor = getMethodColor(endpoint.method);
         const isThisRunning = isRunning && runningEndpointId === endpoint.endpoint_id;
         const showQuickRun = onQuickRun && canQuickRun(endpoint);
 
@@ -88,27 +104,25 @@ export function EndpointSelector({
               onClick={() => onSelect(endpoint.endpoint_id)}
               className="flex-1 text-left min-w-0"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <span
                   className={`
-                    inline-block px-1.5 py-0.5 text-[10px] font-medium rounded uppercase tracking-wide
-                    ${methodColor}
+                    inline-block w-1.5 h-1.5 rounded-full flex-shrink-0
+                    ${endpoint.method.toUpperCase() === 'GET' ? 'bg-[var(--accent)]' : 'bg-[var(--success)]'}
                   `}
-                >
-                  {endpoint.method}
+                />
+                <span className="text-sm text-[var(--text-primary)] truncate flex-1">
+                  {getDisplayName(endpoint)}
                 </span>
-                <code className="text-sm text-[var(--text-primary)] font-mono truncate flex-1">
-                  {endpoint.path}
-                </code>
                 {endpoint.requires_gpu && (
                   <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-[var(--warning)]/10 text-[var(--warning)] rounded">
                     GPU
                   </span>
                 )}
               </div>
-              {endpoint.summary && (
-                <p className="text-xs text-[var(--text-tertiary)] mt-1 ml-12 line-clamp-1">
-                  {endpoint.summary}
+              {endpoint.description && (
+                <p className="text-xs text-[var(--text-tertiary)] mt-1 ml-4 line-clamp-1">
+                  {endpoint.description}
                 </p>
               )}
             </button>
@@ -129,8 +143,8 @@ export function EndpointSelector({
                   }
                   disabled:opacity-50
                 `}
-                title={`Run ${endpoint.method} ${endpoint.path}`}
-                aria-label={`Run ${endpoint.method} ${endpoint.path}`}
+                title={`Run ${getDisplayName(endpoint)}`}
+                aria-label={`Run ${getDisplayName(endpoint)}`}
               >
                 {isThisRunning ? (
                   <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -164,21 +178,4 @@ export function EndpointSelector({
       })}
     </div>
   );
-}
-
-function getMethodColor(method: string): string {
-  switch (method.toUpperCase()) {
-    case 'GET':
-      return 'bg-[var(--accent)]/10 text-[var(--accent)]';
-    case 'POST':
-      return 'bg-[var(--success)]/10 text-[var(--success)]';
-    case 'PUT':
-      return 'bg-[var(--warning)]/10 text-[var(--warning)]';
-    case 'PATCH':
-      return 'bg-[var(--info)]/10 text-[var(--info)]';
-    case 'DELETE':
-      return 'bg-[var(--error)]/10 text-[var(--error)]';
-    default:
-      return 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]';
-  }
 }

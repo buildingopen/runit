@@ -13,8 +13,10 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 
+import type { OpenAPIPathItem } from '@runtime-ai/shared';
+
 interface ExtractedOpenAPI {
-  openapi: any;
+  openapi: Record<string, unknown> | null;
   endpoints: Array<{
     id: string;
     method: string;
@@ -130,53 +132,50 @@ for priority_file in entrypoint_priority:
             detected_entrypoint = f"{module_name}:{app_var or 'app'}"
             break
 
-# If AST extraction found endpoints, use them
-if all_endpoints:
-    # Detect environment variables from all Python files
-    detected_env_vars = set()
-    for root, dirs, files in os.walk(app_dir):
-        dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'node_modules', 'venv', '.venv']]
-        for filename in files:
-            if filename.endswith('.py'):
-                filepath = os.path.join(root, filename)
-                try:
-                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read()
-                        patterns = [
-                            r'os\\.environ\\["([A-Z_][A-Z0-9_]*)"\\]',
-                            r"os\\.environ\\['([A-Z_][A-Z0-9_]*)'\\]",
-                            r'os\\.environ\\.get\\("([A-Z_][A-Z0-9_]*)"',
-                            r"os\\.environ\\.get\\('([A-Z_][A-Z0-9_]*)'",
-                            r'os\\.getenv\\("([A-Z_][A-Z0-9_]*)"',
-                            r"os\\.getenv\\('([A-Z_][A-Z0-9_]*)'",
-                        ]
-                        for pattern in patterns:
-                            matches = re.findall(pattern, content)
-                            detected_env_vars.update(matches)
-                except:
-                    pass
+# Detect environment variables from all Python files
+detected_env_vars = set()
+for root, dirs, files in os.walk(app_dir):
+    dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'node_modules', 'venv', '.venv']]
+    for filename in files:
+        if filename.endswith('.py'):
+            filepath = os.path.join(root, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                    patterns = [
+                        r'os\\.environ\\["([A-Z_][A-Z0-9_]*)"\\]',
+                        r"os\\.environ\\['([A-Z_][A-Z0-9_]*)'\\]",
+                        r'os\\.environ\\.get\\("([A-Z_][A-Z0-9_]*)"',
+                        r"os\\.environ\\.get\\('([A-Z_][A-Z0-9_]*)'",
+                        r'os\\.getenv\\("([A-Z_][A-Z0-9_]*)"',
+                        r"os\\.getenv\\('([A-Z_][A-Z0-9_]*)'",
+                    ]
+                    for pattern in patterns:
+                        matches = re.findall(pattern, content)
+                        detected_env_vars.update(matches)
+            except:
+                pass
 
-    # Build OpenAPI-like response
-    openapi = {
+# Store AST fallback schema in case runtime import fails
+ast_fallback_openapi = None
+if all_endpoints:
+    ast_fallback_openapi = {
         "openapi": "3.0.0",
         "info": {"title": "API", "version": "1.0.0"},
         "paths": {}
     }
     for ep in all_endpoints:
-        if ep['path'] not in openapi['paths']:
-            openapi['paths'][ep['path']] = {}
-        openapi['paths'][ep['path']][ep['method'].lower()] = {
+        if ep['path'] not in ast_fallback_openapi['paths']:
+            ast_fallback_openapi['paths'][ep['path']] = {}
+        ast_fallback_openapi['paths'][ep['path']][ep['method'].lower()] = {
             "summary": ep.get('summary', ''),
             "operationId": ep.get('function', '')
         }
+    ast_fallback_openapi["x_entrypoint"] = detected_entrypoint
+    ast_fallback_openapi["x_detected_env_vars"] = list(detected_env_vars)
+    ast_fallback_openapi["x_extraction_method"] = "ast"
 
-    openapi["x_entrypoint"] = detected_entrypoint
-    openapi["x_detected_env_vars"] = list(detected_env_vars)
-    openapi["x_extraction_method"] = "ast"
-    print(json.dumps(openapi))
-    sys.exit(0)
-
-# FALLBACK: Try runtime import (original approach) if AST found nothing
+# ALWAYS try runtime import to get full schema with requestBody definitions
 # Add to Python path
 sys.path.insert(0, app_dir)
 os.chdir(app_dir)
@@ -195,45 +194,26 @@ for module_name, var_name in [('main', 'app'), ('app', 'app'), ('api', 'app'), (
         continue
 
 if app is None:
+    # Fall back to AST-extracted schema if available
+    if ast_fallback_openapi:
+        print(json.dumps(ast_fallback_openapi))
+        sys.exit(0)
     print(json.dumps({"error": "Could not find FastAPI app (tried main:app, app:app, api:app, server:app)"}))
     sys.exit(1)
 
-# Detect environment variables used in code
-import re
-detected_env_vars = set()
-for root, dirs, files in os.walk(app_dir):
-    # Skip common non-code directories
-    dirs[:] = [d for d in dirs if d not in ['__pycache__', '.git', 'node_modules', 'venv', '.venv']]
-    for filename in files:
-        if filename.endswith('.py') and filename != 'extract.py':
-            filepath = os.path.join(root, filename)
-            try:
-                with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                    # Match os.environ["KEY"], os.environ.get("KEY"), os.getenv("KEY")
-                    # Use separate patterns for single/double quotes to avoid escaping issues
-                    patterns = [
-                        r'os\\.environ\\["([A-Z_][A-Z0-9_]*)"\\]',
-                        r"os\\.environ\\['([A-Z_][A-Z0-9_]*)'\\]",
-                        r'os\\.environ\\.get\\("([A-Z_][A-Z0-9_]*)"',
-                        r"os\\.environ\\.get\\('([A-Z_][A-Z0-9_]*)'",
-                        r'os\\.getenv\\("([A-Z_][A-Z0-9_]*)"',
-                        r"os\\.getenv\\('([A-Z_][A-Z0-9_]*)'",
-                    ]
-                    for pattern in patterns:
-                        matches = re.findall(pattern, content)
-                        detected_env_vars.update(matches)
-            except Exception:
-                pass
-
-# Extract OpenAPI spec
+# Extract OpenAPI spec with full schema (includes requestBody definitions)
 try:
     openapi_spec = app.openapi()
     # Add entrypoint and detected env vars to the response
     openapi_spec["x_entrypoint"] = detected_entrypoint
     openapi_spec["x_detected_env_vars"] = list(detected_env_vars)
+    openapi_spec["x_extraction_method"] = "runtime"
     print(json.dumps(openapi_spec))
 except Exception as e:
+    # Fall back to AST-extracted schema if runtime extraction fails
+    if ast_fallback_openapi:
+        print(json.dumps(ast_fallback_openapi))
+        sys.exit(0)
     print(json.dumps({"error": f"Failed to extract OpenAPI: {str(e)}"}))
     sys.exit(1)
 `;
@@ -261,15 +241,18 @@ except Exception as e:
       description?: string;
     }> = [];
 
-    for (const [path, pathItem] of Object.entries(openapi.paths || {})) {
-      for (const [method, operation] of Object.entries(pathItem as any)) {
-        if (['get', 'post', 'put', 'delete', 'patch'].includes(method)) {
+    const paths = (openapi.paths || {}) as Record<string, OpenAPIPathItem>;
+    for (const [path, pathItem] of Object.entries(paths)) {
+      const methods = ['get', 'post', 'put', 'delete', 'patch'] as const;
+      for (const method of methods) {
+        const operation = pathItem[method];
+        if (operation) {
           endpoints.push({
             id: `${method}-${path}`.replace(/[^a-zA-Z0-9]/g, '-'),
             method: method.toUpperCase(),
             path,
-            summary: (operation as any).summary,
-            description: (operation as any).description,
+            summary: operation.summary,
+            description: operation.description,
           });
         }
       }

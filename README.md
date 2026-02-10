@@ -1,111 +1,359 @@
+<div align="center">
+
 # Runtime AI
 
-**Run any FastAPI app in the cloud with zero infrastructure.**
+### Deploy any Python API to the cloud in 30 seconds
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Python](https://img.shields.io/badge/Python-3.11+-green?logo=python)](https://www.python.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js)](https://nodejs.org/)
+[![Modal](https://img.shields.io/badge/Powered%20by-Modal-purple)](https://modal.com)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-Runtime AI is a Modal-based execution platform that lets you upload any FastAPI application as a ZIP file and instantly get shareable API endpoints. It handles dependency installation, OpenAPI detection, secrets management, and artifact storage—so you can focus on building.
+**Zero infrastructure. Zero Docker. Zero config.**
+
+Upload a FastAPI app → Get a live API endpoint instantly.
+
+[Getting Started](#-quick-start) · [Documentation](#-documentation) · [Examples](#-examples) · [Contributing](#contributing)
+
+</div>
+
+---
+
+## What is Runtime AI?
+
+Runtime AI is an **open-source serverless platform** that deploys Python APIs without infrastructure management. Think Vercel for Python backends, or a self-hostable alternative to Modal/Railway.
+
+```bash
+# Upload any FastAPI app
+curl -X POST https://api.runtime.ai/projects \
+  -F "zip=@my-api.zip" \
+  -F "name=my-api"
+
+# Get a live endpoint instantly
+# → https://api.runtime.ai/run/my-api/predict
+```
+
+## Why Runtime AI?
+
+| Challenge | Runtime AI Solution |
+|-----------|-------------------|
+| "I just want to deploy my Python API" | ZIP upload → running API in 30s |
+| "Docker/K8s is overkill for my use case" | Zero containers to manage |
+| "I need GPU for ML inference" | One-click GPU/CPU lane selection |
+| "Managing secrets is painful" | Built-in encrypted secrets vault |
+| "I want to share my API instantly" | Public share links with rate limiting |
 
 ## Features
 
-- **ZIP Upload** — Drop a FastAPI project and get running endpoints
-- **OpenAPI Detection** — Automatically generates forms from your API schema
-- **Secrets Management** — Encrypted storage for API keys and tokens
-- **Artifact Storage** — Persist and download files generated during execution
-- **Share Links** — Instant public URLs for your endpoints
-- **Context System** — Mount external data sources to your runs
+- **🚀 Instant Deployment** — Upload ZIP, get endpoints. No Docker, no YAML, no CI/CD.
+- **📋 Auto-Generated UI** — Forms generated from your OpenAPI schema automatically.
+- **🔐 Secrets Management** — AES-256-GCM encrypted storage for API keys and tokens.
+- **📁 Artifact Storage** — Persist files (images, PDFs, CSVs) from your runs.
+- **🔗 Share Links** — Instant public URLs with built-in rate limiting.
+- **🌐 Context System** — Mount external URLs, PDFs, or APIs as context for your runs.
+- **⚡ GPU Support** — Run ML models on GPU with zero config changes.
+- **📊 Built-in Metrics** — Prometheus endpoint for monitoring.
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js >= 18.0.0
-- Python >= 3.11
-- [Modal](https://modal.com) account (for execution runtime)
+- Node.js 18+
+- Python 3.11+
+- [Modal](https://modal.com) account (free tier works)
 
-### Installation
+### 1. Clone and Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/federicodeponte/execution-layer.git
-cd execution-layer
-
-# Install dependencies
+git clone https://github.com/federicodeponte/runtime-ai.git
+cd runtime-ai
 npm install
+```
 
-# Set up Python environment for the runner
+### 2. Set Up Python Environment
+
+```bash
 cd services/runner
 python3.11 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-### Configuration
-
-Copy the example environment file and fill in your values:
+### 3. Configure Environment
 
 ```bash
 cp .env.example .env
 ```
 
-Required variables:
-- `SUPABASE_URL` / `SUPABASE_ANON_KEY` — Database and auth
-- `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` — Execution runtime
-- `MASTER_ENCRYPTION_KEY` — Secrets encryption
+Required environment variables:
 
-### Running Locally
+| Variable | Description |
+|----------|-------------|
+| `SUPABASE_URL` | Your Supabase project URL |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `MODAL_TOKEN_ID` | Modal API token ID |
+| `MODAL_TOKEN_SECRET` | Modal API token secret |
+| `MASTER_ENCRYPTION_KEY` | 32-byte base64 key for secrets encryption |
+| `SENTRY_DSN` | Sentry DSN for error tracking (production) |
 
+Generate an encryption key:
 ```bash
-# Terminal 1: Web UI
-cd apps/web && npm run dev
-
-# Terminal 2: Control Plane API
-cd services/control-plane && npm run dev
-
-# Terminal 3: Modal Runner (optional)
-cd services/runner && source venv/bin/activate && modal serve src/modal_app.py
+openssl rand -base64 32
 ```
 
-Open [http://localhost:3001](http://localhost:3001) to access the web interface.
+### 4. Start Development Servers
+
+```bash
+# Terminal 1: Web UI (Next.js)
+cd apps/web && npm run dev
+
+# Terminal 2: Control Plane API (Hono)
+cd services/control-plane && npm run dev
+
+# Terminal 3: Modal Runtime (optional, for execution)
+cd services/runner && modal serve src/modal_app.py
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+## Examples
+
+### Example 1: Simple Prediction API
+
+```python
+# main.py
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.post("/predict")
+def predict(text: str):
+    # Your ML model here
+    return {"prediction": "positive", "confidence": 0.95}
+```
+
+```bash
+# Deploy
+zip -r my-api.zip main.py requirements.txt
+curl -X POST http://localhost:3001/projects -F "zip=@my-api.zip"
+```
+
+### Example 2: Image Processing with GPU
+
+```python
+# main.py
+from fastapi import FastAPI, UploadFile
+from runtime_ai import gpu_required
+
+app = FastAPI()
+
+@app.post("/process-image")
+@gpu_required  # Automatically routes to GPU lane
+async def process_image(file: UploadFile):
+    # GPU-accelerated processing
+    return {"processed": True}
+```
+
+### Example 3: Using Secrets
+
+```python
+# main.py
+import os
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/fetch-data")
+def fetch_data():
+    api_key = os.environ.get("MY_API_KEY")  # Injected at runtime
+    # Use your secret API key
+    return {"status": "ok"}
+```
+
+Store secrets via the API:
+```bash
+curl -X POST http://localhost:3001/projects/{id}/secrets \
+  -H "Content-Type: application/json" \
+  -d '{"key": "MY_API_KEY", "value": "sk-..."}'
+```
 
 ## Architecture
 
 ```
 runtime-ai/
-├── apps/web/              # Next.js frontend
+├── apps/
+│   └── web/                 # Next.js frontend
 ├── packages/
-│   ├── openapi-form/      # Form generation from OpenAPI specs
-│   ├── shared/            # Shared types and contracts
-│   ├── sdk/               # Python SDK for user apps
-│   └── ui/                # React component library
+│   ├── openapi-form/        # Auto-generate forms from OpenAPI
+│   ├── shared/              # TypeScript types & contracts
+│   ├── sdk/                 # Python SDK
+│   └── ui/                  # React component library
 ├── services/
-│   ├── control-plane/     # Hono API backend
-│   └── runner/            # Modal execution runtime
-└── infra/                 # Infrastructure scripts
+│   ├── control-plane/       # Hono.js API (auth, projects, secrets)
+│   └── runner/              # Modal execution runtime
+└── infra/                   # Deployment scripts
 ```
 
 ### How It Works
 
-1. **Upload** — User uploads a ZIP containing a FastAPI app
-2. **Build** — Runner installs dependencies and detects the entrypoint
-3. **Extract** — OpenAPI schema is parsed to generate endpoint forms
-4. **Execute** — Requests run in isolated Modal containers
-5. **Share** — Public URLs enable instant sharing
+```
+┌─────────────┐     ┌─────────────────┐     ┌─────────────┐
+│   Web UI    │────▶│  Control Plane  │────▶│    Modal    │
+│  (Next.js)  │     │    (Hono.js)    │     │  (Runtime)  │
+└─────────────┘     └─────────────────┘     └─────────────┘
+                            │
+                    ┌───────┴───────┐
+                    │   Supabase    │
+                    │  (Database)   │
+                    └───────────────┘
+```
+
+1. **Upload** — User uploads ZIP with FastAPI app
+2. **Parse** — Control plane extracts OpenAPI schema
+3. **Deploy** — Modal builds the execution environment
+4. **Execute** — Requests run in isolated containers
+5. **Share** — Generate public URLs for endpoints
+
+## API Reference
+
+### Projects
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/projects` | GET | List all projects |
+| `/projects` | POST | Create project from ZIP |
+| `/projects/:id` | GET | Get project details |
+| `/projects/:id` | DELETE | Delete project |
+| `/projects/:id/endpoints` | GET | List endpoints |
+
+### Runs
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/runs` | POST | Execute an endpoint |
+| `/runs/:id` | GET | Get run status/result |
+
+### Secrets
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/projects/:id/secrets` | POST | Create secret |
+| `/projects/:id/secrets` | GET | List secrets (masked) |
+| `/projects/:id/secrets/:key` | PUT | Update secret |
+| `/projects/:id/secrets/:key` | DELETE | Delete secret |
+
+Full OpenAPI spec available at `/openapi.json`
+
+## Comparison
+
+| Feature | Runtime AI | Modal | Railway | Vercel |
+|---------|-----------|-------|---------|--------|
+| Python API deployment | ✅ | ✅ | ✅ | ❌ |
+| ZIP upload | ✅ | ❌ | ❌ | ❌ |
+| Auto-generated UI | ✅ | ❌ | ❌ | ❌ |
+| GPU support | ✅ | ✅ | ❌ | ❌ |
+| Self-hostable | ✅ | ❌ | ❌ | ❌ |
+| Built-in secrets | ✅ | ✅ | ✅ | ✅ |
+| Share links | ✅ | ❌ | ❌ | ❌ |
+| Open source | ✅ | ❌ | ❌ | ❌ |
+
+## FAQ
+
+<details>
+<summary><strong>What Python frameworks are supported?</strong></summary>
+
+Currently FastAPI. Flask and Django support is planned.
+</details>
+
+<details>
+<summary><strong>How is this different from Modal?</strong></summary>
+
+Runtime AI uses Modal as the execution backend but adds: ZIP upload, auto-generated UIs, share links, and a complete project management layer. Think of it as a platform built on top of Modal.
+</details>
+
+<details>
+<summary><strong>Can I self-host this?</strong></summary>
+
+Yes! Runtime AI is fully open source. You need Supabase (or compatible Postgres) and a Modal account.
+</details>
+
+<details>
+<summary><strong>How are secrets stored?</strong></summary>
+
+Secrets are encrypted with AES-256-GCM using a master key. The plaintext never hits the database.
+</details>
+
+<details>
+<summary><strong>Is there GPU support?</strong></summary>
+
+Yes. Add `lane: "gpu"` to your run request or use the `@gpu_required` decorator.
+</details>
+
+<details>
+<summary><strong>What's the cold start time?</strong></summary>
+
+First run: 10-30s (dependency installation). Subsequent runs: <1s (warm container).
+</details>
+
+<details>
+<summary><strong>How do I monitor my APIs?</strong></summary>
+
+Prometheus metrics are exposed at `/metrics`. Integrate with Grafana for dashboards.
+</details>
 
 ## Documentation
 
-- [Development Setup](docs/DEVELOPMENT_SETUP.md) — Environment configuration
-- [Testing Guide](docs/TESTING_GUIDE.md) — Running tests
-- [SDK Guide](docs/SDK_GUIDE.md) — Using the Python SDK
+- [Development Setup](docs/DEVELOPMENT_SETUP.md) — Local environment configuration
+- [Testing Guide](docs/TESTING_GUIDE.md) — Running the test suite
+- [SDK Guide](docs/SDK_GUIDE.md) — Using the Python SDK in your apps
+- [Deployment Guide](docs/DEPLOYMENT.md) — Production deployment
+- [Security](SECURITY.md) — Security policies and reporting
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+```bash
+# Run tests
+npm test
+
+# Run linting
+npm run lint
+
+# Build
+npm run build
+```
+
+## Roadmap
+
+- [ ] Flask/Django support
+- [ ] GitHub integration (deploy from repo)
+- [ ] Custom domains
+- [ ] Team workspaces
+- [ ] Usage analytics dashboard
+- [ ] WebSocket support
+
+## Community
+
+- [GitHub Discussions](https://github.com/federicodeponte/runtime-ai/discussions) — Questions and ideas
+- [GitHub Issues](https://github.com/federicodeponte/runtime-ai/issues) — Bug reports
 
 ## Security
 
-For security issues, please see [SECURITY.md](SECURITY.md).
+For security issues, please email security@runtime.ai or see [SECURITY.md](SECURITY.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+
+**If Runtime AI helps you, consider giving it a ⭐**
+
+[⬆ Back to top](#runtime-ai)
+
+</div>

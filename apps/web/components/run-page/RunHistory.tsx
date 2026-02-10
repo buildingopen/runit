@@ -11,6 +11,19 @@ interface RunHistoryItem {
   duration_ms?: number;
 }
 
+// Convert endpoint_id to friendly display name
+// "post--generate" -> "Generate", "get--health" -> "Health"
+function formatEndpointName(endpointId: string): string {
+  if (!endpointId) return '';
+  // Remove method prefix (post--, get--, etc.)
+  const withoutMethod = endpointId.replace(/^(get|post|put|patch|delete)--/, '');
+  // Convert to title case and replace dashes/underscores
+  const formatted = withoutMethod
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+  return formatted;
+}
+
 interface RunHistoryProps {
   runs: RunHistoryItem[];
   selectedRunId: string | null;
@@ -27,7 +40,7 @@ export function RunHistory({
   if (isLoading) {
     return (
       <div className="space-y-2">
-        <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-3">Run History</h3>
+        <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-3">History</h3>
         <div className="animate-pulse space-y-2">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-12 bg-[var(--bg-tertiary)] rounded" />
@@ -40,7 +53,7 @@ export function RunHistory({
   if (runs.length === 0) {
     return (
       <div>
-        <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-3">Run History</h3>
+        <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-3">History</h3>
         <div className="text-center py-8">
           <svg
             className="w-10 h-10 mx-auto mb-2 text-[var(--text-tertiary)]"
@@ -64,7 +77,7 @@ export function RunHistory({
   return (
     <div>
       <h3 className="text-xs font-medium text-[var(--text-secondary)] mb-3">
-        Run History ({runs.length})
+        History ({runs.length})
       </h3>
       <div className="space-y-1">
         {runs.map((run) => {
@@ -98,8 +111,8 @@ export function RunHistory({
                 )}
               </div>
               {run.endpoint_id && (
-                <div className="text-[10px] text-[var(--text-tertiary)] pl-3.5 font-mono truncate">
-                  {run.endpoint_id}
+                <div className="text-[10px] text-[var(--text-tertiary)] pl-3.5 truncate">
+                  {formatEndpointName(run.endpoint_id)}
                 </div>
               )}
               <div className="text-[10px] text-[var(--text-tertiary)] pl-3.5">

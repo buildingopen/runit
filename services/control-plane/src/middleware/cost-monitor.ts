@@ -158,10 +158,18 @@ export function getAggregateMetrics(
   };
 }
 
+interface UserMetrics {
+  userId: string;
+  period: { hours: number; start: string; end: string };
+  cpu: { runs: number; totalDuration: number; avgDuration: number };
+  gpu: { runs: number; totalDuration: number; avgDuration: number };
+  totalRuns: number;
+}
+
 /**
  * Get metrics by user
  */
-export function getUserMetrics(userId: string, hours = 24): any {
+export function getUserMetrics(userId: string, hours = 24): UserMetrics {
   const now = Date.now();
   const start = now - hours * 3600000;
 
@@ -197,10 +205,18 @@ export function getUserMetrics(userId: string, hours = 24): any {
   };
 }
 
+interface ProjectMetrics {
+  projectId: string;
+  period: { hours: number; start: string; end: string };
+  cpu: { runs: number; totalDuration: number };
+  gpu: { runs: number; totalDuration: number };
+  totalRuns: number;
+}
+
 /**
  * Get metrics by project
  */
-export function getProjectMetrics(projectId: string, hours = 24): any {
+export function getProjectMetrics(projectId: string, hours = 24): ProjectMetrics {
   const now = Date.now();
   const start = now - hours * 3600000;
 
@@ -230,23 +246,41 @@ export function getProjectMetrics(projectId: string, hours = 24): any {
   };
 }
 
+// Express-compatible types for middleware
+interface ExpressRequest {
+  body?: { run_id?: string; projectId?: string };
+  user?: { id: string };
+}
+interface ExpressResponse {
+  json: (data: unknown) => ExpressResponse;
+}
+type NextFunction = () => void;
+
 /**
  * Express middleware to track run completion
+ * Note: Currently unused - app uses Hono middleware instead
  */
-export function costMonitorMiddleware(req: any, res: any, next: any) {
+export function costMonitorMiddleware(req: ExpressRequest, res: ExpressResponse, next: NextFunction) {
   // Add tracking hook to response
   const originalJson = res.json.bind(res);
 
-  res.json = function (data: any) {
+  res.json = function (data: unknown) {
     // Track metric if this is a run result
-    if (data.run_id && data.duration_ms) {
+    const runData = data as {
+      run_id?: string;
+      project_id?: string;
+      duration_ms?: number;
+      lane?: 'cpu' | 'gpu';
+      status?: 'success' | 'error' | 'timeout';
+    };
+    if (runData.run_id && runData.duration_ms) {
       trackRunMetric({
-        runId: data.run_id,
+        runId: runData.run_id,
         userId: req.user?.id || 'anonymous',
-        projectId: data.project_id || 'unknown',
-        lane: data.lane || 'cpu',
-        duration: data.duration_ms,
-        status: data.status || 'success',
+        projectId: runData.project_id || 'unknown',
+        lane: runData.lane || 'cpu',
+        duration: runData.duration_ms,
+        status: runData.status || 'success',
         timestamp: Date.now(),
       });
     }

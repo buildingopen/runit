@@ -12,6 +12,19 @@ BASE_IMAGE_VERSION = "2026-01-09"
 # Curated base image with common dependencies
 base_image = (
     modal.Image.debian_slim(python_version="3.11")
+    # System dependencies for WeasyPrint PDF generation
+    .apt_install(
+        "ca-certificates",
+        "curl",
+        # WeasyPrint system dependencies
+        "libpango-1.0-0",
+        "libpangocairo-1.0-0",
+        "libcairo2",
+        "libgdk-pixbuf2.0-0",
+        "libffi-dev",
+        "shared-mime-info",
+        "fonts-liberation",  # Common fonts
+    )
     .pip_install(
         # Core typing support (must be first to avoid conflicts)
         "typing_extensions>=4.12.0",
@@ -32,11 +45,23 @@ base_image = (
         "orjson>=3.9.10",
         # AI Libraries (commonly needed)
         "google-genai>=1.0.0",
+        "google-generativeai>=0.8.0",  # OpenDraft uses this
+        "anthropic>=0.20.0",
+        "openai>=1.0.0",
         "python-dotenv>=1.0.0",
         # Cryptography for secrets decryption
         "cryptography>=41.0.0",
+        # Document generation (OpenDraft)
+        "weasyprint>=60.0",
+        "python-docx>=1.0.0",
+        "markdown>=3.5.0",
+        "pybtex>=0.24.0",
+        "citeproc-py>=0.6.0",
+        "PyYAML>=6.0.0",
+        "rich>=13.0.0",
+        "tenacity>=8.0.0",
+        "psutil>=5.9.0",
     )
-    .apt_install("ca-certificates", "curl")
     .env({
         "BASE_IMAGE_VERSION": BASE_IMAGE_VERSION,
         "TZ": "UTC",
@@ -61,9 +86,9 @@ app = modal.App("execution-layer-runtime")
 
 @app.function(
     image=base_image,
-    cpu=2.0,
-    memory=4096,  # 4GB
-    timeout=300,  # 5 min for build + execution
+    cpu=4.0,
+    memory=8192,  # 8GB for paper generation
+    timeout=2400,  # 40 min max for long-running tasks like paper generation
     secrets=[modal.Secret.from_name("runner-secrets")],
 )
 def run_endpoint_cpu(payload: dict) -> dict:
@@ -86,9 +111,9 @@ def run_endpoint_cpu(payload: dict) -> dict:
     """
     from execute.executor import execute_endpoint
 
-    # Use timeout from payload, capped at 240s for CPU lane (leave 60s buffer for Modal)
+    # Use timeout from payload, capped at 1800s (30 min) for CPU lane (leave 60s buffer for Modal)
     requested_timeout = payload.get("timeout_seconds", 60)
-    max_timeout = min(requested_timeout, 240)
+    max_timeout = min(requested_timeout, 1800)
 
     return execute_endpoint(
         payload=payload,

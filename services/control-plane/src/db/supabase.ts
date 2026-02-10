@@ -2,6 +2,7 @@
  * Supabase Client Singleton
  *
  * Provides authenticated and service-role Supabase clients
+ * with explicit pool and timeout configuration.
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -15,9 +16,68 @@ function getEnvVars() {
   };
 }
 
+// Connection pool configuration
+const POOL_CONFIG = {
+  // Maximum number of connections in the pool (per client type)
+  // Supabase client doesn't directly expose pool size, but we can configure fetch timeout
+  requestTimeout: 10_000,  // 10s timeout for individual requests
+  realtimeTimeout: 30_000, // 30s for realtime connections
+
+  // Retry configuration
+  maxRetries: 3,
+  retryDelay: 1000,  // 1s base delay
+};
+
 // Singleton instances
-let anonClient: SupabaseClient | null = null;
-let serviceClient: SupabaseClient | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let anonClient: SupabaseClient<any, any, any> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let serviceClient: SupabaseClient<any, any, any> | null = null;
+
+/**
+ * Create Supabase client options with production-ready configuration
+ */
+function createClientOptions(isServiceRole: boolean = false) {
+  return {
+    auth: {
+      autoRefreshToken: !isServiceRole,  // Auto-refresh for user tokens only
+      persistSession: false,  // Don't persist sessions (server-side)
+      detectSessionInUrl: false,
+    },
+    global: {
+      fetch: createTimeoutFetch(POOL_CONFIG.requestTimeout),
+    },
+    db: {
+      schema: 'public',
+    },
+    // Realtime disabled for control-plane (not needed)
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+    },
+  };
+}
+
+/**
+ * Create a fetch function with timeout
+ */
+function createTimeoutFetch(timeoutMs: number) {
+  return async (input: URL | Request | string, init?: RequestInit): Promise<Response> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(input, {
+        ...init,
+        signal: controller.signal,
+      });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+}
 
 /**
  * Check if Supabase is configured
@@ -31,19 +91,15 @@ export function isSupabaseConfigured(): boolean {
  * Get the anonymous Supabase client
  * Used for operations that respect RLS
  */
-export function getSupabaseClient(): SupabaseClient {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getSupabaseClient(): SupabaseClient<any, any, any> {
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnvVars();
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error('Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.');
   }
 
   if (!anonClient) {
-    anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: false,
-      },
-    });
+    anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, createClientOptions(false));
   }
 
   return anonClient;
@@ -53,19 +109,15 @@ export function getSupabaseClient(): SupabaseClient {
  * Get the service role Supabase client
  * Used for admin operations that bypass RLS
  */
-export function getServiceSupabaseClient(): SupabaseClient {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getServiceSupabaseClient(): SupabaseClient<any, any, any> {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = getEnvVars();
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Supabase service role is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.');
   }
 
   if (!serviceClient) {
-    serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
+    serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, createClientOptions(true));
   }
 
   return serviceClient;
@@ -75,23 +127,55 @@ export function getServiceSupabaseClient(): SupabaseClient {
  * Create a Supabase client with a user's JWT token
  * Used for operations that should respect the user's permissions
  */
-export function getSupabaseClientWithToken(token: string): SupabaseClient {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getSupabaseClientWithToken(token: string): SupabaseClient<any, any, any> {
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = getEnvVars();
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error('Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.');
   }
 
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+    ...createClientOptions(false),
     global: {
+      fetch: createTimeoutFetch(POOL_CONFIG.requestTimeout),
       headers: {
         Authorization: `Bearer ${token}`,
       },
     },
   });
+}
+
+/**
+ * Test Supabase connectivity
+ * Used for health checks
+ */
+export async function testSupabaseConnection(): Promise<{
+  connected: boolean;
+  latencyMs: number;
+  error?: string;
+}> {
+  const start = Date.now();
+
+  try {
+    if (!isSupabaseConfigured()) {
+      return { connected: false, latencyMs: 0, error: 'Not configured' };
+    }
+
+    const supabase = getServiceSupabaseClient();
+    const { error } = await supabase.from('projects').select('id').limit(1);
+
+    if (error) {
+      return { connected: false, latencyMs: Date.now() - start, error: error.message };
+    }
+
+    return { connected: true, latencyMs: Date.now() - start };
+  } catch (error) {
+    return {
+      connected: false,
+      latencyMs: Date.now() - start,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 /**
