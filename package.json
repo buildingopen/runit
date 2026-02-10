@@ -2,7 +2,38 @@
   "name": "runtime-ai",
   "version": "0.1.0",
   "private": true,
-  "description": "Runtime AI - Run any FastAPI app in the cloud with zero infrastructure",
+  "description": "Deploy any Python FastAPI app to the cloud in 30 seconds. Zero Docker, zero config. Self-hostable serverless platform with GPU support, auto-generated UIs, and built-in secrets management.",
+  "keywords": [
+    "fastapi",
+    "python",
+    "serverless",
+    "deployment",
+    "api",
+    "modal",
+    "gpu",
+    "machine-learning",
+    "ml-deployment",
+    "paas",
+    "self-hosted",
+    "open-source",
+    "cloud",
+    "backend",
+    "infrastructure",
+    "devops",
+    "secrets-management",
+    "openapi",
+    "swagger"
+  ],
+  "homepage": "https://github.com/federicodeponte/runtime-ai#readme",
+  "bugs": {
+    "url": "https://github.com/federicodeponte/runtime-ai/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/federicodeponte/runtime-ai.git"
+  },
+  "license": "MIT",
+  "author": "Runtime AI Contributors",
   "workspaces": [
     "apps/*",
     "packages/*",

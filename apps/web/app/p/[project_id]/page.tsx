@@ -190,6 +190,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
         endpoint_id: selectedEndpointId,
         json: formData,
         lane: 'cpu',
+        timeout_seconds: 1800, // 30 minutes for long-running tasks
       });
       setCurrentRunId(result.run_id);
     } catch {

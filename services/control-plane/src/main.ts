@@ -2,6 +2,12 @@
  * Control Plane API
  *
  * Source of truth for projects, versions, runs, secrets, and sharing.
+ * Production-hardened with:
+ * - Request timeouts
+ * - HTTPS redirect
+ * - Circuit breakers
+ * - Prometheus metrics
+ * - CSP violation reporting
  */
 
 import * as dotenv from 'dotenv';
@@ -12,6 +18,7 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
+
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
@@ -23,21 +30,79 @@ import secrets from './routes/secrets.js';
 import contextRoutes from './routes/context';
 import { projectShare, shareLinks } from './routes/share.js';
 import deploy from './routes/deploy.js';
-import { rateLimitMiddleware } from './middleware/rate-limit';
+import metrics from './routes/metrics';
+import { rateLimitMiddleware, shutdownRateLimit } from './middleware/rate-limit';
 import { quotaMiddleware } from './middleware/quota';
 import { bodySizeLimitMiddleware, contentTypeMiddleware } from './middleware/request-validation';
 import { authMiddleware } from './middleware/auth';
 import { loggerMiddleware, devLoggerMiddleware } from './middleware/logger';
 import { securityHeadersMiddleware } from './middleware/security-headers';
+import { requestTimeoutMiddleware } from './middleware/request-timeout';
+import { httpsRedirectMiddleware } from './middleware/https-redirect';
 import { validateEnv } from './lib/env';
-import { initSentry, captureException } from './lib/sentry';
+import { initSentry, captureException, isSentryInitialized } from './lib/sentry';
 import { logger } from './lib/logger';
+import { testSupabaseConnection, isSupabaseConfigured } from './db/supabase';
+import { getCircuitBreakerStats, hasOpenCircuit } from './lib/circuit-breaker';
+import { httpRequestsTotal, httpRequestDuration } from './lib/metrics';
 
 // Validate environment variables at boot
 validateEnv();
 
-// Initialize Sentry (async, non-blocking)
-initSentry().catch(() => {});
+// Initialize Sentry (blocking in production)
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction) {
+  await initSentry();
+} else {
+  initSentry().catch(() => {});
+}
+
+// Startup health check - verify critical dependencies
+async function startupHealthCheck(): Promise<void> {
+  logger.info('[Startup] Running health checks...');
+
+  // Check Supabase connectivity
+  if (isSupabaseConfigured()) {
+    const supabaseCheck = await testSupabaseConnection();
+    if (!supabaseCheck.connected) {
+      if (isProduction) {
+        logger.error('[Startup] FATAL: Supabase connectivity check failed', undefined, {
+          error: supabaseCheck.error,
+        });
+        process.exit(1);
+      } else {
+        logger.warn('[Startup] Supabase connectivity check failed (continuing in development)', {
+          error: supabaseCheck.error,
+        });
+      }
+    } else {
+      logger.info(`[Startup] Supabase connected (${supabaseCheck.latencyMs}ms)`);
+    }
+  } else {
+    logger.warn('[Startup] Supabase not configured');
+  }
+
+  // Check Modal credentials
+  const hasModal = !!(process.env.MODAL_TOKEN_ID && process.env.MODAL_TOKEN_SECRET);
+  if (hasModal) {
+    logger.info('[Startup] Modal credentials configured');
+  } else {
+    logger.warn('[Startup] Modal credentials not configured (deployments will fail)');
+  }
+
+  // Check Sentry
+  if (isSentryInitialized()) {
+    logger.info('[Startup] Sentry initialized');
+  } else if (isProduction) {
+    logger.error('[Startup] FATAL: Sentry not initialized in production');
+    process.exit(1);
+  }
+
+  logger.info('[Startup] Health checks complete');
+}
+
+// Run startup health checks
+await startupHealthCheck();
 
 // Run database migrations (async, non-blocking — app starts regardless)
 import('./db/migrate-boot.js').catch(() => {});
@@ -61,6 +126,12 @@ app.onError((err, c) => {
     error: 'Internal server error',
   }, 500);
 });
+
+// HTTPS redirect (production only)
+app.use('/*', httpsRedirectMiddleware);
+
+// Request timeout (30s default)
+app.use('/*', requestTimeoutMiddleware(30_000));
 
 // CORS - production-aware origin allowlist
 const allowedOrigins = (() => {
@@ -94,8 +165,26 @@ app.use('/*', cors({
 app.use('/*', securityHeadersMiddleware);
 
 // Request logging - use dev logger in development, structured logger in production
-const isProduction = process.env.NODE_ENV === 'production';
 app.use('/*', isProduction ? loggerMiddleware : devLoggerMiddleware);
+
+// Request metrics tracking
+app.use('/*', async (c, next) => {
+  const start = Date.now();
+  await next();
+  const duration = (Date.now() - start) / 1000;
+
+  const path = c.req.path.replace(/\/[a-f0-9-]{36}/g, '/:id');  // Normalize UUIDs
+  httpRequestsTotal.inc({
+    method: c.req.method,
+    path,
+    status: c.res.status.toString(),
+  });
+  httpRequestDuration.observe({
+    method: c.req.method,
+    path,
+    status: c.res.status.toString(),
+  }, duration);
+});
 
 // Body size limit (5MB default) - prevents large payload attacks
 app.use('/*', bodySizeLimitMiddleware);
@@ -118,11 +207,12 @@ app.get('/', (c) => {
     name: 'Execution Layer Control Plane',
     version: '0.1.0',
     status: 'operational',
-    features: ['projects', 'runs', 'secrets', 'context', 'rate-limiting', 'quotas'],
+    features: ['projects', 'runs', 'secrets', 'context', 'rate-limiting', 'quotas', 'metrics'],
     endpoints: {
       projects: '/projects',
       runs: '/runs',
       health: '/health',
+      metrics: '/metrics',
     },
   });
 });
@@ -140,34 +230,33 @@ app.get('/health/deep', async (c) => {
   const checks: Record<string, { status: string; latency_ms?: number; error?: string }> = {};
 
   // Check Supabase
-  try {
-    const start = Date.now();
-    const { isSupabaseConfigured } = await import('./db/supabase.js');
-    if (isSupabaseConfigured()) {
-      const { getServiceSupabaseClient } = await import('./db/supabase.js');
-      const supabase = getServiceSupabaseClient();
-      const { error } = await supabase.from('projects').select('id').limit(1);
-      checks.supabase = error
-        ? { status: 'degraded', latency_ms: Date.now() - start, error: error.message }
-        : { status: 'healthy', latency_ms: Date.now() - start };
-    } else {
-      checks.supabase = { status: 'not_configured' };
-    }
-  } catch (err) {
-    checks.supabase = { status: 'unhealthy', error: err instanceof Error ? err.message : String(err) };
+  if (isSupabaseConfigured()) {
+    const supabaseCheck = await testSupabaseConnection();
+    checks.supabase = supabaseCheck.connected
+      ? { status: 'healthy', latency_ms: supabaseCheck.latencyMs }
+      : { status: 'unhealthy', latency_ms: supabaseCheck.latencyMs, error: supabaseCheck.error };
+  } else {
+    checks.supabase = { status: 'not_configured' };
   }
 
   // Check Modal
-  try {
-    const hasModal = !!(process.env.MODAL_TOKEN_ID && process.env.MODAL_TOKEN_SECRET);
-    checks.modal = hasModal
-      ? { status: 'configured' }
-      : { status: 'not_configured' };
-  } catch {
-    checks.modal = { status: 'unhealthy' };
-  }
+  const hasModal = !!(process.env.MODAL_TOKEN_ID && process.env.MODAL_TOKEN_SECRET);
+  checks.modal = hasModal
+    ? { status: 'configured' }
+    : { status: 'not_configured' };
 
-  const overall = Object.values(checks).every((ch) => ch.status === 'healthy' || ch.status === 'configured')
+  // Check Sentry
+  checks.sentry = isSentryInitialized()
+    ? { status: 'healthy' }
+    : { status: 'not_configured' };
+
+  // Check circuit breakers
+  const circuitStats = getCircuitBreakerStats();
+  checks.circuit_breakers = hasOpenCircuit()
+    ? { status: 'degraded', error: 'One or more circuit breakers open' }
+    : { status: 'healthy' };
+
+  const overall = Object.values(checks).every((ch) => ch.status === 'healthy' || ch.status === 'configured' || ch.status === 'not_configured')
     ? 'healthy'
     : Object.values(checks).some((ch) => ch.status === 'unhealthy')
       ? 'unhealthy'
@@ -178,6 +267,7 @@ app.get('/health/deep', async (c) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     checks,
+    circuitBreakers: circuitStats,
   }, overall === 'unhealthy' ? 503 : 200);
 });
 
@@ -206,6 +296,23 @@ app.get('/openapi.json', (c) => {
           summary: 'Health Check',
           description: 'Returns health status of the API',
           responses: { '200': { description: 'Health status' } },
+        },
+      },
+      '/health/deep': {
+        get: {
+          summary: 'Deep Health Check',
+          description: 'Returns health status including external dependencies',
+          responses: {
+            '200': { description: 'All systems healthy' },
+            '503': { description: 'One or more systems unhealthy' },
+          },
+        },
+      },
+      '/metrics': {
+        get: {
+          summary: 'Prometheus Metrics',
+          description: 'Returns Prometheus-formatted metrics',
+          responses: { '200': { description: 'Metrics in text format' } },
         },
       },
       '/projects': {
@@ -306,6 +413,7 @@ app.route('/projects', projectShare);  // /projects/:id/share
 app.route('/projects', deploy);        // /projects/:id/deploy, /projects/:id/deploy/stream
 app.route('/share', shareLinks);       // /share/:share_id
 app.route('/runs', runs);
+app.route('/metrics', metrics);        // /metrics
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
@@ -314,11 +422,14 @@ console.log(`
 ║  Execution Layer Control Plane                              ║
 ║  Port: ${port}                                              ║
 ║  Status: Running                                            ║
+║  Mode: ${isProduction ? 'PRODUCTION' : 'development'}                                      ║
 ╚════════════════════════════════════════════════════════════╝
 
 Available routes:
   GET    /                          - API info
   GET    /health                    - Health check
+  GET    /health/deep               - Deep health check
+  GET    /metrics                   - Prometheus metrics
   POST   /projects                  - Create project
   GET    /projects                  - List projects
   GET    /projects/:id              - Get project details
@@ -353,8 +464,11 @@ const server = serve({
 });
 
 // Graceful shutdown handler
-function shutdown(signal: string) {
+async function shutdown(signal: string) {
   console.log(`\n[${signal}] Shutting down gracefully...`);
+
+  // Shutdown rate limit (close Redis connection)
+  await shutdownRateLimit();
 
   // Stop accepting new connections
   server.close(() => {

@@ -1,0 +1,22 @@
+# Configuration for GitHub Apps
+
+# Welcome new contributors
+newPRWelcomeComment: |
+  Thanks for opening your first PR! A maintainer will review it soon.
+  
+  While you wait, please make sure:
+  - All tests pass (`npm test`)
+  - Code follows our style guidelines
+  - You've updated documentation if needed
+
+newIssueWelcomeComment: |
+  Thanks for opening an issue! We'll take a look as soon as possible.
+  
+  If this is a bug report, please make sure you've included:
+  - Steps to reproduce
+  - Your environment details
+  - Any relevant error logs
+
+# Auto-label first contributions
+firstPRMergeComment: |
+  Congrats on your first merged PR! Welcome to Runtime AI! 🎉

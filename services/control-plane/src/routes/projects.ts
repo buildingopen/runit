@@ -199,8 +199,8 @@ projects.post('/', async (c) => {
   });
 
   // Extract OpenAPI spec
-  let openapi: any = null;
-  let endpoints: any[] = [];
+  let openapi: Record<string, unknown> | null = null;
+  let endpoints: projectsStore.Endpoint[] = [];
   let entrypoint: string | null = null;
   let detected_env_vars: string[] = [];
 
@@ -368,10 +368,15 @@ export async function getProject(project_id: string) {
 /**
  * Helper to update project version with OpenAPI
  */
-export async function updateVersionOpenAPI(project_id: string, version_id: string, openapi: any, endpoints: any[]) {
+export async function updateVersionOpenAPI(
+  project_id: string,
+  version_id: string,
+  openapi: Record<string, unknown> | null,
+  endpoints: projectsStore.Endpoint[]
+) {
   const result = await projectsStore.updateVersion(version_id, {
     openapi,
-    endpoints: endpoints as projectsStore.Endpoint[],
+    endpoints,
   });
   return !!result;
 }

@@ -27,7 +27,7 @@
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/your-org/runtime-ai.git
+git clone https://github.com/federicodeponte/runtime-ai.git
 cd runtime-ai
 ```
 

@@ -1,76 +1,142 @@
 /**
  * Sentry Error Tracking
  *
- * Optional Sentry integration for production error monitoring.
- * Only initializes if SENTRY_DSN is set and @sentry/node is installed.
+ * Required in production for error monitoring.
+ * In development, Sentry is optional.
  */
 
-let sentryInitialized = false;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let SentryModule: any = null;
+import * as Sentry from '@sentry/node';
 
+let sentryInitialized = false;
+
+/**
+ * Initialize Sentry error tracking
+ * Required in production (validated by env.ts)
+ */
 export async function initSentry(): Promise<void> {
   const dsn = process.env.SENTRY_DSN;
+  const isProduction = process.env.NODE_ENV === 'production';
+
   if (!dsn) {
+    if (isProduction) {
+      // This should never happen as env.ts validates SENTRY_DSN in production
+      console.error('[Sentry] FATAL: SENTRY_DSN not set in production');
+      process.exit(1);
+    }
+    console.log('[Sentry] Skipping initialization (no DSN configured in development)');
     return;
   }
 
   try {
-    // Dynamic import — use variable to prevent TypeScript from resolving at compile time
-    const moduleName = '@sentry/node';
-    SentryModule = await import(moduleName).catch(() => null);
-    if (!SentryModule) {
-      console.warn('[Sentry] @sentry/node not installed, skipping error tracking');
-      return;
-    }
-
-    SentryModule.init({
+    Sentry.init({
       dsn,
       environment: process.env.NODE_ENV || 'development',
-      tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+      tracesSampleRate: isProduction ? 0.1 : 1.0,
       release: `control-plane@${process.env.npm_package_version || '0.1.0'}`,
+      integrations: [
+        // Capture unhandled promise rejections
+        Sentry.onUnhandledRejectionIntegration(),
+      ],
+      // Don't send PII by default
+      sendDefaultPii: false,
+      // Attach stack traces to all messages
+      attachStacktrace: true,
+      // Normalize depth for context
+      normalizeDepth: 5,
     });
+
     sentryInitialized = true;
-    console.log('[Sentry] Initialized');
-  } catch {
-    console.warn('[Sentry] Failed to initialize');
+    console.log('[Sentry] Initialized successfully');
+  } catch (error) {
+    if (isProduction) {
+      console.error('[Sentry] FATAL: Failed to initialize in production:', error);
+      process.exit(1);
+    }
+    console.warn('[Sentry] Failed to initialize (development):', error);
   }
 }
 
+/**
+ * Check if Sentry is initialized
+ */
+export function isSentryInitialized(): boolean {
+  return sentryInitialized;
+}
+
+/**
+ * Capture an exception with optional context
+ */
 export function captureException(error: Error, context?: Record<string, unknown>): void {
-  if (!sentryInitialized || !SentryModule) return;
+  if (!sentryInitialized) return;
 
   try {
     if (context) {
-      SentryModule.withScope((scope: { setExtra: (k: string, v: unknown) => void }) => {
+      Sentry.withScope((scope) => {
         for (const [key, value] of Object.entries(context)) {
           scope.setExtra(key, value);
         }
-        SentryModule.captureException(error);
+        Sentry.captureException(error);
       });
     } else {
-      SentryModule.captureException(error);
+      Sentry.captureException(error);
     }
   } catch {
     // Don't let Sentry errors break the app
   }
 }
 
+/**
+ * Capture a message with optional level
+ */
 export function captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info'): void {
-  if (!sentryInitialized || !SentryModule) return;
+  if (!sentryInitialized) return;
 
   try {
-    SentryModule.captureMessage(message, level);
+    Sentry.captureMessage(message, level);
   } catch {
     // Don't let Sentry errors break the app
   }
 }
 
+/**
+ * Set user context for error tracking
+ */
 export function setUser(id: string, email?: string): void {
-  if (!sentryInitialized || !SentryModule) return;
+  if (!sentryInitialized) return;
 
   try {
-    SentryModule.setUser({ id, email });
+    Sentry.setUser({ id, email });
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Clear user context
+ */
+export function clearUser(): void {
+  if (!sentryInitialized) return;
+
+  try {
+    Sentry.setUser(null);
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Add breadcrumb for debugging
+ */
+export function addBreadcrumb(message: string, category: string, data?: Record<string, unknown>): void {
+  if (!sentryInitialized) return;
+
+  try {
+    Sentry.addBreadcrumb({
+      message,
+      category,
+      level: 'info',
+      data,
+    });
   } catch {
     // Ignore
   }
