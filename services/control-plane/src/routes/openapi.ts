@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import { getProject, updateVersionOpenAPI } from './projects.js';
-import { extractOpenAPIFromZip } from '../openapi-extractor.js';
+import { extractOpenAPIFromZip } from '../lib/openapi/zip-extractor.js';
 
 const openapi = new Hono();
 

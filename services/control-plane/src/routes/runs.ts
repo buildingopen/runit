@@ -9,7 +9,7 @@ import type {
   GetRunStatusResponse,
 } from '@runtime-ai/shared';
 import { getProject } from './projects.js';
-import { executeOnModal } from '../modal-client.js';
+import { executeOnModal } from '../lib/modal/client.js';
 import { getDecryptedSecretsForRun } from './secrets.js';
 import { encryptSecretsBundle } from '../encryption/kms.js';
 import { getAuthContext } from '../middleware/auth.js';

@@ -47,7 +47,7 @@ import secrets from '../../src/routes/secrets';
 import * as secretsStore from '../../src/db/secrets-store';
 import { encryptSecret, decryptSecret } from '../../src/crypto/kms';
 import { getAuthContext } from '../../src/middleware/auth';
-import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../../src/constants';
+import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../../src/config/constants';
 
 describe('POST /projects/:projectId/secrets - Create secret', () => {
   beforeEach(() => {
