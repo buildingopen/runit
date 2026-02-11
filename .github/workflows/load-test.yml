@@ -1,0 +1,247 @@
+name: Load Tests
+
+on:
+  # Run smoke tests on PR
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/control-plane/**'
+      - '.github/workflows/load-test.yml'
+
+  # Manual trigger for full load tests
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Load test scenario to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - load
+          - stress
+          - spike
+      base_url:
+        description: 'Target URL (leave empty for local)'
+        required: false
+        default: ''
+      duration_override:
+        description: 'Override test duration (e.g., 5m, 10m)'
+        required: false
+        default: ''
+
+jobs:
+  # Smoke test runs on every PR
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    services:
+      # Add database service if needed for tests
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: control_plane_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build control-plane
+        working-directory: services/control-plane
+        run: npm run build
+
+      - name: Start control-plane service
+        working-directory: services/control-plane
+        run: |
+          npm run start &
+          sleep 5
+        env:
+          NODE_ENV: test
+          PORT: 3001
+          DATABASE_URL: postgresql://test:test@localhost:5432/control_plane_test
+          REDIS_URL: redis://localhost:6379
+          MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run smoke test
+        working-directory: services/control-plane
+        run: |
+          k6 run tests/load/k6-config.js --env SCENARIO=smoke --env BASE_URL=http://localhost:3001
+        env:
+          K6_OUT: json=tests/load/results/smoke-test-results.json
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-results
+          path: services/control-plane/tests/load/results/
+          retention-days: 7
+
+  # Full load tests (manual trigger only)
+  load-test:
+    name: Load Test (${{ github.event.inputs.scenario }})
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: control_plane_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build control-plane
+        working-directory: services/control-plane
+        run: npm run build
+
+      - name: Start control-plane service
+        if: github.event.inputs.base_url == ''
+        working-directory: services/control-plane
+        run: |
+          npm run start &
+          sleep 5
+        env:
+          NODE_ENV: test
+          PORT: 3001
+          DATABASE_URL: postgresql://test:test@localhost:5432/control_plane_test
+          REDIS_URL: redis://localhost:6379
+          MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Determine target URL
+        id: target
+        run: |
+          if [ -n "${{ github.event.inputs.base_url }}" ]; then
+            echo "url=${{ github.event.inputs.base_url }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=http://localhost:3001" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run ${{ github.event.inputs.scenario }} test
+        working-directory: services/control-plane
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario }}"
+          BASE_URL="${{ steps.target.outputs.url }}"
+
+          echo "Running ${SCENARIO} test against ${BASE_URL}"
+
+          EXTRA_ARGS=""
+          if [ -n "${{ github.event.inputs.duration_override }}" ]; then
+            EXTRA_ARGS="--env DURATION=${{ github.event.inputs.duration_override }}"
+          fi
+
+          k6 run tests/load/k6-config.js \
+            --env SCENARIO=${SCENARIO} \
+            --env BASE_URL=${BASE_URL} \
+            ${EXTRA_ARGS}
+        env:
+          K6_OUT: json=tests/load/results/${{ github.event.inputs.scenario }}-results.json
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ github.event.inputs.scenario }}-test-results
+          path: services/control-plane/tests/load/results/
+          retention-days: 30
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Load Test Results (${{ github.event.inputs.scenario }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Scenario:** ${{ github.event.inputs.scenario }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target:** ${{ steps.target.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See artifacts for detailed results." >> $GITHUB_STEP_SUMMARY
+
+  # Individual scenario tests (manual trigger)
+  scenario-test:
+    name: Scenario Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.scenario == 'custom'
+
+    strategy:
+      matrix:
+        scenario: [health-check, create-project, secrets-crud, mixed-workload]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run ${{ matrix.scenario }} scenario
+        if: github.event.inputs.base_url != ''
+        working-directory: services/control-plane
+        run: |
+          k6 run tests/load/scenarios/${{ matrix.scenario }}.js \
+            --env BASE_URL=${{ github.event.inputs.base_url }}

@@ -11,7 +11,7 @@ import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../constants';
 import { getAuthContext } from '../middleware/auth';
 import { logger } from '../lib/logger';
 import { captureMessage } from '../lib/sentry';
-import { secretsOperationsTotal } from '../lib/metrics';
+import { recordSecretsOperation } from '../lib/metrics';
 
 const secrets = new Hono();
 
@@ -46,11 +46,9 @@ function auditLogSecret(
     }
   }
 
-  // Track metrics
-  secretsOperationsTotal.inc({
-    operation,
-    result: success ? 'success' : 'failure',
-  });
+  // Track metrics (map decrypt_failed to read operation)
+  const metricOperation = operation === 'decrypt_failed' ? 'read' : operation;
+  recordSecretsOperation(metricOperation, success ? 'success' : 'error');
 }
 
 /**

@@ -1,0 +1,8 @@
+# Ignore all load test results
+*.json
+*.html
+*.log
+
+# Keep this directory
+!.gitkeep
+!.gitignore

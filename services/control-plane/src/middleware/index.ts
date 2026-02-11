@@ -13,3 +13,4 @@ export * from './logger';
 export * from './security-headers';
 export * from './request-timeout';
 export * from './https-redirect';
+export * from './metrics';
