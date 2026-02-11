@@ -52,7 +52,7 @@ async function getAppliedMigrations(): Promise<string[]> {
     return [];
   }
 
-  return (data || []).map((row: any) => row.name);
+  return (data || []).map((row: { name: string }) => row.name);
 }
 
 async function recordMigration(name: string): Promise<void> {

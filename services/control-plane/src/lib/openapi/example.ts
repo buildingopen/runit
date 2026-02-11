@@ -75,9 +75,10 @@ async function main() {
   // Show OpenAPI schema (truncated)
   console.log('\n--- OpenAPI Schema (truncated) ---');
   const schema = response.openapi_schema as Record<string, unknown>;
-  console.log(`Title: ${(schema.info as any)?.title || 'N/A'}`);
-  console.log(`Version: ${(schema.info as any)?.version || 'N/A'}`);
-  console.log(`Paths: ${Object.keys(schema.paths || {}).length}`);
+  const schemaInfo = schema.info as { title?: string; version?: string } | undefined;
+  console.log(`Title: ${schemaInfo?.title || 'N/A'}`);
+  console.log(`Version: ${schemaInfo?.version || 'N/A'}`);
+  console.log(`Paths: ${Object.keys((schema.paths as Record<string, unknown>) || {}).length}`);
 
   console.log('\n✅ Example completed successfully');
 }

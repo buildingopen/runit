@@ -22,6 +22,45 @@ export interface AuthContext {
 const AUTH_CONTEXT_KEY = 'authContext';
 
 /**
+ * DEV_MODE Security Validation
+ * Runs once on module load to validate dev mode configuration
+ */
+function validateDevModeConfiguration(): void {
+  const devMode = process.env.DEV_MODE === 'true';
+  const nodeEnv = process.env.NODE_ENV;
+
+  if (devMode) {
+    // CRITICAL: Fail fast if DEV_MODE is enabled in production
+    if (nodeEnv === 'production') {
+      console.error(
+        'FATAL: DEV_MODE=true is not allowed when NODE_ENV=production. ' +
+          'This is a critical security violation. Shutting down.'
+      );
+      process.exit(1);
+    }
+
+    // Require explicit DEV_USER_ID to prevent accidental anonymous access
+    if (!process.env.DEV_USER_ID) {
+      console.error(
+        'FATAL: DEV_MODE=true requires DEV_USER_ID environment variable to be set. ' +
+          'This prevents anonymous mock user creation.'
+      );
+      process.exit(1);
+    }
+
+    // Emit startup warning
+    console.warn(
+      '⚠️  DEV_MODE enabled - authentication bypassed. Never use in production!'
+    );
+    console.warn(`   DEV_USER_ID: ${process.env.DEV_USER_ID}`);
+    console.warn(`   NODE_ENV: ${nodeEnv || 'not set'}`);
+  }
+}
+
+// Run validation on module load
+validateDevModeConfiguration();
+
+/**
  * Extract Bearer token from Authorization header
  */
 function extractBearerToken(authHeader: string | undefined): string | null {
@@ -49,13 +88,20 @@ export async function authMiddleware(c: Context, next: Next) {
     }
 
     // Dev mode only: create a mock user when Supabase is unavailable
-    if (process.env.DEV_MODE === 'true') {
+    // Note: DEV_MODE validation happens at module load (validateDevModeConfiguration)
+    if (process.env.DEV_MODE === 'true' && process.env.DEV_USER_ID) {
+      const devUserId = process.env.DEV_USER_ID;
       authContext.user = {
-        id: 'dev-user-00000000-0000-0000-0000-000000000000',
+        id: devUserId,
         email: 'dev@localhost',
         role: 'authenticated',
       };
       authContext.isAuthenticated = true;
+
+      // Audit log for every request using mock user
+      console.warn(
+        `[DEV_MODE AUDIT] Mock user request: ${c.req.method} ${c.req.path} | User: ${devUserId} | Time: ${new Date().toISOString()}`
+      );
     }
     c.set(AUTH_CONTEXT_KEY, authContext);
     return next();

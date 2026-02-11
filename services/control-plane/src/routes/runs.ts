@@ -16,7 +16,26 @@ import { getAuthContext } from '../middleware/auth.js';
 import * as runsStore from '../db/runs-store.js';
 import * as projectsStore from '../db/projects-store.js';
 
-const runs = new Hono();
+/**
+ * Quota tracking interface set by quota middleware
+ */
+interface QuotaTracking {
+  userId: string;
+  lane: 'cpu' | 'gpu';
+  trackStart: (runId: string) => void;
+  trackComplete: (runId: string) => void;
+}
+
+/**
+ * Hono environment with quota tracking variable
+ */
+type RunsEnv = {
+  Variables: {
+    quotaTracking?: QuotaTracking;
+  };
+};
+
+const runs = new Hono<RunsEnv>();
 
 /**
  * POST /runs - Create and execute a new run
@@ -34,13 +53,7 @@ runs.post('/', async (c) => {
   }
 
   // Get quota tracking from middleware (if present)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const quotaTracking = (c as any).get('quotaTracking') as {
-    userId: string;
-    lane: 'cpu' | 'gpu';
-    trackStart: (runId: string) => void;
-    trackComplete: (runId: string) => void;
-  } | undefined;
+  const quotaTracking = c.get('quotaTracking');
 
   // Get project and version from DB
   const project = await projectsStore.getProject(body.project_id);

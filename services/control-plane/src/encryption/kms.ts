@@ -6,79 +6,277 @@
  * Envelope encryption process:
  * 1. Generate random DEK (32 bytes)
  * 2. Encrypt secret with DEK using AES-256-GCM
- * 3. Encrypt DEK with KMS master key (future: use actual KMS)
- * 4. Store: encrypted_dek || encrypted_secret || iv || auth_tag
+ * 3. Encrypt DEK with KMS master key
+ * 4. Store: version || salt || encrypted_dek || encrypted_secret || iv || auth_tag
  *
- * For v0: Use environment variable as master key (mock KMS)
- * Production: Replace with actual KMS (AWS KMS, Google Cloud KMS, HashiCorp Vault)
+ * This module provides:
+ * - KMSProvider interface for pluggable key management
+ * - LocalKMSProvider for development (uses env var)
+ * - AWSKMSProvider for production (uses AWS KMS)
+ * - Factory function to select the right provider based on environment
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync } from 'crypto';
+import { KMSClient, EncryptCommand, DecryptCommand } from '@aws-sdk/client-kms';
+
+// ============================================================================
+// Constants
+// ============================================================================
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 16;  // 128 bits
 const AUTH_TAG_LENGTH = 16;
 const SALT_LENGTH = 32;
+const PBKDF2_ITERATIONS = 100000;
+
+// Version byte for future format changes
+const ENCRYPTION_FORMAT_VERSION = 0x01;
+
+// ============================================================================
+// KMS Provider Interface
+// ============================================================================
 
 /**
- * Get master key from environment (mock KMS for v0)
- * Production: Replace with actual KMS call
+ * Interface for KMS providers
+ * Implementations handle the actual key management operations
  */
-function getMasterKey(): Buffer {
-  const masterKeyEnv = process.env.MASTER_ENCRYPTION_KEY;
+export interface KMSProvider {
+  /**
+   * Provider name for logging/debugging
+   */
+  readonly name: string;
 
-  if (!masterKeyEnv) {
-    throw new Error(
-      'MASTER_ENCRYPTION_KEY environment variable is required. ' +
-      'Generate one with: openssl rand -base64 32'
-    );
+  /**
+   * Whether this provider is suitable for production use
+   */
+  readonly isProductionReady: boolean;
+
+  /**
+   * Encrypt a Data Encryption Key (DEK)
+   * @param dek - The plaintext DEK to encrypt
+   * @returns Promise resolving to encrypted DEK bytes
+   */
+  encryptDEK(dek: Buffer): Promise<Buffer>;
+
+  /**
+   * Decrypt a Data Encryption Key (DEK)
+   * @param encryptedDEK - The encrypted DEK to decrypt
+   * @returns Promise resolving to plaintext DEK bytes
+   */
+  decryptDEK(encryptedDEK: Buffer): Promise<Buffer>;
+}
+
+// ============================================================================
+// Local KMS Provider (Development)
+// ============================================================================
+
+/**
+ * Local KMS provider for development environments
+ * Uses MASTER_ENCRYPTION_KEY from environment variable
+ *
+ * WARNING: This provider is NOT suitable for production use.
+ * The master key is derived from an environment variable with a random salt
+ * per encryption operation for better security.
+ */
+export class LocalKMSProvider implements KMSProvider {
+  readonly name = 'LocalKMS';
+  readonly isProductionReady = false;
+
+  private readonly masterKeyEnv: string;
+
+  constructor() {
+    const masterKeyEnv = process.env.MASTER_ENCRYPTION_KEY;
+
+    if (!masterKeyEnv) {
+      throw new Error(
+        'MASTER_ENCRYPTION_KEY environment variable is required for LocalKMSProvider. ' +
+        'Generate one with: openssl rand -base64 32'
+      );
+    }
+
+    this.masterKeyEnv = masterKeyEnv;
   }
 
-  // Derive key from env var using PBKDF2
-  const salt = Buffer.from('execution-layer-salt-v1');
-  return pbkdf2Sync(masterKeyEnv, salt, 100000, KEY_LENGTH, 'sha256');
+  /**
+   * Derive a key from the master key env var using PBKDF2 with the provided salt
+   */
+  private deriveKey(salt: Buffer): Buffer {
+    return pbkdf2Sync(this.masterKeyEnv, salt, PBKDF2_ITERATIONS, KEY_LENGTH, 'sha256');
+  }
+
+  async encryptDEK(dek: Buffer): Promise<Buffer> {
+    // Generate random salt for this encryption
+    const salt = randomBytes(SALT_LENGTH);
+    const derivedKey = this.deriveKey(salt);
+    const iv = randomBytes(IV_LENGTH);
+
+    const cipher = createCipheriv(ALGORITHM, derivedKey, iv);
+    const encrypted = Buffer.concat([cipher.update(dek), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+
+    // Format: salt || iv || encrypted_dek || auth_tag
+    return Buffer.concat([salt, iv, encrypted, authTag]);
+  }
+
+  async decryptDEK(encryptedDEK: Buffer): Promise<Buffer> {
+    // Parse: salt || iv || encrypted_dek || auth_tag
+    const salt = encryptedDEK.subarray(0, SALT_LENGTH);
+    const iv = encryptedDEK.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+    const authTag = encryptedDEK.subarray(encryptedDEK.length - AUTH_TAG_LENGTH);
+    const encrypted = encryptedDEK.subarray(SALT_LENGTH + IV_LENGTH, encryptedDEK.length - AUTH_TAG_LENGTH);
+
+    const derivedKey = this.deriveKey(salt);
+
+    const decipher = createDecipheriv(ALGORITHM, derivedKey, iv);
+    decipher.setAuthTag(authTag);
+
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]);
+  }
+}
+
+// ============================================================================
+// AWS KMS Provider (Production)
+// ============================================================================
+
+/**
+ * AWS KMS provider for production environments
+ * Uses AWS KMS for secure key management with hardware security modules (HSM)
+ *
+ * Required environment variables:
+ * - AWS_KMS_KEY_ID: The KMS key ID or ARN to use for encryption
+ * - AWS credentials (via standard AWS SDK configuration)
+ */
+export class AWSKMSProvider implements KMSProvider {
+  readonly name = 'AWSKMS';
+  readonly isProductionReady = true;
+
+  private readonly client: KMSClient;
+  private readonly keyId: string;
+
+  constructor() {
+    const keyId = process.env.AWS_KMS_KEY_ID;
+
+    if (!keyId) {
+      throw new Error(
+        'AWS_KMS_KEY_ID environment variable is required for AWSKMSProvider. ' +
+        'Set it to your KMS key ID or ARN.'
+      );
+    }
+
+    this.keyId = keyId;
+
+    // AWS SDK will use standard credential chain (env vars, IAM role, etc.)
+    this.client = new KMSClient({
+      region: process.env.AWS_REGION || 'us-east-1',
+    });
+  }
+
+  async encryptDEK(dek: Buffer): Promise<Buffer> {
+    const command = new EncryptCommand({
+      KeyId: this.keyId,
+      Plaintext: dek,
+    });
+
+    const response = await this.client.send(command);
+
+    if (!response.CiphertextBlob) {
+      throw new Error('AWS KMS encryption failed: no ciphertext returned');
+    }
+
+    return Buffer.from(response.CiphertextBlob);
+  }
+
+  async decryptDEK(encryptedDEK: Buffer): Promise<Buffer> {
+    const command = new DecryptCommand({
+      KeyId: this.keyId,
+      CiphertextBlob: encryptedDEK,
+    });
+
+    const response = await this.client.send(command);
+
+    if (!response.Plaintext) {
+      throw new Error('AWS KMS decryption failed: no plaintext returned');
+    }
+
+    return Buffer.from(response.Plaintext);
+  }
+}
+
+// ============================================================================
+// KMS Provider Factory
+// ============================================================================
+
+// Singleton instance
+let kmsProviderInstance: KMSProvider | null = null;
+let productionWarningShown = false;
+
+/**
+ * Get the appropriate KMS provider based on environment configuration
+ *
+ * Selection logic:
+ * 1. If AWS_KMS_KEY_ID is set, use AWSKMSProvider
+ * 2. Otherwise, fall back to LocalKMSProvider
+ *
+ * In production (NODE_ENV=production), using LocalKMSProvider will emit a warning.
+ */
+export function getKMSProvider(): KMSProvider {
+  if (kmsProviderInstance) {
+    return kmsProviderInstance;
+  }
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  const hasAWSKMS = Boolean(process.env.AWS_KMS_KEY_ID);
+
+  if (hasAWSKMS) {
+    console.log('[KMS] Using AWS KMS provider for key management');
+    kmsProviderInstance = new AWSKMSProvider();
+  } else {
+    kmsProviderInstance = new LocalKMSProvider();
+
+    if (isProduction && !productionWarningShown) {
+      productionWarningShown = true;
+      console.warn('\n' + '='.repeat(80));
+      console.warn('[KMS] WARNING: Using LocalKMSProvider in PRODUCTION environment!');
+      console.warn('[KMS] This is NOT recommended for production use.');
+      console.warn('[KMS] The master key is derived from an environment variable,');
+      console.warn('[KMS] which does not provide the same security guarantees as a proper KMS.');
+      console.warn('[KMS] ');
+      console.warn('[KMS] To use AWS KMS, set the following environment variables:');
+      console.warn('[KMS]   - AWS_KMS_KEY_ID: Your KMS key ID or ARN');
+      console.warn('[KMS]   - AWS_REGION: AWS region (defaults to us-east-1)');
+      console.warn('[KMS]   - AWS credentials via standard AWS SDK configuration');
+      console.warn('='.repeat(80) + '\n');
+    } else if (!isProduction) {
+      console.log('[KMS] Using LocalKMSProvider for development');
+    }
+  }
+
+  return kmsProviderInstance;
 }
 
 /**
- * Encrypt a DEK with the master key (mock KMS operation)
+ * Reset the KMS provider singleton (useful for testing)
  */
-function encryptDEK(dek: Buffer): Buffer {
-  const masterKey = getMasterKey();
-  const iv = randomBytes(IV_LENGTH);
-
-  const cipher = createCipheriv(ALGORITHM, masterKey, iv);
-  const encrypted = Buffer.concat([cipher.update(dek), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-
-  // Format: iv || encrypted_dek || auth_tag
-  return Buffer.concat([iv, encrypted, authTag]);
+export function resetKMSProvider(): void {
+  kmsProviderInstance = null;
+  productionWarningShown = false;
 }
 
-/**
- * Decrypt a DEK with the master key (mock KMS operation)
- */
-function decryptDEK(encryptedDEK: Buffer): Buffer {
-  const masterKey = getMasterKey();
-
-  // Parse: iv || encrypted_dek || auth_tag
-  const iv = encryptedDEK.subarray(0, IV_LENGTH);
-  const authTag = encryptedDEK.subarray(encryptedDEK.length - AUTH_TAG_LENGTH);
-  const encrypted = encryptedDEK.subarray(IV_LENGTH, encryptedDEK.length - AUTH_TAG_LENGTH);
-
-  const decipher = createDecipheriv(ALGORITHM, masterKey, iv);
-  decipher.setAuthTag(authTag);
-
-  return Buffer.concat([decipher.update(encrypted), decipher.final()]);
-}
+// ============================================================================
+// Encryption/Decryption Functions
+// ============================================================================
 
 /**
  * Encrypt a secret value using envelope encryption
  *
- * Returns base64-encoded blob: encrypted_dek || iv || encrypted_data || auth_tag
+ * Returns base64-encoded blob with format:
+ * version (1 byte) || encrypted_dek_length (4 bytes) || encrypted_dek || iv || encrypted_data || auth_tag
  */
 export async function encryptSecret(plaintext: string): Promise<string> {
   try {
+    const kms = getKMSProvider();
+
     // 1. Generate random DEK
     const dek = randomBytes(KEY_LENGTH);
 
@@ -90,14 +288,18 @@ export async function encryptSecret(plaintext: string): Promise<string> {
     const encrypted = Buffer.concat([cipher.update(plaintextBuffer), cipher.final()]);
     const authTag = cipher.getAuthTag();
 
-    // 3. Encrypt DEK with master key (KMS)
-    const encryptedDEK = encryptDEK(dek);
+    // 3. Encrypt DEK with KMS
+    const encryptedDEK = await kms.encryptDEK(dek);
 
-    // 4. Combine: encrypted_dek_length (4 bytes) || encrypted_dek || iv || encrypted_data || auth_tag
+    // 4. Combine: version (1 byte) || encrypted_dek_length (4 bytes) || encrypted_dek || iv || encrypted_data || auth_tag
+    const version = Buffer.alloc(1);
+    version.writeUInt8(ENCRYPTION_FORMAT_VERSION, 0);
+
     const dekLength = Buffer.alloc(4);
     dekLength.writeUInt32BE(encryptedDEK.length, 0);
 
     const combined = Buffer.concat([
+      version,
       dekLength,
       encryptedDEK,
       iv,
@@ -117,27 +319,56 @@ export async function encryptSecret(plaintext: string): Promise<string> {
  * Decrypt a secret value
  *
  * Takes base64-encoded blob, returns plaintext
+ * Supports both versioned (v1) and legacy (v0) formats
  */
 export async function decryptSecret(encryptedBlob: string): Promise<string> {
   try {
+    const kms = getKMSProvider();
+
     // 1. Decode base64
     const combined = Buffer.from(encryptedBlob, 'base64');
 
-    // 2. Parse components
-    const dekLength = combined.readUInt32BE(0);
-    let offset = 4;
+    // 2. Check version and parse accordingly
+    const version = combined.readUInt8(0);
 
-    const encryptedDEK = combined.subarray(offset, offset + dekLength);
-    offset += dekLength;
+    let encryptedDEK: Buffer;
+    let iv: Buffer;
+    let encrypted: Buffer;
+    let authTag: Buffer;
 
-    const iv = combined.subarray(offset, offset + IV_LENGTH);
-    offset += IV_LENGTH;
+    if (version === ENCRYPTION_FORMAT_VERSION) {
+      // New versioned format: version || dek_length || encrypted_dek || iv || encrypted || auth_tag
+      let offset = 1;
 
-    const authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH);
-    const encrypted = combined.subarray(offset, combined.length - AUTH_TAG_LENGTH);
+      const dekLength = combined.readUInt32BE(offset);
+      offset += 4;
 
-    // 3. Decrypt DEK with master key (KMS)
-    const dek = decryptDEK(encryptedDEK);
+      encryptedDEK = combined.subarray(offset, offset + dekLength);
+      offset += dekLength;
+
+      iv = combined.subarray(offset, offset + IV_LENGTH);
+      offset += IV_LENGTH;
+
+      authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH);
+      encrypted = combined.subarray(offset, combined.length - AUTH_TAG_LENGTH);
+    } else {
+      // Legacy format (v0): dek_length || encrypted_dek || iv || encrypted || auth_tag
+      // First byte is part of dekLength (high byte of 4-byte length)
+      const dekLength = combined.readUInt32BE(0);
+      let offset = 4;
+
+      encryptedDEK = combined.subarray(offset, offset + dekLength);
+      offset += dekLength;
+
+      iv = combined.subarray(offset, offset + IV_LENGTH);
+      offset += IV_LENGTH;
+
+      authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH);
+      encrypted = combined.subarray(offset, combined.length - AUTH_TAG_LENGTH);
+    }
+
+    // 3. Decrypt DEK with KMS
+    const dek = await kms.decryptDEK(encryptedDEK);
 
     // 4. Decrypt data with DEK
     const decipher = createDecipheriv(ALGORITHM, dek, iv);

@@ -403,59 +403,83 @@ app.get('/openapi.json', (c) => {
   });
 });
 
-// Mount routes
+// =============================================================================
+// API Routes
+// =============================================================================
+// All routes available at both /v1/* (versioned) and /* (legacy, deprecated)
+// New integrations should use /v1/* prefix for forward compatibility
+
+const apiRouter = new Hono();
+apiRouter.route('/projects', projects);
+apiRouter.route('/projects', endpoints);     // /projects/:id/endpoints
+apiRouter.route('/projects', openapi);       // /projects/:id/versions/:vid/extract-openapi
+apiRouter.route('/projects', secrets);       // /projects/:id/secrets
+apiRouter.route('/projects', contextRoutes); // /projects/:id/context
+apiRouter.route('/projects', projectShare);  // /projects/:id/share
+apiRouter.route('/projects', deploy);        // /projects/:id/deploy, /projects/:id/deploy/stream
+apiRouter.route('/share', shareLinks);       // /share/:share_id
+apiRouter.route('/runs', runs);
+
+// Mount v1 API (recommended)
+app.route('/v1', apiRouter);
+
+// Mount legacy routes (deprecated - will be removed in v2)
+// TODO: Add deprecation warning header in future release
 app.route('/projects', projects);
-app.route('/projects', endpoints);     // /projects/:id/endpoints
-app.route('/projects', openapi);       // /projects/:id/versions/:vid/extract-openapi
-app.route('/projects', secrets);       // /projects/:id/secrets
-app.route('/projects', contextRoutes); // /projects/:id/context
-app.route('/projects', projectShare);  // /projects/:id/share
-app.route('/projects', deploy);        // /projects/:id/deploy, /projects/:id/deploy/stream
-app.route('/share', shareLinks);       // /share/:share_id
+app.route('/projects', endpoints);
+app.route('/projects', openapi);
+app.route('/projects', secrets);
+app.route('/projects', contextRoutes);
+app.route('/projects', projectShare);
+app.route('/projects', deploy);
+app.route('/share', shareLinks);
 app.route('/runs', runs);
-app.route('/metrics', metrics);        // /metrics
+
+// Metrics always at root (Prometheus convention)
+app.route('/metrics', metrics);
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
 console.log(`
-╔════════════════════════════════════════════════════════════╗
-║  Execution Layer Control Plane                              ║
-║  Port: ${port}                                              ║
-║  Status: Running                                            ║
-║  Mode: ${isProduction ? 'PRODUCTION' : 'development'}                                      ║
-╚════════════════════════════════════════════════════════════╝
+┌─────────────────────────────────────────────────────────────┐
+│  Runtime AI Control Plane                                   │
+│  Port: ${String(port).padEnd(52)}│
+│  Mode: ${(isProduction ? 'PRODUCTION' : 'development').padEnd(52)}│
+│  API:  /v1/* (versioned) or /* (legacy)                     │
+└─────────────────────────────────────────────────────────────┘
 
-Available routes:
-  GET    /                          - API info
-  GET    /health                    - Health check
-  GET    /health/deep               - Deep health check
-  GET    /metrics                   - Prometheus metrics
-  POST   /projects                  - Create project
-  GET    /projects                  - List projects
-  GET    /projects/:id              - Get project details
-  GET    /projects/:id/endpoints    - List endpoints
-  POST   /projects/:id/versions/:vid/extract-openapi - Extract OpenAPI
-  POST   /projects/:id/secrets      - Store encrypted secret
-  GET    /projects/:id/secrets      - List secrets (masked)
-  PUT    /projects/:id/secrets/:key - Update secret
-  DELETE /projects/:id/secrets/:key - Delete secret
-  POST   /projects/:id/context      - Fetch context from URL
-  GET    /projects/:id/context      - List contexts
-  GET    /projects/:id/context/:cid - Get context
-  PUT    /projects/:id/context/:cid - Refresh context
-  DELETE /projects/:id/context/:cid - Delete context
-  POST   /projects/:id/deploy       - Start deployment
-  GET    /projects/:id/deploy/stream - SSE deploy progress
-  GET    /projects/:id/deploy/status - Get deploy status
-  POST   /projects/:id/redeploy     - Redeploy with latest code
-  POST   /runs                      - Execute endpoint
-  GET    /runs/:id                  - Get run status
-  POST   /projects/:id/share        - Create share link
-  GET    /projects/:id/shares       - List share links (owner-only)
-  DELETE /projects/:id/share/:sid   - Disable share link
-  GET    /share/:share_id           - Get share link data
+Routes (all available at /v1/* and /*):
+  System:
+    GET  /health           Health check
+    GET  /health/deep      Deep health check (dependencies)
+    GET  /metrics          Prometheus metrics
+    GET  /openapi.json     OpenAPI specification
 
-Modal Runtime: execution-layer-runtime (deployed)
+  Projects:
+    POST /v1/projects      Create project (ZIP/GitHub)
+    GET  /v1/projects      List projects
+    GET  /v1/projects/:id  Get project details
+    DEL  /v1/projects/:id  Delete project
+
+  Endpoints:
+    GET  /v1/projects/:id/endpoints                  List endpoints
+    POST /v1/projects/:id/versions/:vid/extract-openapi  Extract OpenAPI
+
+  Runs:
+    POST /v1/runs          Execute endpoint
+    GET  /v1/runs/:id      Get run status/result
+
+  Secrets:
+    POST /v1/projects/:id/secrets      Create secret
+    GET  /v1/projects/:id/secrets      List secrets (masked)
+    PUT  /v1/projects/:id/secrets/:key Update secret
+    DEL  /v1/projects/:id/secrets/:key Delete secret
+
+  Sharing:
+    POST /v1/projects/:id/share        Create share link
+    GET  /v1/projects/:id/shares       List share links
+    DEL  /v1/projects/:id/share/:sid   Disable share link
+    GET  /v1/share/:share_id           Access shared endpoint
 `);
 
 const server = serve({

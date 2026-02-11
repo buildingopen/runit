@@ -1,17 +1,60 @@
 version: 2
 updates:
+  # NPM dependencies (monorepo root)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 10
     groups:
-      dependencies:
-        patterns:
-          - "*"
+      # Group minor/patch updates to reduce PR noise
+      production-deps:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-deps:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    # Security updates get their own PRs
+    labels:
+      - "dependencies"
+    reviewers:
+      - "federicodeponte"
 
+  # Python runner dependencies
   - package-ecosystem: "pip"
     directory: "/services/runner"
     schedule:
       interval: "weekly"
+      day: "monday"
     open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+
+  # Python SDK dependencies
+  - package-ecosystem: "pip"
+    directory: "/services/runner/sdk"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+      - "sdk"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
