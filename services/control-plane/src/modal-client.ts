@@ -15,6 +15,7 @@ import { logger } from './lib/logger';
 import { captureException } from './lib/sentry';
 import { getModalCircuitBreaker, withCircuitBreaker } from './lib/circuit-breaker';
 import { runsTotal, runDuration, errorsTotal } from './lib/metrics';
+import { withModalExecutionSpan, recordModalResult } from './lib/tracing';
 
 // Find Python with Modal installed (prefer venv)
 function findPython(): string {
@@ -188,24 +189,44 @@ function getRetryDelay(attempt: number): number {
  * Uses JSON file passing to avoid command injection.
  * The Python runner script is fixed (no string interpolation).
  * Includes retry logic with exponential backoff for transient failures.
+ * Wrapped with OpenTelemetry tracing for observability.
  */
 export async function executeOnModal(request: ModalExecutionRequest): Promise<ModalExecutionResult> {
   const startTime = Date.now();
   const circuitBreaker = getModalCircuitBreaker();
 
-  return withCircuitBreaker(
-    circuitBreaker,
-    async () => executeWithRetry(request, startTime),
-    // Fallback when circuit is open
-    () => ({
-      run_id: request.run_id,
-      status: 'error' as const,
-      http_status: 503,
-      response_body: null,
-      duration_ms: Date.now() - startTime,
-      error_class: 'CIRCUIT_BREAKER_OPEN',
-      error_message: 'Modal service is temporarily unavailable. Please try again later.',
-    })
+  return withModalExecutionSpan(
+    request.run_id,
+    request.lane,
+    request.endpoint,
+    async (span) => {
+      const result = await withCircuitBreaker(
+        circuitBreaker,
+        async () => executeWithRetry(request, startTime),
+        // Fallback when circuit is open
+        () => ({
+          run_id: request.run_id,
+          status: 'error' as const,
+          http_status: 503,
+          response_body: null,
+          duration_ms: Date.now() - startTime,
+          error_class: 'CIRCUIT_BREAKER_OPEN',
+          error_message: 'Modal service is temporarily unavailable. Please try again later.',
+        })
+      );
+
+      // Record result attributes on the span
+      recordModalResult(
+        span,
+        result.status,
+        result.http_status,
+        result.duration_ms,
+        result.error_class,
+        result.error_message
+      );
+
+      return result;
+    }
   );
 }
 

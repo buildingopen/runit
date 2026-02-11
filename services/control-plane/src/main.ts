@@ -8,7 +8,12 @@
  * - Circuit breakers
  * - Prometheus metrics
  * - CSP violation reporting
+ * - OpenTelemetry distributed tracing
  */
+
+// IMPORTANT: Tracing must be imported BEFORE any other imports
+// to ensure proper instrumentation of HTTP clients and servers
+import { shutdownTracing } from './lib/tracing.js';
 
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -493,6 +498,9 @@ async function shutdown(signal: string) {
 
   // Shutdown rate limit (close Redis connection)
   await shutdownRateLimit();
+
+  // Shutdown OpenTelemetry (flush remaining spans)
+  await shutdownTracing();
 
   // Stop accepting new connections
   server.close(() => {

@@ -18,6 +18,7 @@
 
 import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync } from 'crypto';
 import { KMSClient, EncryptCommand, DecryptCommand } from '@aws-sdk/client-kms';
+import { withSecretsSpan } from '../lib/tracing.js';
 
 // ============================================================================
 // Constants
@@ -272,47 +273,51 @@ export function resetKMSProvider(): void {
  *
  * Returns base64-encoded blob with format:
  * version (1 byte) || encrypted_dek_length (4 bytes) || encrypted_dek || iv || encrypted_data || auth_tag
+ *
+ * Wrapped with OpenTelemetry tracing for observability.
  */
-export async function encryptSecret(plaintext: string): Promise<string> {
-  try {
-    const kms = getKMSProvider();
+export async function encryptSecret(plaintext: string, secretKey?: string): Promise<string> {
+  return withSecretsSpan('encrypt', secretKey, async () => {
+    try {
+      const kms = getKMSProvider();
 
-    // 1. Generate random DEK
-    const dek = randomBytes(KEY_LENGTH);
+      // 1. Generate random DEK
+      const dek = randomBytes(KEY_LENGTH);
 
-    // 2. Encrypt plaintext with DEK
-    const iv = randomBytes(IV_LENGTH);
-    const cipher = createCipheriv(ALGORITHM, dek, iv);
+      // 2. Encrypt plaintext with DEK
+      const iv = randomBytes(IV_LENGTH);
+      const cipher = createCipheriv(ALGORITHM, dek, iv);
 
-    const plaintextBuffer = Buffer.from(plaintext, 'utf-8');
-    const encrypted = Buffer.concat([cipher.update(plaintextBuffer), cipher.final()]);
-    const authTag = cipher.getAuthTag();
+      const plaintextBuffer = Buffer.from(plaintext, 'utf-8');
+      const encrypted = Buffer.concat([cipher.update(plaintextBuffer), cipher.final()]);
+      const authTag = cipher.getAuthTag();
 
-    // 3. Encrypt DEK with KMS
-    const encryptedDEK = await kms.encryptDEK(dek);
+      // 3. Encrypt DEK with KMS
+      const encryptedDEK = await kms.encryptDEK(dek);
 
-    // 4. Combine: version (1 byte) || encrypted_dek_length (4 bytes) || encrypted_dek || iv || encrypted_data || auth_tag
-    const version = Buffer.alloc(1);
-    version.writeUInt8(ENCRYPTION_FORMAT_VERSION, 0);
+      // 4. Combine: version (1 byte) || encrypted_dek_length (4 bytes) || encrypted_dek || iv || encrypted_data || auth_tag
+      const version = Buffer.alloc(1);
+      version.writeUInt8(ENCRYPTION_FORMAT_VERSION, 0);
 
-    const dekLength = Buffer.alloc(4);
-    dekLength.writeUInt32BE(encryptedDEK.length, 0);
+      const dekLength = Buffer.alloc(4);
+      dekLength.writeUInt32BE(encryptedDEK.length, 0);
 
-    const combined = Buffer.concat([
-      version,
-      dekLength,
-      encryptedDEK,
-      iv,
-      encrypted,
-      authTag,
-    ]);
+      const combined = Buffer.concat([
+        version,
+        dekLength,
+        encryptedDEK,
+        iv,
+        encrypted,
+        authTag,
+      ]);
 
-    // Return base64-encoded blob
-    return combined.toString('base64');
-  } catch (error) {
-    console.error('Encryption error:', error);
-    throw new Error('Failed to encrypt secret');
-  }
+      // Return base64-encoded blob
+      return combined.toString('base64');
+    } catch (error) {
+      console.error('Encryption error:', error);
+      throw new Error('Failed to encrypt secret');
+    }
+  });
 }
 
 /**
@@ -320,68 +325,72 @@ export async function encryptSecret(plaintext: string): Promise<string> {
  *
  * Takes base64-encoded blob, returns plaintext
  * Supports both versioned (v1) and legacy (v0) formats
+ *
+ * Wrapped with OpenTelemetry tracing for observability.
  */
-export async function decryptSecret(encryptedBlob: string): Promise<string> {
-  try {
-    const kms = getKMSProvider();
+export async function decryptSecret(encryptedBlob: string, secretKey?: string): Promise<string> {
+  return withSecretsSpan('decrypt', secretKey, async () => {
+    try {
+      const kms = getKMSProvider();
 
-    // 1. Decode base64
-    const combined = Buffer.from(encryptedBlob, 'base64');
+      // 1. Decode base64
+      const combined = Buffer.from(encryptedBlob, 'base64');
 
-    // 2. Check version and parse accordingly
-    const version = combined.readUInt8(0);
+      // 2. Check version and parse accordingly
+      const version = combined.readUInt8(0);
 
-    let encryptedDEK: Buffer;
-    let iv: Buffer;
-    let encrypted: Buffer;
-    let authTag: Buffer;
+      let encryptedDEK: Buffer;
+      let iv: Buffer;
+      let encrypted: Buffer;
+      let authTag: Buffer;
 
-    if (version === ENCRYPTION_FORMAT_VERSION) {
-      // New versioned format: version || dek_length || encrypted_dek || iv || encrypted || auth_tag
-      let offset = 1;
+      if (version === ENCRYPTION_FORMAT_VERSION) {
+        // New versioned format: version || dek_length || encrypted_dek || iv || encrypted || auth_tag
+        let offset = 1;
 
-      const dekLength = combined.readUInt32BE(offset);
-      offset += 4;
+        const dekLength = combined.readUInt32BE(offset);
+        offset += 4;
 
-      encryptedDEK = combined.subarray(offset, offset + dekLength);
-      offset += dekLength;
+        encryptedDEK = combined.subarray(offset, offset + dekLength);
+        offset += dekLength;
 
-      iv = combined.subarray(offset, offset + IV_LENGTH);
-      offset += IV_LENGTH;
+        iv = combined.subarray(offset, offset + IV_LENGTH);
+        offset += IV_LENGTH;
 
-      authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH);
-      encrypted = combined.subarray(offset, combined.length - AUTH_TAG_LENGTH);
-    } else {
-      // Legacy format (v0): dek_length || encrypted_dek || iv || encrypted || auth_tag
-      // First byte is part of dekLength (high byte of 4-byte length)
-      const dekLength = combined.readUInt32BE(0);
-      let offset = 4;
+        authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH);
+        encrypted = combined.subarray(offset, combined.length - AUTH_TAG_LENGTH);
+      } else {
+        // Legacy format (v0): dek_length || encrypted_dek || iv || encrypted || auth_tag
+        // First byte is part of dekLength (high byte of 4-byte length)
+        const dekLength = combined.readUInt32BE(0);
+        let offset = 4;
 
-      encryptedDEK = combined.subarray(offset, offset + dekLength);
-      offset += dekLength;
+        encryptedDEK = combined.subarray(offset, offset + dekLength);
+        offset += dekLength;
 
-      iv = combined.subarray(offset, offset + IV_LENGTH);
-      offset += IV_LENGTH;
+        iv = combined.subarray(offset, offset + IV_LENGTH);
+        offset += IV_LENGTH;
 
-      authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH);
-      encrypted = combined.subarray(offset, combined.length - AUTH_TAG_LENGTH);
+        authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH);
+        encrypted = combined.subarray(offset, combined.length - AUTH_TAG_LENGTH);
+      }
+
+      // 3. Decrypt DEK with KMS
+      const dek = await kms.decryptDEK(encryptedDEK);
+
+      // 4. Decrypt data with DEK
+      const decipher = createDecipheriv(ALGORITHM, dek, iv);
+      decipher.setAuthTag(authTag);
+
+      const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+
+      // 5. Return plaintext
+      return decrypted.toString('utf-8');
+    } catch (error) {
+      console.error('Decryption error:', error);
+      throw new Error('Failed to decrypt secret');
     }
-
-    // 3. Decrypt DEK with KMS
-    const dek = await kms.decryptDEK(encryptedDEK);
-
-    // 4. Decrypt data with DEK
-    const decipher = createDecipheriv(ALGORITHM, dek, iv);
-    decipher.setAuthTag(authTag);
-
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-
-    // 5. Return plaintext
-    return decrypted.toString('utf-8');
-  } catch (error) {
-    console.error('Decryption error:', error);
-    throw new Error('Failed to decrypt secret');
-  }
+  });
 }
 
 /**
