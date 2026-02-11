@@ -44,12 +44,13 @@ import { loggerMiddleware, devLoggerMiddleware } from './middleware/logger';
 import { securityHeadersMiddleware } from './middleware/security-headers';
 import { requestTimeoutMiddleware } from './middleware/request-timeout';
 import { httpsRedirectMiddleware } from './middleware/https-redirect';
+import { metricsMiddleware } from './middleware/metrics';
 import { validateEnv } from './lib/env';
 import { initSentry, captureException, isSentryInitialized } from './lib/sentry';
 import { logger } from './lib/logger';
 import { testSupabaseConnection, isSupabaseConfigured } from './db/supabase';
 import { getCircuitBreakerStats, hasOpenCircuit } from './lib/circuit-breaker';
-import { httpRequestsTotal, httpRequestDuration } from './lib/metrics';
+import { openAPISpec } from './lib/openapi-spec';
 
 // Validate environment variables at boot
 validateEnv();
@@ -172,24 +173,8 @@ app.use('/*', securityHeadersMiddleware);
 // Request logging - use dev logger in development, structured logger in production
 app.use('/*', isProduction ? loggerMiddleware : devLoggerMiddleware);
 
-// Request metrics tracking
-app.use('/*', async (c, next) => {
-  const start = Date.now();
-  await next();
-  const duration = (Date.now() - start) / 1000;
-
-  const path = c.req.path.replace(/\/[a-f0-9-]{36}/g, '/:id');  // Normalize UUIDs
-  httpRequestsTotal.inc({
-    method: c.req.method,
-    path,
-    status: c.res.status.toString(),
-  });
-  httpRequestDuration.observe({
-    method: c.req.method,
-    path,
-    status: c.res.status.toString(),
-  }, duration);
-});
+// Request metrics tracking (records duration, count, and active connections)
+app.use('/*', metricsMiddleware);
 
 // Body size limit (5MB default) - prevents large payload attacks
 app.use('/*', bodySizeLimitMiddleware);
@@ -198,10 +183,23 @@ app.use('/*', bodySizeLimitMiddleware);
 app.use('/*', contentTypeMiddleware);
 
 // Authentication middleware - validates JWT and attaches user to context
-app.use('/*', authMiddleware);
+// Excluded: /metrics (Prometheus scraping), /health (load balancer probes), /openapi.json (docs)
+const AUTH_EXCLUDED_PATHS = ['/metrics', '/health', '/openapi.json', '/v1/openapi.json'];
+app.use('/*', async (c, next) => {
+  if (AUTH_EXCLUDED_PATHS.some(path => c.req.path === path || c.req.path.startsWith(path + '/'))) {
+    return next();
+  }
+  return authMiddleware(c, next);
+});
 
 // Apply rate limiting (120/min auth, 60/min anon)
-app.use('/*', rateLimitMiddleware);
+// Excluded: /metrics (Prometheus scraping)
+app.use('/*', async (c, next) => {
+  if (c.req.path === '/metrics' || c.req.path.startsWith('/metrics/')) {
+    return next();
+  }
+  return rateLimitMiddleware(c, next);
+});
 
 // Apply quota enforcement on run endpoints
 app.use('/runs/*', quotaMiddleware);
@@ -276,137 +274,10 @@ app.get('/health/deep', async (c) => {
   }, overall === 'unhealthy' ? 503 : 200);
 });
 
-// OpenAPI specification for this API
-app.get('/openapi.json', (c) => {
-  return c.json({
-    openapi: '3.0.3',
-    info: {
-      title: 'Execution Layer Control Plane API',
-      version: '0.1.0',
-      description: 'API for managing projects, runs, secrets, and sharing in the Execution Layer platform',
-    },
-    servers: [
-      { url: 'http://localhost:3001', description: 'Local development' },
-    ],
-    paths: {
-      '/': {
-        get: {
-          summary: 'API Info',
-          description: 'Returns basic information about the API',
-          responses: { '200': { description: 'API information' } },
-        },
-      },
-      '/health': {
-        get: {
-          summary: 'Health Check',
-          description: 'Returns health status of the API',
-          responses: { '200': { description: 'Health status' } },
-        },
-      },
-      '/health/deep': {
-        get: {
-          summary: 'Deep Health Check',
-          description: 'Returns health status including external dependencies',
-          responses: {
-            '200': { description: 'All systems healthy' },
-            '503': { description: 'One or more systems unhealthy' },
-          },
-        },
-      },
-      '/metrics': {
-        get: {
-          summary: 'Prometheus Metrics',
-          description: 'Returns Prometheus-formatted metrics',
-          responses: { '200': { description: 'Metrics in text format' } },
-        },
-      },
-      '/projects': {
-        get: {
-          summary: 'List Projects',
-          description: 'Returns a list of all projects',
-          responses: { '200': { description: 'List of projects' } },
-        },
-        post: {
-          summary: 'Create Project',
-          description: 'Creates a new project from ZIP or GitHub',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    name: { type: 'string' },
-                    source_type: { type: 'string', enum: ['zip', 'github'] },
-                    zip_data: { type: 'string' },
-                    github_url: { type: 'string' },
-                  },
-                  required: ['name', 'source_type'],
-                },
-              },
-            },
-          },
-          responses: { '201': { description: 'Project created' } },
-        },
-      },
-      '/projects/{project_id}': {
-        get: {
-          summary: 'Get Project',
-          description: 'Returns details of a specific project',
-          parameters: [{ name: 'project_id', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { '200': { description: 'Project details' } },
-        },
-        delete: {
-          summary: 'Delete Project',
-          description: 'Deletes a project and all its data',
-          parameters: [{ name: 'project_id', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { '200': { description: 'Project deleted' } },
-        },
-      },
-      '/projects/{project_id}/endpoints': {
-        get: {
-          summary: 'List Endpoints',
-          description: 'Returns endpoints for a project version',
-          parameters: [{ name: 'project_id', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { '200': { description: 'List of endpoints' } },
-        },
-      },
-      '/runs': {
-        post: {
-          summary: 'Create Run',
-          description: 'Executes an endpoint and returns run ID',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    project_id: { type: 'string' },
-                    version_id: { type: 'string' },
-                    endpoint_id: { type: 'string' },
-                    json: { type: 'object' },
-                    lane: { type: 'string', enum: ['cpu', 'gpu'] },
-                  },
-                  required: ['project_id', 'version_id', 'endpoint_id'],
-                },
-              },
-            },
-          },
-          responses: { '202': { description: 'Run created' } },
-        },
-      },
-      '/runs/{run_id}': {
-        get: {
-          summary: 'Get Run Status',
-          description: 'Returns status and result of a run',
-          parameters: [{ name: 'run_id', in: 'path', required: true, schema: { type: 'string' } }],
-          responses: { '200': { description: 'Run status' } },
-        },
-      },
-    },
-  });
-});
+// OpenAPI specification for this API (full spec from docs/openapi.yaml)
+// Available at both /openapi.json (legacy) and /v1/openapi.json (recommended)
+app.get('/openapi.json', (c) => c.json(openAPISpec));
+app.get('/v1/openapi.json', (c) => c.json(openAPISpec));
 
 // =============================================================================
 // API Routes
@@ -458,7 +329,7 @@ Routes (all available at /v1/* and /*):
     GET  /health           Health check
     GET  /health/deep      Deep health check (dependencies)
     GET  /metrics          Prometheus metrics
-    GET  /openapi.json     OpenAPI specification
+    GET  /v1/openapi.json  OpenAPI 3.0 specification (full)
 
   Projects:
     POST /v1/projects      Create project (ZIP/GitHub)

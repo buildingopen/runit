@@ -40,6 +40,7 @@ vi.mock('../../src/lib/metrics', () => ({
   secretsOperationsTotal: {
     inc: vi.fn(),
   },
+  recordSecretsOperation: vi.fn(),
 }));
 
 import secrets from '../../src/routes/secrets';
@@ -550,7 +551,7 @@ describe('Secrets - Metrics tracking', () => {
   });
 
   it('should increment metrics on successful create', async () => {
-    const { secretsOperationsTotal } = await import('../../src/lib/metrics');
+    const { recordSecretsOperation } = await import('../../src/lib/metrics');
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
@@ -568,14 +569,11 @@ describe('Secrets - Metrics tracking', () => {
       body: JSON.stringify({ key: 'API_KEY', value: 'test' }),
     });
 
-    expect(secretsOperationsTotal.inc).toHaveBeenCalledWith({
-      operation: 'create',
-      result: 'success',
-    });
+    expect(recordSecretsOperation).toHaveBeenCalledWith('create', 'success');
   });
 
   it('should increment metrics on failed operation', async () => {
-    const { secretsOperationsTotal } = await import('../../src/lib/metrics');
+    const { recordSecretsOperation } = await import('../../src/lib/metrics');
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
@@ -587,9 +585,6 @@ describe('Secrets - Metrics tracking', () => {
       body: JSON.stringify({ key: 'API_KEY', value: 'test' }),
     });
 
-    expect(secretsOperationsTotal.inc).toHaveBeenCalledWith({
-      operation: 'create',
-      result: 'failure',
-    });
+    expect(recordSecretsOperation).toHaveBeenCalledWith('create', 'error');
   });
 });

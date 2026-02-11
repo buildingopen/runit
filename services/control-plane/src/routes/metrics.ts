@@ -6,7 +6,7 @@
  */
 
 import { Hono } from 'hono';
-import { metricsRegistry, circuitBreakerState } from '../lib/metrics';
+import { metricsRegistry, recordCircuitBreakerState } from '../lib/metrics';
 import { getCircuitBreakerStats, hasOpenCircuit } from '../lib/circuit-breaker';
 
 /**
@@ -15,8 +15,7 @@ import { getCircuitBreakerStats, hasOpenCircuit } from '../lib/circuit-breaker';
 function updateCircuitBreakerMetrics() {
   const stats = getCircuitBreakerStats();
   for (const [name, stat] of Object.entries(stats)) {
-    const stateValue = stat.state === 'closed' ? 0 : stat.state === 'half-open' ? 1 : 2;
-    circuitBreakerState.set({ name }, stateValue);
+    recordCircuitBreakerState(name, stat.state as 'closed' | 'half-open' | 'open');
   }
 }
 
