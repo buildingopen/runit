@@ -14,8 +14,17 @@ import CircuitBreaker from 'opossum';
 import { logger } from './logger';
 import { captureMessage } from './sentry';
 
-// Circuit breaker configuration
-const DEFAULT_OPTIONS = {
+// Circuit breaker configuration options type
+interface CircuitBreakerOptions {
+  timeout: number;
+  errorThresholdPercentage: number;
+  resetTimeout: number;
+  volumeThreshold: number;
+  rollingCountTimeout: number;
+  rollingCountBuckets: number;
+}
+
+const DEFAULT_OPTIONS: CircuitBreakerOptions = {
   timeout: 30_000,          // 30s - max time to wait for action to complete
   errorThresholdPercentage: 50,  // Open circuit when 50% of requests fail
   resetTimeout: 30_000,     // 30s - time before trying again after opening
@@ -25,21 +34,17 @@ const DEFAULT_OPTIONS = {
 };
 
 // Track all circuit breakers for health checks
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const circuitBreakers = new Map<string, any>();
+const circuitBreakers = new Map<string, CircuitBreaker<unknown[], unknown>>();
 
 /**
  * Create a circuit breaker for an async function
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createCircuitBreaker<T>(
+export function createCircuitBreaker<TArgs extends unknown[], TReturn>(
   name: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  action: (...args: any[]) => Promise<T>,
-  options: Partial<typeof DEFAULT_OPTIONS> = {}
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): any {
-  const breaker = new CircuitBreaker(action, {
+  action: (...args: TArgs) => Promise<TReturn>,
+  options: Partial<CircuitBreakerOptions> = {}
+): CircuitBreaker<TArgs, TReturn> {
+  const breaker = new CircuitBreaker<TArgs, TReturn>(action, {
     ...DEFAULT_OPTIONS,
     ...options,
     name,
@@ -81,7 +86,7 @@ export function createCircuitBreaker<T>(
   });
 
   // Register for health checks
-  circuitBreakers.set(name, breaker);
+  circuitBreakers.set(name, breaker as CircuitBreaker<unknown[], unknown>);
 
   return breaker;
 }
@@ -139,22 +144,21 @@ export function resetAllCircuitBreakers(): void {
   }
 }
 
+// Type for async function that returns a value
+type AsyncFunction<T> = () => Promise<T>;
+
 // Pre-configured circuit breakers for common services
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let modalCircuitBreaker: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let supabaseCircuitBreaker: any = null;
+let modalCircuitBreaker: CircuitBreaker<[AsyncFunction<unknown>], unknown> | null = null;
+let supabaseCircuitBreaker: CircuitBreaker<[AsyncFunction<unknown>], unknown> | null = null;
 
 /**
  * Get or create Modal circuit breaker
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getModalCircuitBreaker(): any {
+export function getModalCircuitBreaker(): CircuitBreaker<[AsyncFunction<unknown>], unknown> {
   if (!modalCircuitBreaker) {
     modalCircuitBreaker = createCircuitBreaker(
       'modal',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (fn: any) => fn(),
+      async <T>(fn: AsyncFunction<T>): Promise<T> => fn(),
       {
         timeout: 60_000,  // Modal can take longer
         errorThresholdPercentage: 60,  // More tolerant
@@ -168,13 +172,11 @@ export function getModalCircuitBreaker(): any {
 /**
  * Get or create Supabase circuit breaker
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getSupabaseCircuitBreaker(): any {
+export function getSupabaseCircuitBreaker(): CircuitBreaker<[AsyncFunction<unknown>], unknown> {
   if (!supabaseCircuitBreaker) {
     supabaseCircuitBreaker = createCircuitBreaker(
       'supabase',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (fn: any) => fn(),
+      async <T>(fn: AsyncFunction<T>): Promise<T> => fn(),
       {
         timeout: 10_000,  // DB should be fast
         errorThresholdPercentage: 50,
@@ -187,16 +189,18 @@ export function getSupabaseCircuitBreaker(): any {
 
 /**
  * Execute an action with circuit breaker protection
+ *
+ * The breaker uses `unknown` generics internally to support multiple return types.
+ * The caller provides the action type which is preserved through the Promise.
  */
 export async function withCircuitBreaker<T>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  breaker: any,
+  breaker: CircuitBreaker<[AsyncFunction<unknown>], unknown>,
   action: () => Promise<T>,
   fallback?: () => T
 ): Promise<T> {
   if (fallback) {
-    breaker.fallback(fallback);
+    breaker.fallback(fallback as () => unknown);
   }
 
-  return breaker.fire(action) as Promise<T>;
+  return breaker.fire(action as AsyncFunction<unknown>) as Promise<T>;
 }

@@ -42,10 +42,11 @@ openapi.post('/:project_id/versions/:version_id/extract-openapi', async (c) => {
         summary: ep.summary,
       })),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return c.json({
       error: 'Failed to extract OpenAPI',
-      detail: error.message,
+      detail: message,
     }, 500);
   }
 });
