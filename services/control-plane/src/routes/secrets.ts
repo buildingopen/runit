@@ -7,7 +7,7 @@
 import { Hono } from 'hono';
 import { encryptSecret, decryptSecret } from '../crypto/kms';
 import { getProjectSecrets, storeSecret, deleteSecret, getSecret } from '../db/secrets-store';
-import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../constants';
+import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../config/constants';
 import { getAuthContext } from '../middleware/auth';
 import { logger } from '../lib/logger';
 import { captureMessage } from '../lib/sentry';

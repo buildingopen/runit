@@ -3,7 +3,7 @@
  * ABOUTME: Extracts metadata from URLs using static HTML parsing
  */
 
-import { FetchContextResponse } from '../../../packages/shared/src/contracts/control-plane';
+import { FetchContextResponse } from '../../../../../packages/shared/src/contracts/control-plane';
 
 const FORBIDDEN_CONTEXT_KEYS = [
   /.*_KEY$/i,

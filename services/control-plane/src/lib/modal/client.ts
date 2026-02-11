@@ -11,17 +11,17 @@ import { writeFileSync, unlinkSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { logger } from './lib/logger';
-import { captureException } from './lib/sentry';
-import { getModalCircuitBreaker, withCircuitBreaker } from './lib/circuit-breaker';
-import { runsTotal, runDuration, errorsTotal } from './lib/metrics';
-import { withModalExecutionSpan, recordModalResult } from './lib/tracing';
+import { logger } from '../logger';
+import { captureException } from '../sentry';
+import { getModalCircuitBreaker, withCircuitBreaker } from '../circuit-breaker';
+import { runsTotal, runDuration, errorsTotal } from '../metrics';
+import { withModalExecutionSpan, recordModalResult } from '../tracing';
 
 // Find Python with Modal installed (prefer venv)
 function findPython(): string {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
-  const projectRoot = join(__dirname, '..', '..', '..');
+  const projectRoot = join(__dirname, '..', '..', '..', '..', '..');
   const venvPython = join(projectRoot, '.venv', 'bin', 'python3');
 
   if (existsSync(venvPython)) {

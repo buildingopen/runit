@@ -31,7 +31,7 @@ global.fetch = async (url: string) => {
 
 describe('Context Fetcher', () => {
   test('should validate context keys for secrets', async () => {
-    const { validateContext } = await import('../src/context-fetcher');
+    const { validateContext } = await import('../src/lib/context/fetcher');
 
     const validContext = {
       company_name: 'ACME',
@@ -43,7 +43,7 @@ describe('Context Fetcher', () => {
   });
 
   test('should reject context with secret-like keys', async () => {
-    const { validateContext } = await import('../src/context-fetcher');
+    const { validateContext } = await import('../src/lib/context/fetcher');
 
     const invalidContext = {
       API_KEY: 'sk-1234',
@@ -58,7 +58,7 @@ describe('Context Fetcher', () => {
   });
 
   test('should reject nested secret keys', async () => {
-    const { validateContext } = await import('../src/context-fetcher');
+    const { validateContext } = await import('../src/lib/context/fetcher');
 
     const invalidContext = {
       company: {
@@ -75,7 +75,7 @@ describe('Context Fetcher', () => {
   });
 
   test('should fetch and extract metadata from URL', async () => {
-    const { fetchContextFromURL } = await import('../src/context-fetcher');
+    const { fetchContextFromURL } = await import('../src/lib/context/fetcher');
 
     const result = await fetchContextFromURL('https://example.com', 'test-company');
 
@@ -89,7 +89,7 @@ describe('Context Fetcher', () => {
   });
 
   test('should reject invalid URLs', async () => {
-    const { fetchContextFromURL } = await import('../src/context-fetcher');
+    const { fetchContextFromURL } = await import('../src/lib/context/fetcher');
 
     await expect(
       fetchContextFromURL('ftp://example.com', 'test')

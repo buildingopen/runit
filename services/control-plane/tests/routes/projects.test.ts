@@ -27,7 +27,7 @@ vi.mock('../../src/middleware/auth', () => ({
   getAuthUser: vi.fn(),
 }));
 
-vi.mock('../../src/openapi-extractor', () => ({
+vi.mock('../../src/lib/openapi/zip-extractor', () => ({
   extractOpenAPIFromZip: vi.fn(),
 }));
 
@@ -43,7 +43,7 @@ import projects from '../../src/routes/projects';
 import * as projectsStore from '../../src/db/projects-store';
 import * as runsStore from '../../src/db/runs-store';
 import { getAuthContext } from '../../src/middleware/auth';
-import { extractOpenAPIFromZip } from '../../src/openapi-extractor';
+import { extractOpenAPIFromZip } from '../../src/lib/openapi/zip-extractor';
 import {
   validateProjectName,
   validateBase64,

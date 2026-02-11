@@ -4,11 +4,11 @@
  */
 
 import { Hono } from 'hono';
-import { fetchContextFromURL } from '../context-fetcher';
+import { fetchContextFromURL } from '../lib/context/fetcher';
 import type {
   FetchContextRequest,
 } from '../../../../packages/shared/src/contracts/control-plane';
-import { CONTEXT_MAX_SIZE_BYTES, PROJECT_CONTEXT_MAX_TOTAL_BYTES } from '../constants';
+import { CONTEXT_MAX_SIZE_BYTES, PROJECT_CONTEXT_MAX_TOTAL_BYTES } from '../config/constants';
 import * as contextsStore from '../db/contexts-store.js';
 
 const context = new Hono();
