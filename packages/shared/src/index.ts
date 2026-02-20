@@ -7,17 +7,8 @@
  * Single source of truth to prevent shape drift.
  */
 
-// Contracts (Agent 1 - ARCHITECT)
 export * from './contracts';
-
-// Types (Agent 1 - ARCHITECT)
 export * from './types';
-
-// Schemas (Agent 1 - ARCHITECT)
 export * from './schemas';
 
 export const VERSION = '0.1.0';
-
-// Merged: Combined Agent A and Agent B modifications
-// Agent A's modification
-// Agent B's different modification

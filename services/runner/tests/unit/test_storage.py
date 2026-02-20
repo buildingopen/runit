@@ -26,7 +26,7 @@ def test_upload_artifacts_no_s3_no_inline(tmp_path, monkeypatch):
         {"name": "file.txt", "size": 10, "mime": "text/plain"}
     ]
     result = upload_artifacts(artifacts, tmp_path, "run-2")
-    assert result[0]["download_url"].startswith("https://storage.executionlayer.com/runs/run-2/")
+    assert result[0]["download_url"].startswith("https://storage.placeholder.local/runs/run-2/")
 
 
 def test_upload_artifacts_empty_list(tmp_path):
@@ -37,7 +37,7 @@ def test_upload_artifacts_empty_list(tmp_path):
 def test_generate_signed_url_no_s3(monkeypatch):
     monkeypatch.delenv("S3_BUCKET", raising=False)
     url = generate_signed_url("runs/r1/artifacts/data.csv", expiry_hours=12)
-    assert "storage.executionlayer.com" in url
+    assert "storage.placeholder.local" in url
     assert "runs/r1/artifacts/data.csv" in url
     assert "expires=" in url
 
@@ -46,4 +46,4 @@ def test_generate_signed_url_with_s3_failure(monkeypatch):
     monkeypatch.setenv("S3_BUCKET", "test-bucket")
     # boto3 not installed, so S3 path will fail and fall through to placeholder
     url = generate_signed_url("runs/r1/artifacts/data.csv")
-    assert "storage.executionlayer.com" in url
+    assert "storage.placeholder.local" in url

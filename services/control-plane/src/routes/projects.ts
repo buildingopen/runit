@@ -27,6 +27,7 @@ import {
 import { getAuthContext, getAuthUser } from '../middleware/auth.js';
 import * as projectsStore from '../db/projects-store.js';
 import * as runsStore from '../db/runs-store.js';
+import { logger } from '../lib/logger.js';
 
 // Validation patterns for GitHub inputs (prevent command injection)
 const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[\w\-\.]+\/[\w\-\.]+(?:\.git)?$/;
@@ -107,7 +108,9 @@ async function cloneGitHubRepo(github_url: string, github_ref?: string): Promise
     return base64;
   } finally {
     // Cleanup temp directory
-    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    await rm(tempDir, { recursive: true, force: true }).catch((err) => {
+      logger.warn('Failed to clean up temp directory', { tempDir, error: String(err) });
+    });
   }
 }
 

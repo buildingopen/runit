@@ -50,10 +50,15 @@ import ast
 import re
 from pathlib import Path
 
-# Decode and extract ZIP
+# Decode and extract ZIP (with zip-slip protection)
 zip_data = base64.b64decode('''${zipBase64}''')
+work_dir = os.path.realpath('${workDir}')
 with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
-    zf.extractall('${workDir}')
+    for member in zf.namelist():
+        target = os.path.realpath(os.path.join(work_dir, member))
+        if not target.startswith(work_dir + os.sep) and target != work_dir:
+            raise ValueError(f"Zip slip detected: {member}")
+    zf.extractall(work_dir)
 
 # Find the app directory (might be nested in a folder)
 app_dir = '${workDir}'
