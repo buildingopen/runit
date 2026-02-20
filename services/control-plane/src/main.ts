@@ -62,7 +62,9 @@ const isProduction = process.env.NODE_ENV === 'production';
 if (isProduction) {
   await initSentry();
 } else {
-  initSentry().catch(() => {});
+  initSentry().catch((err) => {
+    logger.warn('Sentry init failed in development', { error: String(err) });
+  });
 }
 
 // Startup health check - verify critical dependencies
@@ -113,7 +115,9 @@ async function startupHealthCheck(): Promise<void> {
 await startupHealthCheck();
 
 // Run database migrations (async, non-blocking — app starts regardless)
-import('./db/migrate-boot.js').catch(() => {});
+import('./db/migrate-boot.js').catch((err) => {
+  logger.error('Boot migration failed', err instanceof Error ? err : new Error(String(err)));
+});
 
 const app = new Hono();
 

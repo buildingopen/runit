@@ -10,6 +10,7 @@
 import type { Context, Next } from 'hono';
 import { getAuthContext } from './auth.js';
 import { isSupabaseConfigured, getServiceSupabaseClient } from '../db/supabase.js';
+import { logger } from '../lib/logger.js';
 
 interface QuotaUsage {
   cpuRunsThisHour: number;
@@ -170,7 +171,9 @@ export function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'
 
   // Also update DB if available
   if (isSupabaseConfigured()) {
-    trackRunStartDB(userId, lane).catch(() => {});
+    trackRunStartDB(userId, lane).catch((err) => {
+      logger.warn('Failed to track run start in DB', { userId, lane, error: String(err) });
+    });
   }
 }
 
@@ -202,7 +205,9 @@ export function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'g
   quotaStore.set(userId, usage);
 
   if (isSupabaseConfigured()) {
-    trackRunCompleteDB(userId, lane).catch(() => {});
+    trackRunCompleteDB(userId, lane).catch((err) => {
+      logger.warn('Failed to track run completion in DB', { userId, lane, error: String(err) });
+    });
   }
 }
 
