@@ -1,3 +1,5 @@
+// ABOUTME: CRUD and lifecycle operations for execution runs: create, update status (running/success/error/timeout), list, expire.
+// ABOUTME: Uses Supabase when configured, falls back to in-memory Map; 30-day TTL on runs for automatic cleanup.
 /**
  * Runs Store
  *

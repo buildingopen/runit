@@ -1,3 +1,5 @@
+// ABOUTME: Hono request logging middleware: structured JSON in production, color-coded pretty-print in development.
+// ABOUTME: Logs method, path, status, duration, user ID (or IP), and assigns a unique request ID per request.
 /**
  * Structured Request Logging Middleware
  *

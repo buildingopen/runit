@@ -1,3 +1,5 @@
+// ABOUTME: CRUD for projects (create, get, list, delete, update status) and versioned code bundles with OpenAPI metadata.
+// ABOUTME: Uses Supabase when configured, falls back to in-memory Maps; generates slugs from project names.
 /**
  * Projects Store
  *

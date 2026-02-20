@@ -1,3 +1,5 @@
+// ABOUTME: Structured logger outputting JSON in production, pretty-printed text in development, with child logger support.
+// ABOUTME: Automatically redacts API keys, JWTs, DB URLs, bearer tokens, and sensitive field names from all output.
 /**
  * Structured Logger
  *

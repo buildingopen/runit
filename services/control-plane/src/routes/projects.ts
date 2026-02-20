@@ -1,3 +1,5 @@
+// ABOUTME: Hono routes for project CRUD: create (ZIP upload or GitHub clone), list, get details, delete, list runs.
+// ABOUTME: Validates ZIP bundles (base64, magic bytes, zip bomb), extracts OpenAPI on creation, and clones GitHub repos safely.
 /**
  * Project routes - Create and manage projects
  */

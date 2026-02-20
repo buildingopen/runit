@@ -1,3 +1,5 @@
+// ABOUTME: CRUD operations for encrypted secrets (stores pre-encrypted blobs, does not handle encryption itself).
+// ABOUTME: Uses Supabase when configured, falls back to in-memory Map keyed by project_id:key.
 /**
  * Secrets Store
  *

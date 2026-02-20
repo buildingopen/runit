@@ -1,3 +1,5 @@
+// ABOUTME: In-memory cost analysis tracker: buffers run metrics (CPU/GPU) and computes aggregate stats (p50/p95/p99 durations).
+// ABOUTME: Provides per-user and per-project metric breakdowns, cost report generation, and an Express-compatible middleware hook.
 /**
  * Cost monitoring middleware
  *

@@ -1,3 +1,5 @@
+// ABOUTME: CLI migration runner that reads .sql files from the migrations directory, applies them in order via Supabase RPC.
+// ABOUTME: Tracks applied migrations in a _migrations table to prevent re-application. Run with: npx tsx src/db/migrate.ts
 /**
  * Database Migration Runner
  *

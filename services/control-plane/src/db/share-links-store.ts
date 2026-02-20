@@ -1,3 +1,5 @@
+// ABOUTME: CRUD for share links (create, get, list, enable/disable, delete) with atomic run/success counter increments.
+// ABOUTME: Supports endpoint_template and run_result target types; uses Supabase or in-memory fallback.
 /**
  * Share Links Store
  *

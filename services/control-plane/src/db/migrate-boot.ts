@@ -1,3 +1,5 @@
+// ABOUTME: Non-fatal boot-time migration runner that applies pending SQL migrations on app startup.
+// ABOUTME: Logs warnings on failure and continues without blocking the application from starting.
 /**
  * Boot-time Migration Runner (non-fatal)
  *

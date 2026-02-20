@@ -1,3 +1,5 @@
+// ABOUTME: Authorization middleware checking project/run ownership via Supabase queries and share link access.
+// ABOUTME: Provides middleware factories (requireProjectOwnership, requireRunOwnership, requireShareLinkOrOwnership).
 /**
  * Authorization Middleware
  *

@@ -52,7 +52,7 @@ const commands = [
   },
   {
     workspace: 'apps/web',
-    thresholds: { lines: 71, functions: 65, statements: 68, branches: 64 },
+    thresholds: { lines: 94, functions: 97, statements: 91, branches: 89 },
   },
 ];
 

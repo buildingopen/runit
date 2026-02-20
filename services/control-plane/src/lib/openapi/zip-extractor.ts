@@ -1,3 +1,5 @@
+// ABOUTME: Extracts OpenAPI specs from FastAPI ZIP bundles by spawning a Python script that does AST + runtime analysis.
+// ABOUTME: Detects endpoints, entrypoints, and environment variables; falls back from runtime import to AST parsing on failure.
 /**
  * OpenAPI Extractor - Extract OpenAPI spec from FastAPI code
  *

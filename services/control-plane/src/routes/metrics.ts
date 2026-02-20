@@ -1,3 +1,5 @@
+// ABOUTME: Hono routes exposing GET /metrics for Prometheus scraping and GET /metrics/health for circuit breaker status.
+// ABOUTME: Updates circuit breaker gauge metrics on each scrape before serializing the registry.
 /**
  * Prometheus Metrics Endpoint
  *

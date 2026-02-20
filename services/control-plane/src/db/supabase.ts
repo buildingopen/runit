@@ -1,3 +1,5 @@
+// ABOUTME: Supabase client singletons (anon + service-role) with timeout-wrapped fetch and connection health testing.
+// ABOUTME: Also defines the full Database interface for type-safe queries across all tables.
 /**
  * Supabase Client Singleton
  *

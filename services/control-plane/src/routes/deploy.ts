@@ -1,3 +1,5 @@
+// ABOUTME: Hono routes for deploy/redeploy/status. Starts async deployment via deploy-bridge and streams progress via SSE.
+// ABOUTME: Endpoints: POST deploy, POST redeploy, GET deploy/stream (SSE), GET deploy/status (polling).
 /**
  * Deploy routes - Handle deployment workflow
  */

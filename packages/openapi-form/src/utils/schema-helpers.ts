@@ -1,3 +1,5 @@
+// ABOUTME: Utility functions to analyze OpenAPI schemas: complexity checks, depth calculation, field classification.
+// ABOUTME: Provides helpers for field names, type labels, enum/file detection, and required-field extraction.
 /**
  * Schema Helper Utilities
  */

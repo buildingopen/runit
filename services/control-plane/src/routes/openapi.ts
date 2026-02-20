@@ -1,3 +1,5 @@
+// ABOUTME: Hono route to trigger OpenAPI extraction from a project version's code bundle.
+// ABOUTME: POST /:project_id/versions/:version_id/extract-openapi invokes zip-extractor and stores results.
 /**
  * OpenAPI extraction route - Extract OpenAPI from uploaded code
  */

@@ -1,3 +1,4 @@
+// ABOUTME: Barrel export for all database stores (supabase, projects, runs, contexts, share-links, secrets).
 /**
  * Database exports
  *

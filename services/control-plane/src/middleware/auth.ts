@@ -1,3 +1,5 @@
+// ABOUTME: JWT authentication middleware using Supabase Auth; attaches AuthContext to Hono context.
+// ABOUTME: Supports DEV_MODE bypass (blocked in production), optional/required auth guards, and share link access.
 /**
  * Authentication Middleware
  *

@@ -1,3 +1,5 @@
+// ABOUTME: Exports shared platform types: run envelopes, OpenAPI types, and context metadata interfaces.
+// ABOUTME: Defines ContextMetadata and ContextValidationError used by the control plane context system.
 /**
  * Shared Types
  *

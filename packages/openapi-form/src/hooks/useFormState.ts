@@ -1,3 +1,5 @@
+// ABOUTME: React hook managing form state (values, errors, touched) driven by an OpenAPI schema.
+// ABOUTME: Validates fields on change (required, type, enum, min/max, string length) and exposes getFieldProps helper.
 /**
  * Form State Management Hook
  */

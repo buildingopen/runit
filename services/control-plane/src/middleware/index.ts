@@ -1,3 +1,4 @@
+// ABOUTME: Barrel export for all control-plane middleware (auth, authorize, rate-limit, quota, cost, logger, security, timeout, HTTPS, metrics).
 /**
  * Middleware exports
  *

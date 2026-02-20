@@ -1,3 +1,5 @@
+// ABOUTME: Hono-based API server entry point: wires up all middleware (auth, CORS, rate-limit, quota, metrics, security) and routes.
+// ABOUTME: Runs startup health checks, boot migrations, graceful shutdown, and serves both /v1/* (versioned) and /* (legacy) APIs.
 /**
  * Control Plane API
  *
@@ -300,7 +302,13 @@ apiRouter.route('/runs', runs);
 app.route('/v1', apiRouter);
 
 // Mount legacy routes (deprecated - will be removed in v2)
-// TODO: Add deprecation warning header in future release
+// Adds Deprecation header so consumers know to migrate to /v1
+app.use('/projects/*', async (c, next) => {
+  await next();
+  c.header('Deprecation', 'true');
+  c.header('Sunset', '2026-12-31');
+  c.header('Link', '</v1/projects>; rel="successor-version"');
+});
 app.route('/projects', projects);
 app.route('/projects', endpoints);
 app.route('/projects', openapi);
@@ -308,7 +316,19 @@ app.route('/projects', secrets);
 app.route('/projects', contextRoutes);
 app.route('/projects', projectShare);
 app.route('/projects', deploy);
+app.use('/share/*', async (c, next) => {
+  await next();
+  c.header('Deprecation', 'true');
+  c.header('Sunset', '2026-12-31');
+  c.header('Link', '</v1/share>; rel="successor-version"');
+});
 app.route('/share', shareLinks);
+app.use('/runs/*', async (c, next) => {
+  await next();
+  c.header('Deprecation', 'true');
+  c.header('Sunset', '2026-12-31');
+  c.header('Link', '</v1/runs>; rel="successor-version"');
+});
 app.route('/runs', runs);
 
 // Metrics always at root (Prometheus convention)

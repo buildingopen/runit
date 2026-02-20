@@ -1,3 +1,5 @@
+// ABOUTME: React hook that memoizes OpenAPI schema analysis: complexity, depth, field categorization.
+// ABOUTME: Returns whether to use JSON editor fallback, and lists required/optional/file/enum fields.
 /**
  * Schema Analysis Hook
  *

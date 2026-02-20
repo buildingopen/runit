@@ -1,3 +1,5 @@
+// ABOUTME: Per-user/IP rate limiting with three storage backends: Redis (distributed), Supabase (persistent), in-memory (dev).
+// ABOUTME: Separate limits for authenticated users (120/min), anonymous (60/min), and share links (100/hr); returns 429 when exceeded.
 /**
  * Rate Limiting Middleware
  *

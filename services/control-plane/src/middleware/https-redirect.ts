@@ -1,3 +1,5 @@
+// ABOUTME: Hono middleware that 301-redirects HTTP to HTTPS in production by checking x-forwarded-proto.
+// ABOUTME: Skips redirect for health check and root paths to allow load balancer probes over HTTP.
 /**
  * HTTPS Redirect Middleware
  *

@@ -1,3 +1,5 @@
+// ABOUTME: Zod validation schemas for every control plane API contract: projects, endpoints, runs, secrets, contexts, shares.
+// ABOUTME: Defines common primitives (uuid, slug, timestamp) and request/response schemas used for runtime validation.
 /**
  * Zod Schemas for Control Plane API
  *
