@@ -118,6 +118,26 @@ cd services/runner && modal serve src/modal_app.py
 
 Open [http://localhost:3000](http://localhost:3000)
 
+## Quality Gates
+
+Run the full local quality gate before opening or merging a PR:
+
+```bash
+npm run verify
+```
+
+Current enforced minimums:
+
+- `services/runner` Python coverage: **77%**
+- `services/runner/sdk` Python coverage: **77%**
+
+CI fails on:
+
+- lint errors
+- test failures
+- build failures
+- coverage below thresholds (runner + sdk)
+
 ## Examples
 
 ### Example 1: Simple Prediction API

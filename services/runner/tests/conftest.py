@@ -3,7 +3,18 @@ Pytest configuration and fixtures for Runner tests
 """
 
 import pytest
+import sys
 from pathlib import Path
+
+
+RUNNER_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = RUNNER_ROOT.parent.parent
+
+# Ensure tests can import both `src.*` and sibling packages in a stable way.
+for path in (RUNNER_ROOT, RUNNER_ROOT / "src", REPO_ROOT):
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
 
 @pytest.fixture

@@ -7,6 +7,8 @@
 
 This guide covers testing strategies, infrastructure, and commands for all 10 agents working on Execution Layer.
 
+> Current authoritative CI gates and thresholds are in `docs/QUALITY_GATES.md`.
+
 ---
 
 ## Testing Philosophy

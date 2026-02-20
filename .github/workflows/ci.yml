@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Align Vitest coverage provider version
+        run: npm run align:vitest-provider
+
       - name: Lint
         run: npm run lint
 
@@ -35,6 +38,9 @@ jobs:
         env:
           NODE_ENV: test
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+
+      - name: TypeScript coverage thresholds (auto-skip if provider missing)
+        run: npm run verify:ts-coverage
 
   # Python Runner: Lint and Test
   python-runner:
@@ -66,7 +72,7 @@ jobs:
         run: black --check .
 
       - name: Test with pytest
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 
   # Python SDK: Test
   python-sdk:
@@ -92,7 +98,7 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Test with pytest
-        run: pytest tests/ -v --tb=short
+        run: PYTHONPATH=. pytest tests/ -v --tb=short --cov=execution_layer --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 
   # E2E Tests (main branch only)
   e2e:

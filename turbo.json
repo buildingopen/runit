@@ -1,6 +1,12 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    "@runtime-ai/control-plane#build": {
+      "outputs": []
+    },
+    "@runtime-ai/ui#build": {
+      "outputs": []
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "build/**"]

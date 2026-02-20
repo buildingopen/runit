@@ -188,16 +188,12 @@ def test_secrets_injection(sample_code_bundle, tmp_path):
         "context": {},
     }
 
-    with patch("execute.executor.Path") as mock_path:
-        workspace = tmp_path / "workspace"
-        workspace.mkdir(exist_ok=True)
+    result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
 
-        result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
-
-        # Secrets should be redacted from logs
-        assert "secret-key-123" not in result["logs"]
-        assert "super-secret" not in result["logs"]
-        assert "[REDACTED:API_KEY]" in result["logs"] or "API_KEY" not in result["logs"]
+    # Secrets should be redacted from logs
+    assert "secret-key-123" not in result["logs"]
+    assert "super-secret" not in result["logs"]
+    assert "[REDACTED:API_KEY]" in result["logs"] or "API_KEY" not in result["logs"]
 
 
 def test_context_mounting(sample_code_bundle, tmp_path):
@@ -349,17 +345,10 @@ def test_deterministic_mode(sample_code_bundle, tmp_path):
         "deterministic": True,
     }
 
-    with patch("execute.executor.Path") as mock_path:
-        workspace = tmp_path / "workspace"
-        workspace.mkdir(exist_ok=True)
+    result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
 
-        result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
-
-        # Should set EL_SEED environment variable
-        import os
-
-        # Note: In actual execution, os.environ would be set
-        # This test verifies the logic path
+    # Deterministic path executes successfully.
+    assert result["status"] == "success"
 
 
 if __name__ == "__main__":

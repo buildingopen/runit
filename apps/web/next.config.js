@@ -1,11 +1,14 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  outputFileTracingRoot: path.join(__dirname, '../..'),
   transpilePackages: [
-    '@execution-layer/shared',
-    '@execution-layer/ui',
-    '@execution-layer/openapi-form',
+    '@runtime-ai/shared',
+    '@runtime-ai/ui',
+    '@runtime-ai/openapi-form',
   ],
   async headers() {
     return [
@@ -19,6 +22,22 @@ const nextConfig = {
         ],
       },
     ];
+  },
+  webpack(config) {
+    config.ignoreWarnings = config.ignoreWarnings || [];
+    config.ignoreWarnings.push({
+      module: /@prisma\/instrumentation\/node_modules\/@opentelemetry\/instrumentation/,
+      message: /Critical dependency: the request of a dependency is an expression/,
+    });
+    config.ignoreWarnings.push({
+      module: /@supabase\/realtime-js\/dist\/module\/lib\/websocket-factory\.js/,
+      message: /A Node\.js API is used .* Edge Runtime/,
+    });
+    config.ignoreWarnings.push({
+      module: /@supabase\/supabase-js\/dist\/index\.mjs/,
+      message: /A Node\.js API is used .* Edge Runtime/,
+    });
+    return config;
   },
 }
 

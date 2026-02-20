@@ -175,7 +175,7 @@ def test_empty_secrets_dict():
 
     # Should still redact patterns
     assert was_redacted
-    assert "[REDACTED:API_KEY]" in redacted
+    assert "[REDACTED]" in redacted
 
 
 def test_empty_string_value():

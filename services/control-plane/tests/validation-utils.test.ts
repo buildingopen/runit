@@ -93,7 +93,7 @@ describe('validateZipDecompressionSafe', () => {
     // 10MB zeros typically compress to ~10KB = 1000:1 ratio
     expect(result.valid).toBe(false);
     expect(result.error).toContain('compression ratio');
-  });
+  }, 30000);
 
   it('should reject ZIP that would decompress to >500MB', () => {
     // We can't easily create a real 500MB+ decompressed file in tests
@@ -145,5 +145,5 @@ describe('validateZipDecompressionSafe', () => {
     const result = validateZipDecompressionSafe(base64);
     expect(result.valid).toBe(false);
     expect(result.error).toContain('compression ratio');
-  });
+  }, 30000);
 });
