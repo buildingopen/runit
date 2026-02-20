@@ -1,3 +1,5 @@
+// ABOUTME: Validates API inputs: project names, base64 encoding, ZIP magic bytes, size limits, and zip bomb detection.
+// ABOUTME: Uses AdmZip to inspect compression ratios and enforce decompression safety limits.
 /**
  * Validation utility functions for API inputs
  * Provides base64 validation, ZIP validation, and name validation

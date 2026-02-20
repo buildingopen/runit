@@ -1,3 +1,5 @@
+// ABOUTME: Centralized configuration constants: context size limits, secrets reserved prefix, and structured error codes.
+// ABOUTME: Prevents magic numbers scattered across routes and ensures consistent error code formatting (CATEGORY_NNN).
 /**
  * Control Plane Configuration Constants
  *

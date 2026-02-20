@@ -1,3 +1,5 @@
+// ABOUTME: Defines validation constants: max body/ZIP sizes, string length limits, name regex patterns, allowed content types.
+// ABOUTME: Also defines user-facing validation error messages for invalid JSON, names, base64, and ZIP inputs.
 /**
  * Centralized validation constants for API input validation
  * Defines limits for payloads, names, and data formats

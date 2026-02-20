@@ -1,3 +1,5 @@
+// ABOUTME: Validates required environment variables at startup with custom validators (encryption key, CORS origins).
+// ABOUTME: Fatal-exits in production for missing/invalid vars; warns and continues in development.
 /**
  * Environment Variable Validation
  *

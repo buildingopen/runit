@@ -1,3 +1,5 @@
+// ABOUTME: Initializes Sentry error tracking with PII protection; required in production, optional in development.
+// ABOUTME: Wraps captureException, captureMessage, user context, and breadcrumbs with safe no-throw guards.
 /**
  * Sentry Error Tracking
  *

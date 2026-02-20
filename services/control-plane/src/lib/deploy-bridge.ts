@@ -1,3 +1,5 @@
+// ABOUTME: Project deployment pipeline: validates ZIP code bundles, checks dependencies and Modal config, then marks projects live.
+// ABOUTME: Does NOT invoke Modal at deploy time; Modal is called at run time. Includes retry logic and SSE progress updates.
 /**
  * Deploy Bridge - Project deployment pipeline
  *

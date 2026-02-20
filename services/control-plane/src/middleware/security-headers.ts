@@ -1,3 +1,5 @@
+// ABOUTME: Hono middleware adding security headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy.
+// ABOUTME: In production, also sets HSTS (1 year) and a restrictive Content-Security-Policy.
 /**
  * Security Headers Middleware
  *

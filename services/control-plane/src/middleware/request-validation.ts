@@ -1,3 +1,5 @@
+// ABOUTME: Hono middleware enforcing request body size limits (via Content-Length) and Content-Type validation.
+// ABOUTME: Rejects oversized payloads with 413 and non-JSON content types with 415 on POST/PUT/PATCH requests.
 /**
  * Request validation middleware for API security
  * Handles body size limits, content-type, and JSON parsing errors

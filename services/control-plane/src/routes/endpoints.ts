@@ -1,3 +1,5 @@
+// ABOUTME: Hono routes to list endpoints for a project version and retrieve full OpenAPI schemas per endpoint.
+// ABOUTME: Resolves $ref references in request/response schemas before returning them to the client.
 /**
  * Endpoints routes - List and get endpoint schemas
  */

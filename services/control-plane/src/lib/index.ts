@@ -1,3 +1,4 @@
+// ABOUTME: Barrel export for control-plane library utilities (logger, env, sentry, metrics, tracing, circuit breaker, validation, deploy).
 /**
  * Library exports - utilities and shared functionality
  */

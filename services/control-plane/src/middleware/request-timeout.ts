@@ -1,3 +1,5 @@
+// ABOUTME: Hono middleware that races request handlers against a configurable timeout (default 30s).
+// ABOUTME: Returns 408 on timeout and exposes an AbortSignal on context for downstream abort checking.
 /**
  * Request Timeout Middleware
  *

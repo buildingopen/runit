@@ -1,3 +1,4 @@
+// ABOUTME: Barrel export for API contracts (runner and control-plane interfaces).
 /**
  * API Contracts
  *

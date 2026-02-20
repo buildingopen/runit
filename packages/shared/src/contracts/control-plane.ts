@@ -1,3 +1,5 @@
+// ABOUTME: TypeScript interfaces defining the REST API contract between the web UI and control plane.
+// ABOUTME: Covers projects, endpoints, runs, secrets, contexts, share links, and auth session types.
 /**
  * Control Plane API Contracts
  *

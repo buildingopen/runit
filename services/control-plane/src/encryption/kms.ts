@@ -1,3 +1,5 @@
+// ABOUTME: Envelope encryption using AES-256-GCM with pluggable KMS providers (LocalKMS for dev, AWS KMS for prod).
+// ABOUTME: Encrypts/decrypts individual secrets and secrets bundles; DEKs are wrapped by KMS with PBKDF2 key derivation.
 /**
  * KMS Encryption - Envelope encryption for secrets
  *

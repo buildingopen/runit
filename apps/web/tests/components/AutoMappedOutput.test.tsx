@@ -2,8 +2,8 @@
  * AutoMappedOutput component tests
  */
 
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { AutoMappedOutput } from '@/components/run-page/AutoMappedOutput';
 
 describe('AutoMappedOutput', () => {
@@ -97,7 +97,134 @@ describe('AutoMappedOutput', () => {
 
   it('handles empty arrays', () => {
     render(<AutoMappedOutput data={[]} />);
-    // Should render something, not crash
-    expect(document.body).toBeInTheDocument();
+    expect(screen.getByText('[ ]')).toBeInTheDocument();
+  });
+
+  it('renders empty object as "Empty object"', () => {
+    render(<AutoMappedOutput data={{}} />);
+    expect(screen.getByText('Empty object')).toBeInTheDocument();
+  });
+
+  it('renders arrays of primitives (numbers) inline', () => {
+    render(<AutoMappedOutput data={[1, 2, null, 3]} />);
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('renders arrays of objects as collapsible items', () => {
+    render(
+      <AutoMappedOutput
+        data={[
+          { name: 'Alice', age: 30 },
+          { name: 'Bob', age: 25 },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Item 1')).toBeInTheDocument();
+    expect(screen.getByText('Item 2')).toBeInTheDocument();
+
+    // Expand first item
+    fireEvent.click(screen.getByText('Item 1'));
+    expect(screen.getByText('Alice')).toBeInTheDocument();
+  });
+
+  it('renders decimal numbers with formatting', () => {
+    render(<AutoMappedOutput data={{ pi: 3.141593 }} />);
+    expect(screen.getByText(/3\.141/)).toBeInTheDocument();
+  });
+
+  it('renders nested object at depth > 0 as collapsible card', () => {
+    render(
+      <AutoMappedOutput
+        data={{
+          metadata: {
+            author: 'Test',
+            nested: { deep: true },
+          },
+        }}
+      />
+    );
+
+    // metadata is a nested object, rendered as collapsible
+    expect(screen.getByText('Metadata')).toBeInTheDocument();
+    // Expand it
+    fireEvent.click(screen.getByText('Metadata'));
+    expect(screen.getByText('Test')).toBeInTheDocument();
+  });
+
+  it('renders empty nested object with label', () => {
+    render(
+      <AutoMappedOutput
+        data={{
+          info: {},
+        }}
+      />
+    );
+    // Label renders even when value is empty
+    expect(screen.getByText('Info')).toBeInTheDocument();
+  });
+
+  it('handles copy-to-clipboard on number hover/click', () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
+
+    render(<AutoMappedOutput data={{ count: 42 }} />);
+    const numberEl = screen.getByText('42');
+
+    // Hover to show copy hint
+    fireEvent.mouseEnter(numberEl);
+    expect(screen.getByText('copy')).toBeInTheDocument();
+
+    // Click to copy
+    fireEvent.click(numberEl);
+    expect(writeTextMock).toHaveBeenCalledWith('42');
+
+    // Mouse leave hides copy hint
+    fireEvent.mouseLeave(numberEl);
+  });
+
+  it('handles copy-to-clipboard on string hover/click', () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: writeTextMock } });
+
+    render(<AutoMappedOutput data={{ name: 'hello' }} />);
+    const strEl = screen.getByText('hello');
+
+    fireEvent.mouseEnter(strEl);
+    expect(screen.getByText('copy')).toBeInTheDocument();
+
+    fireEvent.click(strEl);
+    expect(writeTextMock).toHaveBeenCalledWith('hello');
+
+    fireEvent.mouseLeave(strEl);
+  });
+
+  it('renders object field values as null dash', () => {
+    render(<AutoMappedOutput data={{ missing: null }} />);
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('renders nested array of objects inside object field', () => {
+    render(
+      <AutoMappedOutput
+        data={{
+          items: [
+            { id: 1, label: 'First' },
+            { id: 2, label: 'Second' },
+          ],
+        }}
+      />
+    );
+
+    // items is an array with objects, shown as collapsible
+    expect(screen.getByText('Items')).toBeInTheDocument();
+  });
+
+  it('handles camelCase key humanization', () => {
+    render(<AutoMappedOutput data={{ firstName: 'John' }} />);
+    expect(screen.getByText('First Name')).toBeInTheDocument();
   });
 });

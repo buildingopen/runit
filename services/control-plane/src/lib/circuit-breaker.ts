@@ -1,3 +1,5 @@
+// ABOUTME: Circuit breaker implementation using opossum for Modal and Supabase, with configurable thresholds and health checks.
+// ABOUTME: Tracks open/half-open/closed states, logs transitions to Sentry, and provides withCircuitBreaker() wrapper.
 /**
  * Circuit Breaker for External Services
  *

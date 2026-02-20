@@ -1,3 +1,4 @@
+// ABOUTME: Barrel export for configuration constants and validation limits.
 /**
  * Configuration exports
  */

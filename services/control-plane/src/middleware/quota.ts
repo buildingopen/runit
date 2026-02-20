@@ -1,3 +1,5 @@
+// ABOUTME: Enforces per-user hourly run quotas and concurrent run limits for CPU/GPU lanes.
+// ABOUTME: Uses DB-backed tracking (Supabase) when available, falls back to in-memory; returns 429 when exceeded.
 /**
  * Quota Enforcement Middleware
  *

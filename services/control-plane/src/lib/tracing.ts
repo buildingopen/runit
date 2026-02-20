@@ -1,3 +1,5 @@
+// ABOUTME: Initializes OpenTelemetry distributed tracing with OTLP export (prod) or console export (dev).
+// ABOUTME: Provides custom span helpers for Modal execution, secrets operations, and generic traced functions.
 /**
  * OpenTelemetry Tracing Configuration
  *

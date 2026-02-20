@@ -1,3 +1,5 @@
+// ABOUTME: CRUD operations for project context data (URL-fetched JSON blobs) with per-context and per-project size limits.
+// ABOUTME: Uses Supabase when configured, falls back to in-memory Map for development.
 /**
  * Contexts Store
  *

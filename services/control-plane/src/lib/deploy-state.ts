@@ -1,3 +1,5 @@
+// ABOUTME: In-memory deployment progress tracker with SSE subscriber support for real-time deploy status updates.
+// ABOUTME: Manages deploy lifecycle (queued, building, installing, health_check, complete, failed) with auto-cleanup.
 /**
  * Deploy State Management
  *

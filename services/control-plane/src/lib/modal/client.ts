@@ -1,3 +1,5 @@
+// ABOUTME: Executes user code on Modal by spawning a Python runner script with JSON file payloads (no string interpolation).
+// ABOUTME: Includes retry with exponential backoff, circuit breaker integration, and OpenTelemetry tracing.
 /**
  * Modal Client - Bridge between control-plane and Modal runtime
  *

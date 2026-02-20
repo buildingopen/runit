@@ -1,3 +1,5 @@
+// ABOUTME: Defines all Prometheus counters, histograms, and gauges for the control plane (HTTP, Modal, secrets, quotas, auth).
+// ABOUTME: Provides helper functions to record metrics and a custom registry with default Node.js collectors.
 /**
  * Prometheus Metrics Definitions
  *

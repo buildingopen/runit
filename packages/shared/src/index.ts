@@ -1,3 +1,5 @@
+// ABOUTME: Entry point for @runtime-ai/shared, the monorepo's single source of truth.
+// ABOUTME: Re-exports all contracts, types, and Zod schemas to prevent shape drift across services.
 /**
  * @runtime-ai/shared
  *

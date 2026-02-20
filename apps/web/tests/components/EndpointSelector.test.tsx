@@ -160,4 +160,63 @@ describe('EndpointSelector', () => {
     const quickRunButtons = document.querySelectorAll('[title^="Run"]');
     expect(quickRunButtons.length).toBeGreaterThan(0);
   });
+
+  it('calls onQuickRun when quick run button is clicked', () => {
+    const onSelect = vi.fn();
+    const onQuickRun = vi.fn();
+    render(
+      <EndpointSelector
+        endpoints={mockEndpoints}
+        selectedId={null}
+        onSelect={onSelect}
+        onQuickRun={onQuickRun}
+      />
+    );
+
+    const quickRunButtons = document.querySelectorAll('[title^="Run"]');
+    expect(quickRunButtons.length).toBeGreaterThan(0);
+
+    fireEvent.click(quickRunButtons[0]);
+    expect(onQuickRun).toHaveBeenCalled();
+    // Should NOT trigger onSelect (stopPropagation)
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('formats path segment as display name when no summary', () => {
+    const endpoints = [
+      {
+        endpoint_id: 'get--users',
+        method: 'GET',
+        path: '/users',
+      },
+    ];
+
+    render(
+      <EndpointSelector
+        endpoints={endpoints}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />
+    );
+
+    // /users -> "Users" (capitalized first segment)
+    expect(screen.getByText('Users')).toBeInTheDocument();
+  });
+
+  it('shows running state for running endpoint', () => {
+    render(
+      <EndpointSelector
+        endpoints={mockEndpoints}
+        selectedId="get--health"
+        onSelect={vi.fn()}
+        onQuickRun={vi.fn()}
+        isRunning={true}
+        runningEndpointId="get--health"
+      />
+    );
+
+    // Running spinner should be visible on the quick run button
+    const spinners = document.querySelectorAll('.animate-spin');
+    expect(spinners.length).toBeGreaterThan(0);
+  });
 });

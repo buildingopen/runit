@@ -1,3 +1,5 @@
+// ABOUTME: Generates example/default values from OpenAPI schemas by type, format, and constraints.
+// ABOUTME: Handles strings (date, email, uri, uuid), numbers, booleans, arrays, objects, and enums.
 /**
  * Example Generator Utilities
  *

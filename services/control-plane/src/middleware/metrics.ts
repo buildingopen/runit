@@ -1,3 +1,5 @@
+// ABOUTME: Hono middleware recording HTTP request metrics (count, duration histogram, active connections) for Prometheus.
+// ABOUTME: Normalizes URL paths (replaces UUIDs with :id) and optionally excludes /metrics, /health from tracking.
 /**
  * Metrics Middleware
  *

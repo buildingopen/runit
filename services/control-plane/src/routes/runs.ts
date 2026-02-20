@@ -1,3 +1,5 @@
+// ABOUTME: Hono routes for run execution: POST /runs creates a run, dispatches to Modal, returns 202 with run_id.
+// ABOUTME: GET /runs/:id polls status/results. Integrates quota tracking, secrets encryption, and artifact mapping.
 /**
  * Runs routes - Execute endpoints and get results
  */

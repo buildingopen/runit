@@ -1,3 +1,5 @@
+// ABOUTME: Hono routes for share link CRUD: create, resolve, disable, and list share links per project.
+// ABOUTME: Exports two route groups (projectShare for owner ops, shareLinks for public access) plus stat-tracking helpers.
 /**
  * Share routes - Create and manage share links
  */

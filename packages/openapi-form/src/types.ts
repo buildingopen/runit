@@ -1,3 +1,5 @@
+// ABOUTME: TypeScript interfaces for the openapi-form package: OpenAPISchema, FileUpload, form/field/editor props.
+// ABOUTME: Also defines SchemaAnalysis (complexity metrics) and FormState (data, errors, touched, validity).
 /**
  * OpenAPI Form Types
  */
