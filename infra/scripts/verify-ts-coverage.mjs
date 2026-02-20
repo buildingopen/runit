@@ -48,7 +48,7 @@ const commands = [
   },
   {
     workspace: 'services/control-plane',
-    thresholds: { lines: 72, functions: 74, statements: 72, branches: 63 },
+    thresholds: { lines: 83, functions: 86, statements: 83, branches: 74 },
   },
   {
     workspace: 'apps/web',

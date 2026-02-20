@@ -197,10 +197,14 @@ def execute_endpoint(
         if payload.get("deterministic", False):
             os.environ["EL_SEED"] = "0"
             import random
-            import numpy as np
 
             random.seed(0)
-            np.random.seed(0)
+            try:
+                import numpy as np
+
+                np.random.seed(0)
+            except ImportError:
+                pass
             try:
                 import torch
 
