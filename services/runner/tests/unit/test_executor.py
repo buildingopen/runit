@@ -225,8 +225,11 @@ def test_context_mounting(sample_code_bundle, tmp_path):
     assert "name" in response_body or "error" not in response_body
 
 
-def test_artifact_collection(sample_code_bundle, tmp_path):
+def test_artifact_collection(sample_code_bundle, tmp_path, monkeypatch):
     """Test artifacts are collected from /artifacts directory"""
+    # Use isolated base dir to avoid cross-test pollution
+    monkeypatch.setenv("EL_BASE_DIR", str(tmp_path / "isolated"))
+
     payload = {
         "run_id": "test-run-artifacts",
         "code_bundle": sample_code_bundle,
@@ -244,9 +247,8 @@ def test_artifact_collection(sample_code_bundle, tmp_path):
     assert result["http_status"] == 200
     # Artifacts should be collected
     assert len(result.get("artifacts", [])) > 0
-    artifact = result["artifacts"][0]
-    assert "name" in artifact
-    assert "output.txt" in artifact["name"]
+    artifact_names = [a["name"] for a in result["artifacts"]]
+    assert "output.txt" in artifact_names
 
 
 def test_error_classification():
