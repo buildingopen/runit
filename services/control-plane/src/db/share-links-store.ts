@@ -12,6 +12,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 export type ShareTargetType = 'endpoint_template' | 'run_result';
 
+/** Default share link lifetime: 30 days in milliseconds */
+const DEFAULT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
+
 export interface ShareLink {
   id: string;
   project_id: string;
@@ -20,6 +23,7 @@ export interface ShareLink {
   enabled: boolean;
   created_by: string;
   created_at: string;
+  expires_at: string;
   run_count: number;
   success_count: number;
   last_run_at: string | null;
@@ -48,6 +52,8 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Shar
   const id = uuidv4();
   const now = new Date().toISOString();
 
+  const expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MS).toISOString();
+
   const shareLink: ShareLink = {
     id,
     project_id: input.project_id,
@@ -56,6 +62,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Shar
     enabled: true,
     created_by: input.created_by,
     created_at: now,
+    expires_at: expiresAt,
     run_count: 0,
     success_count: 0,
     last_run_at: null,
@@ -76,6 +83,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Shar
       target_ref: shareLink.target_ref,
       enabled: shareLink.enabled,
       created_by: shareLink.created_by,
+      expires_at: shareLink.expires_at,
     })
     .select()
     .single();
@@ -115,7 +123,7 @@ export async function getShareLink(shareLinkId: string): Promise<ShareLink | nul
 export async function getEnabledShareLink(shareLinkId: string): Promise<ShareLink | null> {
   if (!isSupabaseConfigured()) {
     const shareLink = inMemoryShareLinks.get(shareLinkId);
-    if (shareLink && shareLink.enabled) {
+    if (shareLink && shareLink.enabled && !isExpired(shareLink)) {
       return shareLink;
     }
     return null;
@@ -133,7 +141,20 @@ export async function getEnabledShareLink(shareLinkId: string): Promise<ShareLin
     return null;
   }
 
-  return data as ShareLink;
+  const shareLink = data as ShareLink;
+  if (isExpired(shareLink)) {
+    return null;
+  }
+
+  return shareLink;
+}
+
+/**
+ * Check if a share link has expired
+ */
+function isExpired(shareLink: ShareLink): boolean {
+  if (!shareLink.expires_at) return false;
+  return new Date(shareLink.expires_at) <= new Date();
 }
 
 /**

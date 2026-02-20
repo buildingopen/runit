@@ -82,8 +82,8 @@ export function captureException(error: Error, context?: Record<string, unknown>
     } else {
       Sentry.captureException(error);
     }
-  } catch {
-    // Don't let Sentry errors break the app
+  } catch (err) {
+    console.warn('[Sentry] captureException failed:', err);
   }
 }
 
@@ -95,8 +95,8 @@ export function captureMessage(message: string, level: 'info' | 'warning' | 'err
 
   try {
     Sentry.captureMessage(message, level);
-  } catch {
-    // Don't let Sentry errors break the app
+  } catch (err) {
+    console.warn('[Sentry] captureMessage failed:', err);
   }
 }
 
@@ -108,8 +108,8 @@ export function setUser(id: string, email?: string): void {
 
   try {
     Sentry.setUser({ id, email });
-  } catch {
-    // Ignore
+  } catch (err) {
+    console.warn('[Sentry] setUser failed:', err);
   }
 }
 
@@ -121,8 +121,8 @@ export function clearUser(): void {
 
   try {
     Sentry.setUser(null);
-  } catch {
-    // Ignore
+  } catch (err) {
+    console.warn('[Sentry] clearUser failed:', err);
   }
 }
 
@@ -139,7 +139,7 @@ export function addBreadcrumb(message: string, category: string, data?: Record<s
       level: 'info',
       data,
     });
-  } catch {
-    // Ignore
+  } catch (err) {
+    console.warn('[Sentry] addBreadcrumb failed:', err);
   }
 }

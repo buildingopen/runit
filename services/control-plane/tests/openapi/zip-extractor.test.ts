@@ -71,8 +71,22 @@ describe('zip-extractor', () => {
     expect(result.endpoints[0].id).toContain('get');
     expect(result.openapi).not.toHaveProperty('x_entrypoint');
     expect(result.openapi).not.toHaveProperty('x_detected_env_vars');
-    expect(mockWriteFileSync).toHaveBeenCalled();
-    expect(mockUnlinkSync).toHaveBeenCalled();
+    // Script + config file written separately
+    expect(mockWriteFileSync).toHaveBeenCalledTimes(2);
+    // Script file
+    expect(mockWriteFileSync.mock.calls[0][0]).toContain('extract.py');
+    // Config file with base64 data (not interpolated into script)
+    expect(mockWriteFileSync.mock.calls[1][0]).toContain('config.json');
+    const configContent = JSON.parse(mockWriteFileSync.mock.calls[1][1]);
+    expect(configContent.zip_base64).toBe('Zm9v');
+    expect(configContent.work_dir).toContain('openapi-extract-');
+    // Both files cleaned up
+    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
+    // Python spawned with config file as argument
+    expect(mockSpawn).toHaveBeenCalledWith('python3', expect.arrayContaining([
+      expect.stringContaining('extract.py'),
+      expect.stringContaining('config.json'),
+    ]));
   });
 
   it('throws when python returns structured extraction error', async () => {
@@ -85,7 +99,7 @@ describe('zip-extractor', () => {
     proc.emit('close', 0);
 
     await expect(promise).rejects.toThrow('Could not find FastAPI app');
-    expect(mockUnlinkSync).toHaveBeenCalled();
+    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
   });
 
   it('propagates subprocess stderr failure', async () => {
@@ -98,7 +112,7 @@ describe('zip-extractor', () => {
     proc.emit('close', 1);
 
     await expect(promise).rejects.toThrow('OpenAPI extraction failed: Traceback...');
-    expect(mockUnlinkSync).toHaveBeenCalled();
+    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
   });
 
   it('propagates spawn runtime errors', async () => {
@@ -110,6 +124,6 @@ describe('zip-extractor', () => {
     proc.emit('error', new Error('spawn failed'));
 
     await expect(promise).rejects.toThrow('spawn failed');
-    expect(mockUnlinkSync).toHaveBeenCalled();
+    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
   });
 });

@@ -32,14 +32,11 @@ interface ExtractedOpenAPI {
 }
 
 /**
- * Extract OpenAPI spec from ZIP bundle
+ * Static Python extraction script.
+ * Reads base64 ZIP data and work directory path from a JSON config file
+ * passed as first argument. No user data is interpolated into the script.
  */
-export async function extractOpenAPIFromZip(zipBase64: string): Promise<ExtractedOpenAPI> {
-  const workDir = join(tmpdir(), `openapi-extract-${randomUUID()}`);
-  mkdirSync(workDir, { recursive: true });
-
-  // Create Python script that uses AST-based extraction (no imports needed)
-  const extractScript = `
+const EXTRACT_SCRIPT = `
 import base64
 import io
 import json
@@ -50,9 +47,15 @@ import ast
 import re
 from pathlib import Path
 
+# Read config from file (passed as argv[1])
+with open(sys.argv[1], 'r') as f:
+    config = json.load(f)
+
+zip_b64 = config['zip_base64']
+work_dir = os.path.realpath(config['work_dir'])
+
 # Decode and extract ZIP (with zip-slip protection)
-zip_data = base64.b64decode('''${zipBase64}''')
-work_dir = os.path.realpath('${workDir}')
+zip_data = base64.b64decode(zip_b64)
 with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
     for member in zf.namelist():
         target = os.path.realpath(os.path.join(work_dir, member))
@@ -61,7 +64,7 @@ with zipfile.ZipFile(io.BytesIO(zip_data)) as zf:
     zf.extractall(work_dir)
 
 # Find the app directory (might be nested in a folder)
-app_dir = '${workDir}'
+app_dir = work_dir
 items = [f for f in os.listdir(app_dir) if not f.startswith('.') and f != '__pycache__']
 if len(items) == 1 and os.path.isdir(os.path.join(app_dir, items[0])):
     app_dir = os.path.join(app_dir, items[0])
@@ -225,12 +228,28 @@ except Exception as e:
     sys.exit(1)
 `;
 
+/**
+ * Extract OpenAPI spec from ZIP bundle
+ */
+export async function extractOpenAPIFromZip(zipBase64: string): Promise<ExtractedOpenAPI> {
+  const workDir = join(tmpdir(), `openapi-extract-${randomUUID()}`);
+  mkdirSync(workDir, { recursive: true });
+
+  // Write the static Python script
   const scriptPath = join(workDir, 'extract.py');
-  writeFileSync(scriptPath, extractScript);
+  writeFileSync(scriptPath, EXTRACT_SCRIPT);
+
+  // Write config (base64 data + work dir) to a separate JSON file
+  // This avoids interpolating user data into executable code
+  const configPath = join(workDir, 'config.json');
+  writeFileSync(configPath, JSON.stringify({
+    zip_base64: zipBase64,
+    work_dir: workDir,
+  }));
 
   try {
-    // Execute Python script
-    const result = await executePythonScript(scriptPath, 60);
+    // Execute Python script with config file as argument
+    const result = await executePythonScript(scriptPath, [configPath], 60);
 
     // Parse OpenAPI spec
     const openapi = JSON.parse(result);
@@ -279,20 +298,17 @@ except Exception as e:
     };
   } finally {
     // Clean up (best effort)
-    try {
-      unlinkSync(scriptPath);
-    } catch (err) {
-      // Ignore
-    }
+    try { unlinkSync(scriptPath); } catch { /* ignore */ }
+    try { unlinkSync(configPath); } catch { /* ignore */ }
   }
 }
 
 /**
  * Execute Python script and return stdout
  */
-function executePythonScript(scriptPath: string, timeout: number): Promise<string> {
+function executePythonScript(scriptPath: string, args: string[], timeout: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const python = spawn('python3', [scriptPath]);
+    const python = spawn('python3', [scriptPath, ...args]);
 
     let stdout = '';
     let stderr = '';

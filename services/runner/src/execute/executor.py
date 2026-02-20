@@ -1,6 +1,11 @@
 """
 ABOUTME: Core executor - Executes FastAPI endpoints in-process using httpx.AsyncClient
 ABOUTME: Handles bundle extraction, dependency install, app import, and ASGI execution
+
+SECURITY NOTE: This executor runs user code IN-PROCESS with no OS-level sandbox
+(no seccomp, no apparmor, no chroot). It relies on Modal's container/VM isolation
+at the infrastructure level. Never run this executor outside of Modal or an
+equivalent isolation boundary.
 """
 
 import asyncio

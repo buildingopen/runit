@@ -13,64 +13,88 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 
 
-def get_master_key() -> bytes:
+SALT_LENGTH = 32
+IV_LENGTH = 16
+AUTH_TAG_LENGTH = 16
+PBKDF2_ITERATIONS = 100000
+
+
+def _derive_master_key(master_key_env: str, salt: bytes) -> bytes:
     """
-    Get master key from environment (matches control-plane implementation).
-
-    In production, this would use actual KMS (AWS KMS, Google Cloud KMS, etc).
-    For v0, we use environment variable.
+    Derive master key using PBKDF2 with the provided salt.
+    Matches the TypeScript LocalKMSProvider.deriveKey() implementation.
     """
-    master_key_env = os.environ.get("MASTER_ENCRYPTION_KEY")
-
-    if not master_key_env:
-        # For development, use default key (INSECURE)
-        print("WARNING: No MASTER_ENCRYPTION_KEY set, using default (INSECURE)")
-        # Exactly 32 bytes for AES-256 (matches control-plane)
-        return b"dev-master-key-32-bytes-long!!!!"
-
-    # Derive key using PBKDF2 (matches TypeScript implementation)
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=b"execution-layer-salt-v1",
-        iterations=100000,
+        salt=salt,
+        iterations=PBKDF2_ITERATIONS,
         backend=default_backend()
     )
     return kdf.derive(master_key_env.encode('utf-8'))
+
+
+def get_master_key_env() -> str:
+    """Get the master key environment variable value."""
+    master_key_env = os.environ.get("MASTER_ENCRYPTION_KEY")
+    if not master_key_env:
+        raise ValueError("MASTER_ENCRYPTION_KEY environment variable is required")
+    return master_key_env
 
 
 def decrypt_dek(encrypted_dek: bytes) -> bytes:
     """
     Decrypt a data encryption key (DEK) with the master key.
 
-    Format: iv (16) || encrypted_dek || auth_tag (16)
-    """
-    master_key = get_master_key()
+    Matches TS LocalKMSProvider format:
+      salt(32) || iv(16) || encrypted_dek || auth_tag(16)
 
-    # Parse components
-    iv = encrypted_dek[:16]
-    auth_tag = encrypted_dek[-16:]
-    encrypted = encrypted_dek[16:-16]
+    The master key is derived from MASTER_ENCRYPTION_KEY env var using PBKDF2
+    with the random salt stored in the blob.
+    """
+    master_key_env = get_master_key_env()
+
+    # Parse: salt(32) || iv(16) || encrypted || auth_tag(16)
+    salt = encrypted_dek[:SALT_LENGTH]
+    iv = encrypted_dek[SALT_LENGTH:SALT_LENGTH + IV_LENGTH]
+    auth_tag = encrypted_dek[-AUTH_TAG_LENGTH:]
+    encrypted = encrypted_dek[SALT_LENGTH + IV_LENGTH:-AUTH_TAG_LENGTH]
+
+    # Derive key using same PBKDF2 params as TS side
+    derived_key = _derive_master_key(master_key_env, salt)
 
     # Decrypt with AESGCM
-    aesgcm = AESGCM(master_key)
+    aesgcm = AESGCM(derived_key)
     dek = aesgcm.decrypt(iv, encrypted + auth_tag, None)
 
     return dek
+
+
+ENCRYPTION_FORMAT_V1 = 0x01
 
 
 def decrypt_secret(encrypted_blob: str) -> str:
     """
     Decrypt a secret value.
 
-    Format (base64): dek_length (4) || encrypted_dek || iv (16) || encrypted_data || auth_tag (16)
+    Supports two formats:
+    - v1: version(1) || dek_length(4) || encrypted_dek || iv(16) || encrypted_data || auth_tag(16)
+    - v0 (legacy): dek_length(4) || encrypted_dek || iv(16) || encrypted_data || auth_tag(16)
     """
-    # Decode base64
     combined = base64.b64decode(encrypted_blob)
 
-    # Parse components
-    dek_length = struct.unpack('>I', combined[:4])[0]
-    offset = 4
+    # Detect format: v1 starts with 0x01 version byte
+    version = combined[0]
+    if version == ENCRYPTION_FORMAT_V1:
+        # v1 format: skip version byte
+        offset = 1
+        dek_length = struct.unpack('>I', combined[offset:offset + 4])[0]
+        offset += 4
+    else:
+        # Legacy v0: first 4 bytes are dek_length directly
+        offset = 0
+        dek_length = struct.unpack('>I', combined[offset:offset + 4])[0]
+        offset += 4
 
     encrypted_dek = combined[offset:offset + dek_length]
     offset += dek_length
