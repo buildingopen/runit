@@ -59,6 +59,7 @@ projectShare.post('/:id/share', async (c) => {
     target_type: shareLink.target_type,
     target_ref: shareLink.target_ref,
     created_at: shareLink.created_at,
+    expires_at: shareLink.expires_at,
   }, 201);
 });
 
@@ -70,10 +71,15 @@ shareLinks.get('/:share_id', async (c) => {
   const shareLink = await shareLinksStore.getEnabledShareLink(share_id);
 
   if (!shareLink) {
-    // Check if it exists but is disabled
+    // Check if it exists but is disabled or expired
     const disabledLink = await shareLinksStore.getShareLink(share_id);
-    if (disabledLink && !disabledLink.enabled) {
-      return c.json({ error: 'This share link has been disabled by the owner' }, 403);
+    if (disabledLink) {
+      if (!disabledLink.enabled) {
+        return c.json({ error: 'This share link has been disabled by the owner' }, 403);
+      }
+      if (disabledLink.expires_at && new Date(disabledLink.expires_at) <= new Date()) {
+        return c.json({ error: 'This share link has expired' }, 410);
+      }
     }
     return c.json({ error: 'Share link not found' }, 404);
   }
@@ -148,6 +154,7 @@ projectShare.get('/:id/shares', async (c) => {
       target_ref: link.target_ref,
       enabled: link.enabled,
       created_at: link.created_at,
+      expires_at: link.expires_at,
       stats: {
         run_count: link.run_count,
         success_count: link.success_count,
