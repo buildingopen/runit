@@ -21,8 +21,8 @@
       "@/db": ["./src/db"],
       "@/db/*": ["./src/db/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@execution-layer/shared": ["./packages/shared/src"],
-      "@execution-layer/ui": ["./packages/ui/src"]
+      "@runtime-ai/shared": ["./packages/shared/src"],
+      "@runtime-ai/ui": ["./packages/ui/src"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "services/**/*.ts", "services/**/*.tsx"],

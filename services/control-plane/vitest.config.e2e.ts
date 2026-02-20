@@ -6,6 +6,11 @@ export default defineConfig({
     include: ['tests/e2e/**/*.e2e.test.ts'],
     exclude: ['node_modules/**'],
     environment: 'node',
+    env: {
+      NODE_ENV: 'test',
+      OTEL_TRACING_ENABLED: 'false',
+    },
+    silent: 'passed-only',
     globals: false,
 
     // Longer timeouts for E2E tests (database operations)

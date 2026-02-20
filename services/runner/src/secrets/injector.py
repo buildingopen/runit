@@ -8,6 +8,15 @@ import re
 from typing import Dict, Any
 
 
+def _should_redact_exact_value(value: str) -> bool:
+    """Redact longer values and short token-like values, but avoid common plain words."""
+    if len(value) >= 8:
+        return True
+    if len(value) >= 6 and (any(ch.isdigit() for ch in value) or "-" in value or "_" in value):
+        return True
+    return False
+
+
 def inject_secrets(secrets: Dict[str, str]) -> None:
     """
     Inject decrypted secrets as environment variables.
@@ -33,20 +42,20 @@ def redact_secrets_from_text(text: str, secrets: Dict[str, str]) -> tuple[str, b
     redacted = text
     was_redacted = False
 
-    # Redact exact secret values
+    # Redact exact secret values using conservative heuristics.
     for key, value in secrets.items():
-        if value and len(value) > 0:
+        if value and _should_redact_exact_value(value):
             if value in redacted:
                 redacted = redacted.replace(value, f"[REDACTED:{key}]")
                 was_redacted = True
 
     # Redact common secret patterns
     patterns = [
-        (r'sk-[a-zA-Z0-9]{40,}', '[REDACTED:API_KEY]'),
-        (r'AIzaSy[a-zA-Z0-9_-]{33}', '[REDACTED:GOOGLE_API_KEY]'),
-        (r'eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+', '[REDACTED:JWT_TOKEN]'),
-        (r'ghp_[a-zA-Z0-9]{36}', '[REDACTED:GITHUB_TOKEN]'),
-        (r'xoxb-[a-zA-Z0-9-]+', '[REDACTED:SLACK_TOKEN]'),
+        (r'sk-[a-zA-Z0-9-]{10,}', '[REDACTED]'),
+        (r'AIzaSy[a-zA-Z0-9_-]{33}', '[REDACTED]'),
+        (r'eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)?', '[REDACTED]'),
+        (r'ghp_[a-zA-Z0-9]{30,}', '[REDACTED]'),
+        (r'xoxb-[a-zA-Z0-9-]+', '[REDACTED]'),
     ]
 
     for pattern, replacement in patterns:

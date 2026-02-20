@@ -5,6 +5,8 @@ ABOUTME: Handles bundle extraction, dependency install, app import, and ASGI exe
 
 import asyncio
 import base64
+import importlib
+import importlib.util
 import io
 import json
 import os
@@ -223,9 +225,36 @@ def execute_endpoint(
         log(f"Attempting to import: {module_name}:{app_name}")
 
         try:
-            import importlib
+            module_path = workspace.joinpath(*module_name.split("."))
+            module_file = module_path.with_suffix(".py")
+            package_init_file = module_path / "__init__.py"
 
-            module = importlib.import_module(module_name)
+            if module_file.exists():
+                unique_module_name = f"_el_run_{run_id}_{module_name.replace('.', '_')}"
+                spec = importlib.util.spec_from_file_location(unique_module_name, module_file)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Cannot load module from {module_file}")
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[unique_module_name] = module
+                spec.loader.exec_module(module)
+            elif package_init_file.exists():
+                unique_module_name = f"_el_run_{run_id}_{module_name.replace('.', '_')}"
+                spec = importlib.util.spec_from_file_location(
+                    unique_module_name,
+                    package_init_file,
+                    submodule_search_locations=[str(module_path)],
+                )
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Cannot load package from {package_init_file}")
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[unique_module_name] = module
+                spec.loader.exec_module(module)
+            else:
+                importlib.invalidate_caches()
+                if module_name in sys.modules:
+                    del sys.modules[module_name]
+                module = importlib.import_module(module_name)
+
             app = getattr(module, app_name)
         except (ImportError, AttributeError) as e:
             # Log the actual exception type and details
