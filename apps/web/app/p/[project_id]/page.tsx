@@ -243,7 +243,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
             {projectError instanceof Error ? projectError.message : 'Project not found'}
           </p>
           <Link
-            href="/"
+            href="/dashboard"
             className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium rounded-lg"
           >
             Back to Projects
@@ -258,7 +258,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
       {/* Header */}
       <header className="h-16 bg-[var(--bg-secondary)] border-b border-[var(--border)] flex items-center px-6 gap-3.5 flex-shrink-0">
         <Link
-          href="/"
+          href="/dashboard"
           className="w-9 h-9 flex items-center justify-center bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all flex-shrink-0"
           title="Back to apps"
         >

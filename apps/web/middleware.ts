@@ -3,7 +3,7 @@
  *
  * Redirects unauthenticated users to login for protected routes.
  * Public routes: /, /login, /signup, /auth/*, /s/*, /r/*
- * Protected routes: /new, /create/*, /p/*
+ * Protected routes: /dashboard, /new, /create/*, /p/*
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -12,6 +12,7 @@ import { createServerClient } from '@supabase/ssr';
 const AUTH_ROUTES = ['/login', '/signup'];
 
 const PROTECTED_PREFIXES = [
+  '/dashboard',
   '/new',
   '/create/',
   '/p/',
@@ -30,6 +31,11 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = AUTH_ROUTES.includes(pathname);
 
   if (!isProtected && !isAuthRoute) {
+    return NextResponse.next();
+  }
+
+  // Skip auth if Supabase is not configured
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     return NextResponse.next();
   }
 
@@ -65,7 +71,7 @@ export async function middleware(request: NextRequest) {
 
   // Redirect authenticated users away from login/signup
   if (user && AUTH_ROUTES.includes(pathname)) {
-    return NextResponse.redirect(new URL('/', request.url));
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   // Redirect unauthenticated users to login (skip for auth routes)

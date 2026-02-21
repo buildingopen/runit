@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiClient, type Project, type ProjectStatus } from '../lib/api/client';
-import { getProjectEmoji } from '../lib/utils';
+import { apiClient, type Project, type ProjectStatus } from '../../lib/api/client';
+import { getProjectEmoji } from '../../lib/utils';
 
 export default function HomePage() {
   const [projects, setProjects] = useState<Project[]>([]);
