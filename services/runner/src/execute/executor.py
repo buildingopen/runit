@@ -183,7 +183,35 @@ def _import_app(
     except Exception as ws_err:
         log(f"Could not list workspace: {ws_err}")
 
-    module_name, app_name = entrypoint.split(":")
+    if ":" not in entrypoint:
+        raise ExecutionError(
+            error_class="INVALID_ENTRYPOINT",
+            message=f"Invalid entrypoint format: {entrypoint}",
+            detail="Entrypoint must be in 'module:app' format",
+            suggested_fix="Use format like 'main:app' or 'src.main:app'",
+        )
+
+    module_name, app_name = entrypoint.split(":", 1)
+
+    # Validate module name: only allow Python identifiers separated by dots
+    if not all(part.isidentifier() for part in module_name.split(".")):
+        raise ExecutionError(
+            error_class="INVALID_ENTRYPOINT",
+            message=f"Invalid module name in entrypoint: {module_name}",
+            detail="Module name contains invalid characters",
+            suggested_fix="Use a valid Python module path like 'main' or 'src.main'",
+        )
+
+    # Verify resolved path stays within workspace (path traversal protection)
+    resolved_module_path = workspace.joinpath(*module_name.split(".")).resolve()
+    if not str(resolved_module_path).startswith(str(workspace.resolve())):
+        raise ExecutionError(
+            error_class="MALICIOUS_ENTRYPOINT",
+            message="Entrypoint attempts path traversal outside workspace",
+            detail=f"Module path resolves outside workspace: {module_name}",
+            suggested_fix="Use a simple module name like 'main' or 'src.main'",
+        )
+
     log(f"Attempting to import: {module_name}:{app_name}")
 
     try:
