@@ -57,7 +57,7 @@ def test_write_context_files(temp_context_dir):
 
 def test_context_size_validation(temp_context_dir):
     """Test context size limit enforcement"""
-    from context.mounter import write_context_files, ContextMountError
+    from context.mounter import ContextMountError, write_context_files
 
     # Create context data exceeding 1MB
     large_data = {"data": "x" * (1024 * 1024 + 1)}
@@ -68,7 +68,7 @@ def test_context_size_validation(temp_context_dir):
 
 def test_invalid_context_name(temp_context_dir):
     """Test validation of context names"""
-    from context.mounter import write_context_files, ContextMountError
+    from context.mounter import ContextMountError, write_context_files
 
     invalid_context = {"invalid name!": {"data": "test"}}
 
@@ -103,7 +103,7 @@ def test_mount_context_from_json_string(temp_context_dir):
 
 def test_list_available_contexts(temp_context_dir):
     """Test listing available contexts"""
-    from context.mounter import write_context_files, list_available_contexts
+    from context.mounter import list_available_contexts, write_context_files
 
     context_data = {
         "company": {"name": "ACME"},

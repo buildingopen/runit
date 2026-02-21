@@ -9,16 +9,16 @@ Demonstrates:
 - Environment variable handling (API keys)
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from pydantic import BaseModel, Field
-from typing import Optional, Literal
-import subprocess
-import tempfile
 import os
-import sys
-from pathlib import Path
 import shutil
-import json
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Literal, Optional
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 
 # Add SDK to path (for local development)
 sdk_path = Path(__file__).parent.parent.parent / "sdk"
@@ -31,6 +31,7 @@ try:
 except ImportError:
     # Local fallback for testing
     import json as _json
+
     ARTIFACTS_DIR = Path(os.getenv("EL_ARTIFACTS_DIR", "/tmp/artifacts"))
 
     def save_artifact(filename: str, data: bytes | str) -> str:
@@ -45,10 +46,11 @@ except ImportError:
     def save_json(filename: str, data) -> str:
         return save_artifact(filename, _json.dumps(data, indent=2))
 
+
 app = FastAPI(
     title="OpenDraft",
     description="AI-powered research paper generator with real citations",
-    version="1.6.26"
+    version="1.6.26",
 )
 
 
@@ -57,17 +59,12 @@ class GenerateRequest(BaseModel):
 
     topic: str = Field(..., description="Research topic or thesis title", min_length=5)
     level: Literal["research_paper", "bachelor", "master", "phd"] = Field(
-        default="research_paper",
-        description="Academic level of the paper"
+        default="research_paper", description="Academic level of the paper"
     )
     citation_style: Literal["apa", "ieee", "chicago"] = Field(
-        default="apa",
-        description="Citation format style"
+        default="apa", description="Citation format style"
     )
-    language: str = Field(
-        default="en",
-        description="Output language code (en, de, es, etc.)"
-    )
+    language: str = Field(default="en", description="Output language code (en, de, es, etc.)")
 
 
 class GenerateResponse(BaseModel):
@@ -99,8 +96,7 @@ async def generate_paper(req: GenerateRequest) -> GenerateResponse:
     api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(
-            status_code=400,
-            detail="GOOGLE_API_KEY or GEMINI_API_KEY environment variable required"
+            status_code=400, detail="GOOGLE_API_KEY or GEMINI_API_KEY environment variable required"
         )
 
     # Create temp directory for output
@@ -111,12 +107,18 @@ async def generate_paper(req: GenerateRequest) -> GenerateResponse:
         try:
             # Run OpenDraft CLI
             cmd = [
-                sys.executable, "-m", "opendraft.cli",
+                sys.executable,
+                "-m",
+                "opendraft.cli",
                 req.topic,
-                "--level", req.level,
-                "--style", req.citation_style,
-                "--lang", req.language,
-                "--output", str(output_dir)
+                "--level",
+                req.level,
+                "--style",
+                req.citation_style,
+                "--lang",
+                req.language,
+                "--output",
+                str(output_dir),
             ]
 
             env = os.environ.copy()
@@ -128,15 +130,13 @@ async def generate_paper(req: GenerateRequest) -> GenerateResponse:
                 text=True,
                 timeout=1800,  # 30 minute timeout
                 env=env,
-                cwd=tmpdir
+                cwd=tmpdir,
             )
 
             if result.returncode != 0:
                 error_msg = result.stderr or result.stdout or "Unknown error"
                 return GenerateResponse(
-                    success=False,
-                    topic=req.topic,
-                    error=f"Generation failed: {error_msg[:500]}"
+                    success=False, topic=req.topic, error=f"Generation failed: {error_msg[:500]}"
                 )
 
             # Collect artifacts from exports directory
@@ -155,7 +155,8 @@ async def generate_paper(req: GenerateRequest) -> GenerateResponse:
                         artifacts.append(file_path.name)
 
                         # Extract stats from markdown file
-                        if file_path.suffix == ".md" and not file_path.name.startswith("INTERMEDIATE"):
+                        is_md = file_path.suffix == ".md"
+                        if is_md and not file_path.name.startswith("INTERMEDIATE"):
                             text = file_path.read_text()
                             word_count = len(text.split())
                             # Count citations (rough estimate)
@@ -178,7 +179,7 @@ async def generate_paper(req: GenerateRequest) -> GenerateResponse:
                 "language": req.language,
                 "word_count": word_count,
                 "citation_count": citation_count,
-                "artifacts": artifacts
+                "artifacts": artifacts,
             }
             save_json("generation_metadata.json", metadata)
 
@@ -187,21 +188,15 @@ async def generate_paper(req: GenerateRequest) -> GenerateResponse:
                 topic=req.topic,
                 word_count=word_count,
                 citation_count=citation_count,
-                artifacts=artifacts
+                artifacts=artifacts,
             )
 
         except subprocess.TimeoutExpired:
             return GenerateResponse(
-                success=False,
-                topic=req.topic,
-                error="Generation timed out after 30 minutes"
+                success=False, topic=req.topic, error="Generation timed out after 30 minutes"
             )
         except Exception as e:
-            return GenerateResponse(
-                success=False,
-                topic=req.topic,
-                error=str(e)
-            )
+            return GenerateResponse(success=False, topic=req.topic, error=str(e))
 
 
 @app.get("/")
@@ -212,11 +207,9 @@ async def root():
         "description": "AI Research Paper Generator",
         "version": "1.6.26",
         "status": "ready",
-        "endpoints": {
-            "POST /generate": "Generate a research paper on any topic"
-        },
+        "endpoints": {"POST /generate": "Generate a research paper on any topic"},
         "required_env": ["GOOGLE_API_KEY"],
-        "output_formats": ["PDF", "DOCX", "Markdown", "ZIP bundle"]
+        "output_formats": ["PDF", "DOCX", "Markdown", "ZIP bundle"],
     }
 
 
@@ -226,12 +219,7 @@ async def health():
     # Verify opendraft is installed
     try:
         from opendraft.version import __version__
-        return {
-            "status": "healthy",
-            "opendraft_version": __version__
-        }
+
+        return {"status": "healthy", "opendraft_version": __version__}
     except ImportError:
-        raise HTTPException(
-            status_code=503,
-            detail="OpenDraft package not installed"
-        )
+        raise HTTPException(status_code=503, detail="OpenDraft package not installed")

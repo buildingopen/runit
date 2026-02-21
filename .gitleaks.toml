@@ -1,0 +1,8 @@
+[allowlist]
+description = "Allowlist for test fixtures"
+paths = [
+    '''tests/test_secrets_injector\.py''',
+    '''test_redaction\.py''',
+    '''test_kms_client\.py''',
+    '''test_kms_compat\.py''',
+]

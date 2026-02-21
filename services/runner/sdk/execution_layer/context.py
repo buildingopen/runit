@@ -6,8 +6,8 @@ Provides access to:
 - Context data (uploaded JSON files mounted at /context/)
 """
 
-import os
 import json
+import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -90,10 +90,7 @@ class Context:
         if not self._context_dir.exists():
             return []
 
-        return [
-            f.stem  # Remove .json extension
-            for f in self._context_dir.glob("*.json")
-        ]
+        return [f.stem for f in self._context_dir.glob("*.json")]  # Remove .json extension
 
     def has_context(self, name: str) -> bool:
         """

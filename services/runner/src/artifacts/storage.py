@@ -5,9 +5,9 @@ ABOUTME: Supports inline base64 content (for testing/dev) or S3 upload (producti
 
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List
-from datetime import datetime, timezone, timedelta
 
 # Constants
 PRESIGNED_URL_EXPIRY_SECONDS = 86400  # 24 hours
@@ -21,9 +21,7 @@ def _placeholder_url(path: str, expiry_hint: str = "24h") -> str:
     return f"{PLACEHOLDER_STORAGE_HOST}/{path}?expires={expiry_hint}&notice=s3_not_configured"
 
 
-def upload_artifacts(
-    artifacts: List[dict], artifacts_dir: Path, run_id: str
-) -> List[dict]:
+def upload_artifacts(artifacts: List[dict], artifacts_dir: Path, run_id: str) -> List[dict]:
     """
     Upload artifacts to S3-compatible storage and add signed URLs.
 
@@ -115,8 +113,9 @@ def generate_signed_url(storage_ref: str, expiry_hours: int = DEFAULT_EXPIRY_HOU
         except Exception as exc:
             print(f"[WARN] S3 presigned URL generation failed: {exc}", file=sys.stderr)
 
-    expiry_timestamp = (
-        datetime.now(timezone.utc) + timedelta(hours=expiry_hours)
-    ).isoformat()
+    expiry_timestamp = (datetime.now(timezone.utc) + timedelta(hours=expiry_hours)).isoformat()
 
-    return f"{PLACEHOLDER_STORAGE_HOST}/{storage_ref}?expires={expiry_timestamp}&notice=s3_not_configured"
+    return (
+        f"{PLACEHOLDER_STORAGE_HOST}/{storage_ref}"
+        f"?expires={expiry_timestamp}&notice=s3_not_configured"
+    )

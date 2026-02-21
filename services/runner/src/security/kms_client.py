@@ -7,11 +7,11 @@ import base64
 import json
 import os
 import struct
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 SALT_LENGTH = 32
 IV_LENGTH = 16
@@ -29,9 +29,9 @@ def _derive_master_key(master_key_env: str, salt: bytes) -> bytes:
         length=32,
         salt=salt,
         iterations=PBKDF2_ITERATIONS,
-        backend=default_backend()
+        backend=default_backend(),
     )
-    return kdf.derive(master_key_env.encode('utf-8'))
+    return kdf.derive(master_key_env.encode("utf-8"))
 
 
 def get_master_key_env() -> str:
@@ -56,9 +56,9 @@ def decrypt_dek(encrypted_dek: bytes) -> bytes:
 
     # Parse: salt(32) || iv(16) || encrypted || auth_tag(16)
     salt = encrypted_dek[:SALT_LENGTH]
-    iv = encrypted_dek[SALT_LENGTH:SALT_LENGTH + IV_LENGTH]
+    iv = encrypted_dek[SALT_LENGTH : SALT_LENGTH + IV_LENGTH]
     auth_tag = encrypted_dek[-AUTH_TAG_LENGTH:]
-    encrypted = encrypted_dek[SALT_LENGTH + IV_LENGTH:-AUTH_TAG_LENGTH]
+    encrypted = encrypted_dek[SALT_LENGTH + IV_LENGTH : -AUTH_TAG_LENGTH]
 
     # Derive key using same PBKDF2 params as TS side
     derived_key = _derive_master_key(master_key_env, salt)
@@ -88,18 +88,18 @@ def decrypt_secret(encrypted_blob: str) -> str:
     if version == ENCRYPTION_FORMAT_V1:
         # v1 format: skip version byte
         offset = 1
-        dek_length = struct.unpack('>I', combined[offset:offset + 4])[0]
+        dek_length = struct.unpack(">I", combined[offset : offset + 4])[0]
         offset += 4
     else:
         # Legacy v0: first 4 bytes are dek_length directly
         offset = 0
-        dek_length = struct.unpack('>I', combined[offset:offset + 4])[0]
+        dek_length = struct.unpack(">I", combined[offset : offset + 4])[0]
         offset += 4
 
-    encrypted_dek = combined[offset:offset + dek_length]
+    encrypted_dek = combined[offset : offset + dek_length]
     offset += dek_length
 
-    iv = combined[offset:offset + 16]
+    iv = combined[offset : offset + 16]
     offset += 16
 
     auth_tag = combined[-16:]
@@ -112,7 +112,7 @@ def decrypt_secret(encrypted_blob: str) -> str:
     aesgcm = AESGCM(dek)
     decrypted = aesgcm.decrypt(iv, encrypted + auth_tag, None)
 
-    return decrypted.decode('utf-8')
+    return decrypted.decode("utf-8")
 
 
 def decrypt_secrets_bundle(encrypted_blob: str) -> dict:

@@ -30,11 +30,13 @@ class _FakeApp:
     def function(self, **kwargs):
         def decorator(fn):
             return fn
+
         return decorator
 
     def local_entrypoint(self):
         def decorator(fn):
             return fn
+
         return decorator
 
 

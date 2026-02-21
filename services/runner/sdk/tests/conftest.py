@@ -1,9 +1,10 @@
 """Pytest configuration and fixtures for SDK tests."""
 
-import pytest
-import tempfile
 import json
+import tempfile
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture
@@ -33,15 +34,11 @@ def temp_artifacts_dir(temp_dir):
 def sample_context_data():
     """Sample context data for testing."""
     return {
-        "company": {
-            "name": "ACME Inc",
-            "industry": "SaaS",
-            "founded": 2020
-        },
+        "company": {"name": "ACME Inc", "industry": "SaaS", "founded": 2020},
         "contacts": [
             {"name": "Alice", "email": "alice@acme.com"},
-            {"name": "Bob", "email": "bob@acme.com"}
-        ]
+            {"name": "Bob", "email": "bob@acme.com"},
+        ],
     }
 
 
@@ -58,10 +55,7 @@ def mock_environment(monkeypatch, temp_context_dir, temp_artifacts_dir):
     monkeypatch.setenv("EL_ARTIFACTS_DIR", str(temp_artifacts_dir))
     monkeypatch.setenv("SECRET_API_KEY", "test-api-key-123")
     monkeypatch.setenv("SECRET_DATABASE_URL", "postgres://localhost/test")
-    return {
-        "context_dir": temp_context_dir,
-        "artifacts_dir": temp_artifacts_dir
-    }
+    return {"context_dir": temp_context_dir, "artifacts_dir": temp_artifacts_dir}
 
 
 def create_context_file(context_dir: Path, name: str, data: dict) -> Path:

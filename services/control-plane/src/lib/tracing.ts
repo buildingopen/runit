@@ -150,19 +150,25 @@ export async function withModalExecutionSpan<T>(
   runId: string,
   lane: 'cpu' | 'gpu',
   endpoint: string,
+  requestId: string | undefined,
   fn: (span: Span) => Promise<T>
 ): Promise<T> {
   const tracer = getTracer();
+
+  const attributes: Record<string, string> = {
+    'modal.run_id': runId,
+    'modal.lane': lane,
+    'modal.endpoint': endpoint,
+  };
+  if (requestId) {
+    attributes['http.request_id'] = requestId;
+  }
 
   return tracer.startActiveSpan(
     'modal.execute',
     {
       kind: SpanKind.CLIENT,
-      attributes: {
-        'modal.run_id': runId,
-        'modal.lane': lane,
-        'modal.endpoint': endpoint,
-      },
+      attributes,
     },
     async (span) => {
       try {

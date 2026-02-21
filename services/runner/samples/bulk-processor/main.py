@@ -9,23 +9,24 @@ Demonstrates:
 - Error handling for individual items
 """
 
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
 import sys
 from pathlib import Path
 from typing import Literal
+
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
 
 # Add SDK to path (for local development)
 sdk_path = Path(__file__).parent.parent.parent / "sdk"
 if sdk_path.exists():
     sys.path.insert(0, str(sdk_path))
 
-from execution_layer import save_artifact, save_dataframe, save_json
+from execution_layer import save_artifact, save_dataframe, save_json  # noqa: E402
 
 app = FastAPI(
     title="Bulk Processor",
     description="Process multiple items in bulk with detailed results",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 
@@ -37,15 +38,13 @@ class BulkRequest(BaseModel):
         description="List of items to process",
         min_length=1,
         max_length=1000,
-        examples=[["hello", "world", "test"]]
+        examples=[["hello", "world", "test"]],
     )
     operation: Literal["uppercase", "lowercase", "reverse", "length", "hash"] = Field(
-        default="uppercase",
-        description="Operation to apply to each item"
+        default="uppercase", description="Operation to apply to each item"
     )
     fail_on_error: bool = Field(
-        default=False,
-        description="Whether to fail entire batch if one item fails"
+        default=False, description="Whether to fail entire batch if one item fails"
     )
 
 
@@ -101,13 +100,11 @@ async def process_bulk(req: BulkRequest) -> BulkResponse:
             else:
                 raise ValueError(f"Unknown operation: {req.operation}")
 
-            results.append(ProcessedItem(
-                index=index,
-                original=item,
-                processed=processed,
-                success=True,
-                error=None
-            ))
+            results.append(
+                ProcessedItem(
+                    index=index, original=item, processed=processed, success=True, error=None
+                )
+            )
             successful += 1
 
         except Exception as e:
@@ -117,13 +114,11 @@ async def process_bulk(req: BulkRequest) -> BulkResponse:
                 # Re-raise to fail entire batch
                 raise
 
-            results.append(ProcessedItem(
-                index=index,
-                original=item,
-                processed=None,
-                success=False,
-                error=error_msg
-            ))
+            results.append(
+                ProcessedItem(
+                    index=index, original=item, processed=None, success=False, error=error_msg
+                )
+            )
             failed += 1
 
     # Save detailed results as JSON
@@ -132,7 +127,7 @@ async def process_bulk(req: BulkRequest) -> BulkResponse:
         "successful": successful,
         "failed": failed,
         "operation": req.operation,
-        "results": [r.model_dump() for r in results]
+        "results": [r.model_dump() for r in results],
     }
     save_json("results.json", results_data)
 
@@ -142,13 +137,15 @@ async def process_bulk(req: BulkRequest) -> BulkResponse:
 
         df_data = []
         for r in results:
-            df_data.append({
-                "index": r.index,
-                "original": r.original,
-                "processed": r.processed or "",
-                "success": r.success,
-                "error": r.error or ""
-            })
+            df_data.append(
+                {
+                    "index": r.index,
+                    "original": r.original,
+                    "processed": r.processed or "",
+                    "success": r.success,
+                    "error": r.error or "",
+                }
+            )
 
         df = pd.DataFrame(df_data)
         save_dataframe(df, "results.csv", format="csv")
@@ -175,7 +172,7 @@ async def process_bulk(req: BulkRequest) -> BulkResponse:
         "failed": failed,
         "success_rate": round(successful / len(req.items) * 100, 2) if req.items else 0,
         "operation": req.operation,
-        "fail_on_error": req.fail_on_error
+        "fail_on_error": req.fail_on_error,
     }
     save_json("summary.json", summary)
 
@@ -189,7 +186,7 @@ async def process_bulk(req: BulkRequest) -> BulkResponse:
         successful=successful,
         failed=failed,
         operation=req.operation,
-        results=results
+        results=results,
     )
 
 
@@ -202,7 +199,7 @@ async def validate_emails(emails: list[str]) -> dict:
     """
     import re
 
-    email_regex = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+    email_regex = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
     results = []
     valid_count = 0
@@ -212,17 +209,16 @@ async def validate_emails(emails: list[str]) -> dict:
         if is_valid:
             valid_count += 1
 
-        results.append({
-            "email": email,
-            "valid": is_valid,
-            "reason": None if is_valid else "Invalid format"
-        })
+        results.append(
+            {"email": email, "valid": is_valid, "reason": None if is_valid else "Invalid format"}
+        )
 
     # Save results
     save_json("email_validation.json", results)
 
     try:
         import pandas as pd
+
         df = pd.DataFrame(results)
         save_dataframe(df, "email_validation.csv")
     except ImportError:
@@ -232,7 +228,7 @@ async def validate_emails(emails: list[str]) -> dict:
         "total": len(emails),
         "valid": valid_count,
         "invalid": len(emails) - valid_count,
-        "results": results
+        "results": results,
     }
 
 
@@ -243,5 +239,5 @@ async def root():
         "service": "Bulk Processor",
         "status": "ready",
         "version": "1.0.0",
-        "operations": ["uppercase", "lowercase", "reverse", "length", "hash"]
+        "operations": ["uppercase", "lowercase", "reverse", "length", "hash"],
     }

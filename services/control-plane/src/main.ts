@@ -53,6 +53,8 @@ import { logger } from './lib/logger';
 import { testSupabaseConnection, isSupabaseConfigured } from './db/supabase';
 import { getCircuitBreakerStats, hasOpenCircuit } from './lib/circuit-breaker';
 import { openAPISpec } from './lib/openapi-spec';
+import { isDraining, setDraining } from './lib/server-state';
+import { activeConnections } from './lib/metrics';
 
 // Validate environment variables at boot
 validateEnv();
@@ -227,6 +229,13 @@ app.get('/', (c) => {
 });
 
 app.get('/health', (c) => {
+  if (isDraining()) {
+    return c.json({
+      status: 'draining',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    }, 503);
+  }
   return c.json({
     status: 'healthy',
     uptime: process.uptime(),
@@ -391,6 +400,9 @@ const server = serve({
 async function shutdown(signal: string) {
   console.log(`\n[${signal}] Shutting down gracefully...`);
 
+  // Signal draining so health endpoint returns 503 (load balancer stops sending traffic)
+  setDraining(true);
+
   // Shutdown rate limit (close Redis connection)
   await shutdownRateLimit();
 
@@ -403,8 +415,19 @@ async function shutdown(signal: string) {
     process.exit(0);
   });
 
+  // Poll active connections, exit early when drained
+  const drainInterval = setInterval(() => {
+    const current = (activeConnections as any).hashMap?.get('')?.value ?? 0;
+    if (current <= 0) {
+      clearInterval(drainInterval);
+      console.log('All connections drained. Exiting.');
+      process.exit(0);
+    }
+  }, 1000);
+
   // Force exit after 10s if connections don't drain
   setTimeout(() => {
+    clearInterval(drainInterval);
     console.error('Forced shutdown after timeout');
     process.exit(1);
   }, 10000);

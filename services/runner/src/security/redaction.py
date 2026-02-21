@@ -6,7 +6,6 @@ ABOUTME: Uses pattern matching and exact value replacement to prevent leakage
 import re
 from typing import Dict
 
-
 # Common secret patterns to redact (as specified in CLAUDE.md section 9)
 REDACT_PATTERNS = [
     r"sk-[a-zA-Z0-9]{40,}",  # OpenAI-style keys
@@ -17,7 +16,7 @@ REDACT_PATTERNS = [
     r"re_[a-zA-Z0-9]{20,}",  # Resend API keys
     r"ak-[a-zA-Z0-9]+",  # Modal API keys
     r"as-[a-zA-Z0-9]+",  # Modal secret keys
-    r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+:[^:]+:[^\s]+",  # Proxy credentials (host:port:user:pass)
+    r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+:[^:]+:[^\s]+",  # Proxy creds
     r"(?i)(api[_-]?key|secret|password|token)[\s:=]+['\"]?([^\s'\"]{8,})",  # Generic patterns
 ]
 
@@ -51,7 +50,7 @@ def redact_secrets(text: str, secret_env_vars: Dict[str, str]) -> str:
     redacted = re.sub(
         REDACT_PATTERNS[-1],  # Generic pattern
         lambda m: "[REDACTED]" if "REDACTED" not in m.group(0) else m.group(0),
-        redacted
+        redacted,
     )
 
     return redacted
@@ -104,7 +103,7 @@ def validate_context_keys(context: Dict[str, any]) -> None:
     Args:
         context: Context dictionary to validate
     """
-    FORBIDDEN_CONTEXT_PATTERNS = [
+    forbidden_context_patterns = [
         r".*_KEY$",
         r".*_TOKEN$",
         r".*_SECRET$",
@@ -114,7 +113,7 @@ def validate_context_keys(context: Dict[str, any]) -> None:
     ]
 
     for key in context.keys():
-        for pattern in FORBIDDEN_CONTEXT_PATTERNS:
+        for pattern in forbidden_context_patterns:
             if re.match(pattern, key, re.IGNORECASE):
                 raise ValueError(
                     f"Context key '{key}' looks like a secret. "

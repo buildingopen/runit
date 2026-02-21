@@ -22,8 +22,6 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import httpx
-
 
 class ExecutionError(Exception):
     """Base exception for execution failures"""
@@ -38,17 +36,47 @@ class ExecutionError(Exception):
 
 # Dangerous environment variables that must never be overridden by user code
 FORBIDDEN_ENV_KEYS = {
-    "PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH", "PYTHONHOME",
-    "HOME", "USER", "SHELL", "PWD", "LOGNAME", "HOSTNAME", "TERM",
-    "LANG", "LC_ALL", "TZ", "IFS", "CDPATH", "ENV", "BASH_ENV",
-    "NODE_PATH", "NODE_OPTIONS", "NODE_ENV",
-    "EL_CONTEXT_DIR", "EL_ARTIFACTS_DIR", "EL_PROJECT_ID",
-    "EL_RUN_ID", "EL_LANE", "EL_BASE_DIR", "EL_SEED",
+    "PATH",
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "PYTHONPATH",
+    "PYTHONHOME",
+    "HOME",
+    "USER",
+    "SHELL",
+    "PWD",
+    "LOGNAME",
+    "HOSTNAME",
+    "TERM",
+    "LANG",
+    "LC_ALL",
+    "TZ",
+    "IFS",
+    "CDPATH",
+    "ENV",
+    "BASH_ENV",
+    "NODE_PATH",
+    "NODE_OPTIONS",
+    "NODE_ENV",
+    "EL_CONTEXT_DIR",
+    "EL_ARTIFACTS_DIR",
+    "EL_PROJECT_ID",
+    "EL_RUN_ID",
+    "EL_LANE",
+    "EL_BASE_DIR",
+    "EL_SEED",
 }
 
 FORBIDDEN_PREFIXES = (
-    "LD_", "SUDO_", "SSH_", "PYTHON", "EL_", "MODAL_",
-    "AWS_ACCESS", "AWS_SECRET", "AWS_SESSION",
+    "LD_",
+    "SUDO_",
+    "SSH_",
+    "PYTHON",
+    "EL_",
+    "MODAL_",
+    "AWS_ACCESS",
+    "AWS_SECRET",
+    "AWS_SESSION",
 )
 
 
@@ -63,9 +91,7 @@ def is_env_key_allowed(key: str) -> bool:
     return True
 
 
-def _setup_workspace(
-    run_id: str, log: Any
-) -> Tuple[Path, Path, Path, Optional[Path]]:
+def _setup_workspace(run_id: str, log: Any) -> Tuple[Path, Path, Path, Optional[Path]]:
     """
     Create workspace, artifacts, and context directories.
     Returns (workspace, artifacts_dir, context_dir, temp_dir_to_cleanup).
@@ -91,10 +117,12 @@ def _setup_workspace(
             return workspace, artifacts_dir, context_dir, None
         except (PermissionError, OSError) as e:
             log(f"Cannot create root dirs ({type(e).__name__}: {e}), using temp")
-            temp_base = Path(tempfile.mkdtemp(
-                prefix=f"el-run-{run_id}-",
-                suffix=f"-{int(time.time() * 1000000)}",
-            ))
+            temp_base = Path(
+                tempfile.mkdtemp(
+                    prefix=f"el-run-{run_id}-",
+                    suffix=f"-{int(time.time() * 1000000)}",
+                )
+            )
             temp_dir_to_cleanup = temp_base
             workspace = temp_base / "workspace"
             artifacts_dir = temp_base / "artifacts"
@@ -125,9 +153,7 @@ def _extract_bundle(code_bundle_b64: str, workspace: Path, log: Any) -> None:
         zf.extractall(workspace)
 
 
-def _inject_env_vars(
-    payload: dict, log: Any
-) -> Tuple[Dict[str, str], List[str]]:
+def _inject_env_vars(payload: dict, log: Any) -> Tuple[Dict[str, str], List[str]]:
     """
     Inject user secrets into the environment.
     Returns (env_vars_dict, list_of_injected_keys).
@@ -150,6 +176,7 @@ def _inject_env_vars(
         log("Decrypting secrets bundle...")
         try:
             from security.kms_client import decrypt_secrets_bundle
+
             env_vars = decrypt_secrets_bundle(secrets_ref)
             log(f"Injecting {len(env_vars)} secrets (encrypted)")
             for key, value in env_vars.items():
@@ -170,9 +197,7 @@ def _inject_env_vars(
     return env_vars, injected_keys
 
 
-def _import_app(
-    workspace: Path, entrypoint: str, run_id: str, log: Any
-) -> Any:
+def _import_app(workspace: Path, entrypoint: str, run_id: str, log: Any) -> Any:
     """Import the FastAPI app from the workspace."""
     log("Importing FastAPI app...")
     sys.path.insert(0, str(workspace))
@@ -248,6 +273,7 @@ def _import_app(
         app = getattr(module, app_name)
     except (ImportError, AttributeError) as e:
         import traceback
+
         log(f"Import failed: {type(e).__name__}: {e}")
         log(f"Traceback: {traceback.format_exc()}")
         raise ExecutionError(
@@ -299,9 +325,7 @@ def _build_response(
     }
 
 
-def execute_endpoint(
-    payload: dict, max_timeout: int, max_memory_mb: int, lane: str
-) -> dict:
+def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: str) -> dict:
     """
     Execute a single endpoint run in isolation.
 
@@ -340,6 +364,7 @@ def execute_endpoint(
         requirements_file = workspace / "requirements.txt"
         if requirements_file.exists():
             from build.deps import install_dependencies
+
             log("Installing dependencies...")
             install_dependencies(
                 requirements_file=requirements_file,
@@ -362,26 +387,31 @@ def execute_endpoint(
                 context_file.write_text(json.dumps(content, indent=2))
 
         # 6. Set platform environment variables
-        os.environ.update({
-            "EL_CONTEXT_DIR": str(context_dir),
-            "EL_ARTIFACTS_DIR": str(artifacts_dir),
-            "EL_PROJECT_ID": payload.get("project_id", "unknown"),
-            "EL_RUN_ID": run_id,
-            "EL_LANE": lane,
-        })
+        os.environ.update(
+            {
+                "EL_CONTEXT_DIR": str(context_dir),
+                "EL_ARTIFACTS_DIR": str(artifacts_dir),
+                "EL_PROJECT_ID": payload.get("project_id", "unknown"),
+                "EL_RUN_ID": run_id,
+                "EL_LANE": lane,
+            }
+        )
 
         # Set deterministic seed if requested
         if payload.get("deterministic", False):
             os.environ["EL_SEED"] = "0"
             import random
+
             random.seed(0)
             try:
                 import numpy as np
+
                 np.random.seed(0)
             except ImportError:
                 pass
             try:
                 import torch
+
                 torch.manual_seed(0)
             except ImportError:
                 pass
@@ -408,16 +438,19 @@ def execute_endpoint(
             files = []
             for file_upload in files_data:
                 file_content = base64.b64decode(file_upload["content"])
-                files.append((
-                    file_upload["name"],
-                    (file_upload["name"], io.BytesIO(file_content), file_upload["mime"]),
-                ))
+                files.append(
+                    (
+                        file_upload["name"],
+                        (file_upload["name"], io.BytesIO(file_content), file_upload["mime"]),
+                    )
+                )
 
         # 10. Execute endpoint in-process using httpx.AsyncClient
         log(f"Executing {method} {path}")
 
         async def execute_request():
             from httpx import ASGITransport, AsyncClient
+
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://testserver"
             ) as client:
@@ -431,19 +464,19 @@ def execute_endpoint(
                     timeout=max_timeout,
                 )
 
-        response = asyncio.run(
-            asyncio.wait_for(execute_request(), timeout=max_timeout)
-        )
+        response = asyncio.run(asyncio.wait_for(execute_request(), timeout=max_timeout))
 
         duration_ms = int((time.time() - start_time) * 1000)
         log(f"Endpoint completed: {response.status_code} in {duration_ms}ms")
 
         # 11. Collect artifacts
         from artifacts.collector import collect_artifacts
+
         artifacts = collect_artifacts(artifacts_dir, logs)
 
         # 12. Redact secrets from logs
         from security.redaction import redact_secrets
+
         redacted_logs = redact_secrets("\n".join(logs), env_vars)
 
         # 13. Parse response body
@@ -459,6 +492,7 @@ def execute_endpoint(
 
         # 14. Redact secrets from output
         from security.redaction import redact_output
+
         redacted_response_body, output_was_redacted = redact_output(response_body, env_vars)
         if output_was_redacted:
             log("WARNING: Sensitive values were redacted from output")
@@ -510,6 +544,7 @@ def execute_endpoint(
     except Exception as e:
         duration_ms = int((time.time() - start_time) * 1000)
         from errors.taxonomy import classify_error
+
         error_info = classify_error(e)
         return _build_response(
             run_id=run_id,
@@ -528,6 +563,7 @@ def execute_endpoint(
             os.environ.pop(key, None)
         if temp_dir_to_cleanup and temp_dir_to_cleanup.exists():
             import shutil
+
             try:
                 shutil.rmtree(temp_dir_to_cleanup)
             except Exception as cleanup_error:

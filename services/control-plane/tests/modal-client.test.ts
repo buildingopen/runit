@@ -63,7 +63,7 @@ vi.mock('../src/lib/circuit-breaker.ts', () => ({
 }));
 
 vi.mock('../src/lib/tracing.ts', () => ({
-  withModalExecutionSpan: vi.fn(async (_runId: string, _lane: string, _endpoint: string, fn: (span: unknown) => Promise<unknown>) => {
+  withModalExecutionSpan: vi.fn(async (_runId: string, _lane: string, _endpoint: string, _requestId: string | undefined, fn: (span: unknown) => Promise<unknown>) => {
     return fn({ span: 'fake' });
   }),
   recordModalResult: (...args: unknown[]) => mockRecordModalResult(...args),

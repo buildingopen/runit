@@ -2,16 +2,15 @@
 Tests for executor module
 """
 
-import asyncio
 import base64
 import io
-import json
 import zipfile
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import patch
 
 import pytest
-from execute.executor import execute_endpoint, ExecutionError
+
+from execute.executor import execute_endpoint
 
 
 @pytest.fixture
@@ -46,8 +45,7 @@ def sample_code_bundle(tmp_path, sample_fastapi_app):
     """Create a sample code bundle ZIP"""
     # Create a temporary directory with the app
     main_py = tmp_path / "main.py"
-    main_py.write_text(
-        """
+    main_py.write_text("""
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -92,8 +90,7 @@ async def slow_endpoint():
     import asyncio
     await asyncio.sleep(5)  # Intentionally slow to trigger timeout
     return {"message": "This should timeout"}
-"""
-    )
+""")
 
     # Create ZIP bundle
     zip_buffer = io.BytesIO()
@@ -217,7 +214,9 @@ def test_context_mounting(sample_code_bundle, tmp_path):
         print(f"Logs:\n{result.get('logs', '')}")
 
     # Context should be available to the endpoint
-    assert result["status"] == "success", f"Expected success but got {result['status']}: {result.get('error_message')}"
+    assert (
+        result["status"] == "success"
+    ), f"Expected success but got {result['status']}: {result.get('error_message')}"
     # The endpoint reads from EL_CONTEXT_DIR and should return the context
     assert result["http_status"] == 200
     response_body = result.get("response_body", {})
@@ -274,7 +273,7 @@ def test_error_classification():
 
 def test_secrets_redaction():
     """Test secrets are redacted from logs and outputs"""
-    from security.redaction import redact_secrets, redact_output
+    from security.redaction import redact_output, redact_secrets
 
     # Test log redaction
     logs = "API_KEY=sk-1234567890abcdef, PASSWORD=super-secret"
@@ -295,7 +294,7 @@ def test_secrets_redaction():
 
 def test_dependency_validation():
     """Test dependency validation catches forbidden patterns"""
-    from build.deps import validate_requirements, DepsInstallError
+    from build.deps import DepsInstallError, validate_requirements
 
     # Test forbidden git+ssh
     requirements = "git+ssh://github.com/user/repo.git"
@@ -314,9 +313,9 @@ def test_dependency_validation():
 
 def test_artifact_limits():
     """Test artifact collection respects size limits"""
-    from artifacts.collector import collect_artifacts
-    from pathlib import Path
     import tempfile
+
+    from artifacts.collector import collect_artifacts
 
     with tempfile.TemporaryDirectory() as tmpdir:
         artifacts_dir = Path(tmpdir) / "artifacts"

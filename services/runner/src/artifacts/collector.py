@@ -9,7 +9,6 @@ import os
 from pathlib import Path
 from typing import List
 
-
 MAX_ARTIFACTS = 50
 MAX_ARTIFACT_SIZE_MB = 10
 MAX_TOTAL_SIZE_MB = 50
@@ -160,10 +159,7 @@ def collect_artifacts(
         total_size += file_size
         collected_count += 1
 
-    log(
-        f"Collected {collected_count} artifacts "
-        f"({total_size / 1024 / 1024:.2f}MB total)"
-    )
+    log(f"Collected {collected_count} artifacts " f"({total_size / 1024 / 1024:.2f}MB total)")
     if include_inline and inline_total_size > 0:
         log(f"Included {inline_total_size / 1024:.1f}KB inline content")
 

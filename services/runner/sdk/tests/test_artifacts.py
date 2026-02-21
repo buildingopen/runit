@@ -1,10 +1,10 @@
 """Tests for artifacts module."""
 
-import pytest
-import os
 import json
 import tempfile
 from pathlib import Path
+
+import pytest
 from execution_layer import save_artifact, save_json
 
 
@@ -15,7 +15,9 @@ def temp_artifacts_dir(monkeypatch):
         monkeypatch.setenv("EL_ARTIFACTS_DIR", tmpdir)
         # Reload module to pick up new env var
         import importlib
+
         import execution_layer.artifacts
+
         importlib.reload(execution_layer.artifacts)
         yield Path(tmpdir)
 
@@ -56,7 +58,9 @@ def test_save_artifact_creates_directory(monkeypatch):
 
         # Reload module
         import importlib
+
         import execution_layer.artifacts
+
         importlib.reload(execution_layer.artifacts)
 
         assert not artifacts_dir.exists()

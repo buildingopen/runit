@@ -4,17 +4,13 @@ import os
 import struct
 
 import pytest
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from security.kms_client import (
-    ENCRYPTION_FORMAT_V1,
-    SALT_LENGTH,
-    IV_LENGTH,
     AUTH_TAG_LENGTH,
-    PBKDF2_ITERATIONS,
+    ENCRYPTION_FORMAT_V1,
+    IV_LENGTH,
+    SALT_LENGTH,
     _derive_master_key,
     decrypt_dek,
     decrypt_secret,

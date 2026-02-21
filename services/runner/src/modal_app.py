@@ -4,7 +4,6 @@ ABOUTME: Defines CPU and GPU lanes with curated base image and executes user Fas
 """
 
 import modal
-import os
 
 # Base image version (pinned, immutable)
 BASE_IMAGE_VERSION = "2026-01-09"
@@ -62,15 +61,17 @@ base_image = (
         "tenacity>=8.0.0",
         "psutil>=5.9.0",
     )
-    .env({
-        "BASE_IMAGE_VERSION": BASE_IMAGE_VERSION,
-        "TZ": "UTC",
-        "LANG": "C.UTF-8",
-        "LC_ALL": "C.UTF-8",
-        "PYTHONUNBUFFERED": "1",
-        "PIP_DISABLE_PIP_VERSION_CHECK": "1",
-        "PIP_NO_INPUT": "1",
-    })
+    .env(
+        {
+            "BASE_IMAGE_VERSION": BASE_IMAGE_VERSION,
+            "TZ": "UTC",
+            "LANG": "C.UTF-8",
+            "LC_ALL": "C.UTF-8",
+            "PYTHONUNBUFFERED": "1",
+            "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+            "PIP_NO_INPUT": "1",
+        }
+    )
     # Add local execution modules to the image (relative to this file's directory)
     # Using pathlib to get correct absolute paths
     .add_local_python_source("execute")
@@ -116,10 +117,7 @@ def run_endpoint_cpu(payload: dict) -> dict:
     max_timeout = min(requested_timeout, 1800)
 
     return execute_endpoint(
-        payload=payload,
-        max_timeout=max_timeout,
-        max_memory_mb=4096,
-        lane="cpu"
+        payload=payload, max_timeout=max_timeout, max_memory_mb=4096, lane="cpu"
     )
 
 
@@ -141,10 +139,7 @@ def run_endpoint_gpu(payload: dict) -> dict:
     from execute.executor import execute_endpoint
 
     return execute_endpoint(
-        payload=payload,
-        max_timeout=180,  # GPU timeout
-        max_memory_mb=16384,
-        lane="gpu"
+        payload=payload, max_timeout=180, max_memory_mb=16384, lane="gpu"  # GPU timeout
     )
 
 

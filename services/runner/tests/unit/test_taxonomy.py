@@ -1,6 +1,6 @@
 """Tests for error taxonomy classification."""
 
-from errors.taxonomy import classify_error, ERROR_TAXONOMY
+from errors.taxonomy import ERROR_TAXONOMY, classify_error
 
 
 def test_classify_circular_import():

@@ -3,9 +3,7 @@ ABOUTME: Error taxonomy - Classifies exceptions into user-friendly error classes
 ABOUTME: Provides error messages and suggested fixes for common failure modes
 """
 
-import re
 from typing import Dict
-
 
 # Error class definitions with messages and fixes
 ERROR_TAXONOMY = {
@@ -46,9 +44,7 @@ ERROR_TAXONOMY = {
     },
     "CIRCULAR_IMPORT": {
         "message": "Circular import detected.",
-        "suggested_fix": (
-            "Refactor your code to remove circular dependencies between modules."
-        ),
+        "suggested_fix": ("Refactor your code to remove circular dependencies between modules."),
     },
     "OPENAPI_GENERATION_FAILED": {
         "message": "Couldn't generate OpenAPI schema from your app.",
@@ -107,15 +103,12 @@ ERROR_TAXONOMY = {
     "LIFESPAN_FAILED": {
         "message": "FastAPI startup event crashed.",
         "suggested_fix": (
-            "Check your @app.on_event('startup') handlers. "
-            "They should not raise exceptions."
+            "Check your @app.on_event('startup') handlers. " "They should not raise exceptions."
         ),
     },
     "PYTHON_VERSION_MISMATCH": {
         "message": "Your code requires a different Python version.",
-        "suggested_fix": (
-            "We support Python 3.11 only. Update your code to be compatible."
-        ),
+        "suggested_fix": ("We support Python 3.11 only. Update your code to be compatible."),
     },
     "MISSING_SYSTEM_LIBRARY": {
         "message": "Required system library not found in base image.",

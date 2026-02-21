@@ -2,7 +2,7 @@
 
 import base64
 
-from artifacts.storage import upload_artifacts, generate_signed_url
+from artifacts.storage import generate_signed_url, upload_artifacts
 
 
 def test_upload_artifacts_inline_content(tmp_path):
@@ -22,9 +22,7 @@ def test_upload_artifacts_inline_content(tmp_path):
 
 def test_upload_artifacts_no_s3_no_inline(tmp_path, monkeypatch):
     monkeypatch.delenv("S3_BUCKET", raising=False)
-    artifacts = [
-        {"name": "file.txt", "size": 10, "mime": "text/plain"}
-    ]
+    artifacts = [{"name": "file.txt", "size": 10, "mime": "text/plain"}]
     result = upload_artifacts(artifacts, tmp_path, "run-2")
     assert result[0]["download_url"].startswith("https://storage.placeholder.local/runs/run-2/")
 

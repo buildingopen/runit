@@ -6,8 +6,7 @@ ABOUTME: Mounts context as read-only JSON files at /context/*.json
 import json
 import os
 from pathlib import Path
-from typing import Dict, Any
-
+from typing import Any, Dict
 
 CONTEXT_DIR = Path("/context")
 MAX_CONTEXT_SIZE = 1024 * 1024  # 1MB
@@ -15,6 +14,7 @@ MAX_CONTEXT_SIZE = 1024 * 1024  # 1MB
 
 class ContextMountError(Exception):
     """Raised when context mounting fails"""
+
     pass
 
 
@@ -32,7 +32,7 @@ def validate_context_size(context_data: Dict[str, Any]) -> None:
 
     for name, data in context_data.items():
         json_str = json.dumps(data)
-        size = len(json_str.encode('utf-8'))
+        size = len(json_str.encode("utf-8"))
         total_size += size
 
         if total_size > MAX_CONTEXT_SIZE:
@@ -71,7 +71,7 @@ def write_context_files(context_data: Dict[str, Any]) -> None:
     # Write each context as a separate JSON file
     for name, data in context_data.items():
         # Validate name (alphanumeric, hyphens, underscores only)
-        if not name.replace('-', '').replace('_', '').isalnum():
+        if not name.replace("-", "").replace("_", "").isalnum():
             raise ContextMountError(
                 f"Invalid context name '{name}'. "
                 "Use only letters, numbers, hyphens, and underscores."
@@ -81,16 +81,14 @@ def write_context_files(context_data: Dict[str, Any]) -> None:
 
         try:
             # Write JSON with pretty formatting
-            with open(context_file, 'w') as f:
+            with open(context_file, "w") as f:
                 json.dump(data, f, indent=2)
 
             # Make read-only (chmod 444)
             os.chmod(context_file, 0o444)
 
         except Exception as e:
-            raise ContextMountError(
-                f"Failed to write context file '{name}.json': {str(e)}"
-            )
+            raise ContextMountError(f"Failed to write context file '{name}.json': {str(e)}")
 
 
 def mount_context(context_ref: str | Dict[str, Any]) -> Dict[str, Path]:

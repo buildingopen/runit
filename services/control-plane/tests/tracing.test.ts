@@ -98,7 +98,7 @@ describe('tracing', () => {
 
   describe('withModalExecutionSpan', () => {
     it('executes function and sets OK status on success', async () => {
-      const result = await withModalExecutionSpan('run-1', 'cpu', '/execute', async (span) => {
+      const result = await withModalExecutionSpan('run-1', 'cpu', '/execute', undefined, async (span) => {
         expect(span).toBeDefined();
         return 'result-value';
       });
@@ -108,11 +108,32 @@ describe('tracing', () => {
       expect(mockSpan.end).toHaveBeenCalled();
     });
 
+    it('includes http.request_id attribute when requestId is provided', async () => {
+      await withModalExecutionSpan('run-1b', 'cpu', '/execute', 'req_123', async () => 'ok');
+
+      expect(mockStartActiveSpan).toHaveBeenCalledWith(
+        'modal.execute',
+        expect.objectContaining({
+          attributes: expect.objectContaining({
+            'http.request_id': 'req_123',
+          }),
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it('omits http.request_id attribute when requestId is undefined', async () => {
+      await withModalExecutionSpan('run-1c', 'cpu', '/execute', undefined, async () => 'ok');
+
+      const callArgs = mockStartActiveSpan.mock.calls[mockStartActiveSpan.mock.calls.length - 1];
+      expect(callArgs[1].attributes).not.toHaveProperty('http.request_id');
+    });
+
     it('sets ERROR status and records exception on failure', async () => {
       const error = new Error('execution failed');
 
       await expect(
-        withModalExecutionSpan('run-2', 'gpu', '/run', async () => {
+        withModalExecutionSpan('run-2', 'gpu', '/run', undefined, async () => {
           throw error;
         })
       ).rejects.toThrow('execution failed');
@@ -127,7 +148,7 @@ describe('tracing', () => {
 
     it('handles non-Error thrown values', async () => {
       await expect(
-        withModalExecutionSpan('run-3', 'cpu', '/run', async () => {
+        withModalExecutionSpan('run-3', 'cpu', '/run', undefined, async () => {
           throw 'string-error';
         })
       ).rejects.toBe('string-error');

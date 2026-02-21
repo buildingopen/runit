@@ -35,6 +35,7 @@ interface QuotaTracking {
 type RunsEnv = {
   Variables: {
     quotaTracking?: QuotaTracking;
+    requestId?: string;
   };
 };
 
@@ -114,6 +115,7 @@ runs.post('/', async (c) => {
   }
 
   // Execute on Modal asynchronously (in background)
+  const requestId = c.get('requestId');
   logger.info('Starting Modal execution', { runId: run.id, entrypoint: version.entrypoint || 'main:app' });
   executeOnModal({
     run_id: run.id,
@@ -133,6 +135,7 @@ runs.post('/', async (c) => {
     secrets_ref: secretsRef,
     lane: body.lane || 'cpu',
     timeout_seconds: body.timeout_seconds || 60,
+    request_id: requestId,
   }).then(async (result) => {
     logger.info('Modal execution completed', { runId: run.id, status: result.status });
 

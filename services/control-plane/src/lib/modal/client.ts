@@ -117,6 +117,7 @@ interface ModalExecutionRequest {
   secrets_ref?: string;  // KMS-encrypted secrets bundle
   lane: 'cpu' | 'gpu';
   timeout_seconds: number;
+  request_id?: string;  // Propagated from HTTP request for cross-service tracing
 }
 
 interface Artifact {
@@ -201,6 +202,7 @@ export async function executeOnModal(request: ModalExecutionRequest): Promise<Mo
     request.run_id,
     request.lane,
     request.endpoint,
+    request.request_id,
     async (span) => {
       const result = await withCircuitBreaker(
         circuitBreaker,
@@ -337,6 +339,7 @@ async function executeOnModalOnce(request: ModalExecutionRequest): Promise<Modal
     deterministic: false,
     timeout_seconds: request.timeout_seconds,
     lane: request.lane,
+    request_id: request.request_id || null,
   };
 
   writeFileSync(payloadPath, JSON.stringify(payload));

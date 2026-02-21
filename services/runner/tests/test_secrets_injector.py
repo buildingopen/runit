@@ -3,21 +3,18 @@ Tests for secrets injection and redaction
 """
 
 import os
-import pytest
+
 from src.secrets.injector import (
     inject_secrets,
-    redact_secrets_from_text,
     redact_secrets_from_dict,
+    redact_secrets_from_text,
     validate_secret_key,
 )
 
 
 def test_inject_secrets():
     """Test that secrets are injected as environment variables"""
-    secrets = {
-        "API_KEY": "sk-1234567890",
-        "DB_PASSWORD": "super-secret"
-    }
+    secrets = {"API_KEY": "sk-1234567890", "DB_PASSWORD": "super-secret"}
 
     inject_secrets(secrets)
 
@@ -31,10 +28,7 @@ def test_inject_secrets():
 
 def test_redact_exact_values():
     """Test redaction of exact secret values"""
-    secrets = {
-        "API_KEY": "sk-1234567890",
-        "PASSWORD": "my-secret-pass"
-    }
+    secrets = {"API_KEY": "sk-1234567890", "PASSWORD": "my-secret-pass"}
 
     text = "Error connecting with sk-1234567890 and password my-secret-pass"
     redacted, was_redacted = redact_secrets_from_text(text, secrets)
@@ -70,18 +64,12 @@ def test_redact_patterns():
 
 def test_redact_from_dict():
     """Test redaction from nested dictionaries"""
-    secrets = {
-        "API_KEY": "secret-key-123"
-    }
+    secrets = {"API_KEY": "secret-key-123"}
 
     data = {
         "status": "error",
         "message": "Failed to authenticate with secret-key-123",
-        "details": {
-            "headers": {
-                "Authorization": "Bearer secret-key-123"
-            }
-        }
+        "details": {"headers": {"Authorization": "Bearer secret-key-123"}},
     }
 
     redacted, was_redacted = redact_secrets_from_dict(data, secrets)
@@ -96,11 +84,7 @@ def test_redact_from_list():
     """Test redaction from lists"""
     secrets = {"TOKEN": "abc123"}
 
-    data = [
-        "First item",
-        "Second item with abc123",
-        {"key": "value with abc123"}
-    ]
+    data = ["First item", "Second item with abc123", {"key": "value with abc123"}]
 
     redacted, was_redacted = redact_secrets_from_dict(data, secrets)
 
@@ -123,13 +107,7 @@ def test_no_redaction_needed():
 
 def test_validate_secret_key_valid():
     """Test valid secret key names"""
-    valid_keys = [
-        "API_KEY",
-        "DATABASE_URL",
-        "STRIPE_API_KEY",
-        "MY_SECRET_123",
-        "_PRIVATE_KEY"
-    ]
+    valid_keys = ["API_KEY", "DATABASE_URL", "STRIPE_API_KEY", "MY_SECRET_123", "_PRIVATE_KEY"]
 
     for key in valid_keys:
         is_valid, error = validate_secret_key(key)
@@ -140,11 +118,11 @@ def test_validate_secret_key_valid():
 def test_validate_secret_key_invalid_format():
     """Test invalid secret key formats"""
     invalid_keys = [
-        "lowercase",           # Not uppercase
-        "Mixed-Case",          # Contains dash
-        "has spaces",          # Contains spaces
-        "123_STARTS_NUMBER",   # Starts with number
-        "KEY-WITH-DASH",       # Contains dash
+        "lowercase",  # Not uppercase
+        "Mixed-Case",  # Contains dash
+        "has spaces",  # Contains spaces
+        "123_STARTS_NUMBER",  # Starts with number
+        "KEY-WITH-DASH",  # Contains dash
     ]
 
     for key in invalid_keys:
@@ -155,11 +133,7 @@ def test_validate_secret_key_invalid_format():
 
 def test_validate_secret_key_reserved_prefix():
     """Test that EL_ prefix is rejected"""
-    reserved_keys = [
-        "EL_CONTEXT_DIR",
-        "EL_PROJECT_ID",
-        "EL_SEED"
-    ]
+    reserved_keys = ["EL_CONTEXT_DIR", "EL_PROJECT_ID", "EL_SEED"]
 
     for key in reserved_keys:
         is_valid, error = validate_secret_key(key)
@@ -180,10 +154,7 @@ def test_empty_secrets_dict():
 
 def test_empty_string_value():
     """Test handling of empty string secret values"""
-    secrets = {
-        "EMPTY": "",
-        "API_KEY": "real-value"
-    }
+    secrets = {"EMPTY": "", "API_KEY": "real-value"}
 
     text = "Text with real-value"
     redacted, was_redacted = redact_secrets_from_text(text, secrets)

@@ -5,7 +5,7 @@ ABOUTME: Injects decrypted secrets as env vars, redacts from logs and outputs
 
 import os
 import re
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 def _should_redact_exact_value(value: str) -> bool:
@@ -51,11 +51,11 @@ def redact_secrets_from_text(text: str, secrets: Dict[str, str]) -> tuple[str, b
 
     # Redact common secret patterns
     patterns = [
-        (r'sk-[a-zA-Z0-9-]{10,}', '[REDACTED]'),
-        (r'AIzaSy[a-zA-Z0-9_-]{33}', '[REDACTED]'),
-        (r'eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)?', '[REDACTED]'),
-        (r'ghp_[a-zA-Z0-9]{30,}', '[REDACTED]'),
-        (r'xoxb-[a-zA-Z0-9-]+', '[REDACTED]'),
+        (r"sk-[a-zA-Z0-9-]{10,}", "[REDACTED]"),
+        (r"AIzaSy[a-zA-Z0-9_-]{33}", "[REDACTED]"),
+        (r"eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)?", "[REDACTED]"),
+        (r"ghp_[a-zA-Z0-9]{30,}", "[REDACTED]"),
+        (r"xoxb-[a-zA-Z0-9-]+", "[REDACTED]"),
     ]
 
     for pattern, replacement in patterns:
@@ -111,11 +111,11 @@ def validate_secret_key(key: str) -> tuple[bool, str | None]:
         Tuple of (is_valid, error_message)
     """
     # Must be UPPERCASE_SNAKE_CASE
-    if not re.match(r'^[A-Z_][A-Z0-9_]*$', key):
+    if not re.match(r"^[A-Z_][A-Z0-9_]*$", key):
         return False, "Secret key must use UPPERCASE_SNAKE_CASE (A-Z, 0-9, _)"
 
     # Cannot use reserved prefix
-    if key.startswith('EL_'):
+    if key.startswith("EL_"):
         return False, f"Secret key '{key}' uses reserved prefix 'EL_'. Choose a different name."
 
     return True, None
