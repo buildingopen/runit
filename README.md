@@ -325,10 +325,7 @@ Prometheus metrics are exposed at `/metrics`. Integrate with Grafana for dashboa
 
 ## Documentation
 
-- [Development Setup](docs/DEVELOPMENT_SETUP.md) — Local environment configuration
-- [Testing Guide](docs/TESTING_GUIDE.md) — Running the test suite
-- [SDK Guide](docs/SDK_GUIDE.md) — Using the Python SDK in your apps
-- [Deployment Guide](docs/DEPLOYMENT.md) — Production deployment
+- [Architecture](ARCHITECTURE.md) — System design, data flow, and component responsibilities
 - [Security](SECURITY.md) — Security policies and reporting
 
 ## Contributing

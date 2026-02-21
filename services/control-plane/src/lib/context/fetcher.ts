@@ -4,6 +4,43 @@
  */
 
 import { FetchContextResponse } from '../../../../../packages/shared/src/contracts/control-plane';
+import { lookup } from 'node:dns/promises';
+import { isIPv4 } from 'node:net';
+
+/**
+ * CIDR ranges that must never be fetched (SSRF protection).
+ * Covers: loopback, link-local, private RFC-1918, cloud metadata, IPv6 equivalents.
+ */
+const BLOCKED_IP_RANGES: Array<{ prefix: number[]; mask: number }> = [
+  { prefix: [127, 0, 0, 0], mask: 8 },    // 127.0.0.0/8 loopback
+  { prefix: [10, 0, 0, 0], mask: 8 },      // 10.0.0.0/8 private
+  { prefix: [172, 16, 0, 0], mask: 12 },   // 172.16.0.0/12 private
+  { prefix: [192, 168, 0, 0], mask: 16 },  // 192.168.0.0/16 private
+  { prefix: [169, 254, 0, 0], mask: 16 },  // 169.254.0.0/16 link-local / cloud metadata
+  { prefix: [0, 0, 0, 0], mask: 8 },       // 0.0.0.0/8
+];
+
+function isBlockedIP(ip: string): boolean {
+  if (!isIPv4(ip)) {
+    // Block all IPv6 for simplicity (::1, fe80::, fd00::, etc.)
+    return true;
+  }
+  const octets = ip.split('.').map(Number);
+  for (const range of BLOCKED_IP_RANGES) {
+    const mask = range.mask;
+    let match = true;
+    for (let i = 0; i < 4 && match; i++) {
+      const bits = Math.min(8, Math.max(0, mask - i * 8));
+      if (bits <= 0) break;
+      const m = (0xff << (8 - bits)) & 0xff;
+      if ((octets[i] & m) !== (range.prefix[i] & m)) {
+        match = false;
+      }
+    }
+    if (match) return true;
+  }
+  return false;
+}
 
 const FORBIDDEN_CONTEXT_KEYS = [
   /.*_KEY$/i,
@@ -65,6 +102,19 @@ export async function fetchContextFromURL(url: string, name: string): Promise<Fe
     }
   } catch (error) {
     throw new Error(`Invalid URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+
+  // Resolve hostname and block private/internal IPs (SSRF protection)
+  try {
+    const resolved = await lookup(parsedUrl.hostname);
+    if (isBlockedIP(resolved.address)) {
+      throw new Error('Fetching from private or internal addresses is not allowed');
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('not allowed')) {
+      throw error;
+    }
+    throw new Error(`Failed to resolve hostname: ${parsedUrl.hostname}`);
   }
 
   // Fetch HTML with timeout

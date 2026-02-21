@@ -2,7 +2,12 @@
  * Integration tests for Context API
  */
 
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
+
+// Mock DNS resolution to return a public IP (SSRF protection resolves hostnames)
+vi.mock('node:dns/promises', () => ({
+  lookup: vi.fn().mockResolvedValue({ address: '93.184.216.34', family: 4 }),
+}));
 
 // Mock fetch for testing
 global.fetch = async (url: string) => {
@@ -98,6 +103,29 @@ describe('Context Fetcher', () => {
     await expect(fetchContextFromURL('not-a-url', 'test')).rejects.toThrow(
       'Invalid URL'
     );
+  });
+
+  test('should block private/internal IP addresses (SSRF protection)', async () => {
+    const dns = await import('node:dns/promises');
+    const { fetchContextFromURL } = await import('../src/lib/context/fetcher');
+
+    // Mock DNS to resolve to private IP
+    vi.mocked(dns.lookup).mockResolvedValueOnce({ address: '169.254.169.254', family: 4 } as any);
+    await expect(
+      fetchContextFromURL('https://metadata.internal', 'test')
+    ).rejects.toThrow('private or internal');
+
+    // Mock DNS to resolve to loopback
+    vi.mocked(dns.lookup).mockResolvedValueOnce({ address: '127.0.0.1', family: 4 } as any);
+    await expect(
+      fetchContextFromURL('https://localhost', 'test')
+    ).rejects.toThrow('private or internal');
+
+    // Mock DNS to resolve to RFC-1918
+    vi.mocked(dns.lookup).mockResolvedValueOnce({ address: '10.0.0.1', family: 4 } as any);
+    await expect(
+      fetchContextFromURL('https://internal-service', 'test')
+    ).rejects.toThrow('private or internal');
   });
 });
 

@@ -17,6 +17,7 @@ import { encryptSecretsBundle } from '../encryption/kms.js';
 import { getAuthContext } from '../middleware/auth.js';
 import * as runsStore from '../db/runs-store.js';
 import * as projectsStore from '../db/projects-store.js';
+import { logger } from '../lib/logger.js';
 
 /**
  * Quota tracking interface set by quota middleware
@@ -85,14 +86,13 @@ runs.post('/', async (c) => {
     resource_lane: body.lane || 'cpu',
   });
 
-  // Mark run as started
-  await runsStore.markRunStarted(run.id);
-
-  // Track run start in quota system
+  // Track run start in quota system BEFORE returning 202 (prevents race condition)
   if (quotaTracking) {
     quotaTracking.trackStart(run.id);
-    console.log(`📊 Quota slot reserved for run ${run.id}`);
   }
+
+  // Mark run as started
+  await runsStore.markRunStarted(run.id);
 
   // Get and encrypt secrets for this project
   let secretsRef: string | undefined;
@@ -102,11 +102,19 @@ runs.post('/', async (c) => {
       secretsRef = await encryptSecretsBundle(decryptedSecrets);
     }
   } catch (error) {
-    console.error('Failed to get secrets:', error);
+    // Secrets decryption failed: abort the run, do not proceed without secrets
+    if (quotaTracking) {
+      quotaTracking.trackComplete(run.id);
+    }
+    await runsStore.markRunError(run.id, {
+      error_class: 'SECRETS_DECRYPTION_FAILED',
+      error_message: 'Failed to decrypt project secrets. Check KMS configuration.',
+    });
+    return c.json({ error: 'Failed to prepare run: secrets decryption error' }, 500);
   }
 
   // Execute on Modal asynchronously (in background)
-  console.log(`🚀 Starting Modal execution for run ${run.id} (entrypoint: ${version.entrypoint || 'main:app'})`);
+  logger.info('Starting Modal execution', { runId: run.id, entrypoint: version.entrypoint || 'main:app' });
   executeOnModal({
     run_id: run.id,
     code_bundle: version.code_bundle_ref,
@@ -126,7 +134,7 @@ runs.post('/', async (c) => {
     lane: body.lane || 'cpu',
     timeout_seconds: body.timeout_seconds || 60,
   }).then(async (result) => {
-    console.log(`✅ Modal execution completed for run ${run.id}: ${result.status}`);
+    logger.info('Modal execution completed', { runId: run.id, status: result.status });
 
     if (result.status === 'success') {
       await runsStore.markRunSuccess(run.id, {
@@ -160,10 +168,9 @@ runs.post('/', async (c) => {
     // Release quota slot
     if (quotaTracking) {
       quotaTracking.trackComplete(run.id);
-      console.log(`📊 Quota slot released for run ${run.id}`);
     }
   }).catch(async (error) => {
-    console.error(`❌ Modal execution failed for run ${run.id}:`, error);
+    logger.error('Modal execution failed', { runId: run.id, error: String(error) });
     await runsStore.markRunError(run.id, {
       error_class: 'EXECUTION_FAILED',
       error_message: error.message,
@@ -172,7 +179,6 @@ runs.post('/', async (c) => {
 
     if (quotaTracking) {
       quotaTracking.trackComplete(run.id);
-      console.log(`📊 Quota slot released (error) for run ${run.id}`);
     }
   });
 

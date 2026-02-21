@@ -1,16 +1,15 @@
-// ABOUTME: Extracts OpenAPI specs from FastAPI ZIP bundles by spawning a Python script that does AST + runtime analysis.
-// ABOUTME: Detects endpoints, entrypoints, and environment variables; falls back from runtime import to AST parsing on failure.
+// ABOUTME: Extracts OpenAPI specs from FastAPI ZIP bundles by spawning a Python script that does AST-only static analysis.
+// ABOUTME: Detects endpoints, entrypoints, and environment variables. Never imports user code (security: prevents RCE on control-plane).
 /**
  * OpenAPI Extractor - Extract OpenAPI spec from FastAPI code
  *
  * Uses AST-based static analysis to extract endpoints without importing modules.
- * This allows extraction to work even when dependencies are not installed.
- *
- * Fallback: If AST extraction finds no endpoints, tries runtime import (original approach).
+ * SECURITY: Runtime import is intentionally removed. User code must never execute
+ * on the control-plane host, which has access to MASTER_ENCRYPTION_KEY and other secrets.
  */
 
 import { spawn } from 'child_process';
-import { writeFileSync, unlinkSync, mkdirSync } from 'fs';
+import { writeFileSync, unlinkSync, mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
@@ -166,66 +165,28 @@ for root, dirs, files in os.walk(app_dir):
             except:
                 pass
 
-# Store AST fallback schema in case runtime import fails
-ast_fallback_openapi = None
+# Build AST-only schema (SECURITY: no runtime import to prevent arbitrary code execution on control-plane)
 if all_endpoints:
-    ast_fallback_openapi = {
+    ast_openapi = {
         "openapi": "3.0.0",
         "info": {"title": "API", "version": "1.0.0"},
         "paths": {}
     }
     for ep in all_endpoints:
-        if ep['path'] not in ast_fallback_openapi['paths']:
-            ast_fallback_openapi['paths'][ep['path']] = {}
-        ast_fallback_openapi['paths'][ep['path']][ep['method'].lower()] = {
+        if ep['path'] not in ast_openapi['paths']:
+            ast_openapi['paths'][ep['path']] = {}
+        ast_openapi['paths'][ep['path']][ep['method'].lower()] = {
             "summary": ep.get('summary', ''),
             "operationId": ep.get('function', '')
         }
-    ast_fallback_openapi["x_entrypoint"] = detected_entrypoint
-    ast_fallback_openapi["x_detected_env_vars"] = list(detected_env_vars)
-    ast_fallback_openapi["x_extraction_method"] = "ast"
+    ast_openapi["x_entrypoint"] = detected_entrypoint
+    ast_openapi["x_detected_env_vars"] = list(detected_env_vars)
+    ast_openapi["x_extraction_method"] = "ast"
+    print(json.dumps(ast_openapi))
+    sys.exit(0)
 
-# ALWAYS try runtime import to get full schema with requestBody definitions
-# Add to Python path
-sys.path.insert(0, app_dir)
-os.chdir(app_dir)
-
-# Import the FastAPI app
-app = None
-detected_entrypoint = None
-for module_name, var_name in [('main', 'app'), ('app', 'app'), ('api', 'app'), ('main', 'application'), ('server', 'app')]:
-    try:
-        module = __import__(module_name)
-        if hasattr(module, var_name):
-            app = getattr(module, var_name)
-            detected_entrypoint = f"{module_name}:{var_name}"
-            break
-    except ImportError:
-        continue
-
-if app is None:
-    # Fall back to AST-extracted schema if available
-    if ast_fallback_openapi:
-        print(json.dumps(ast_fallback_openapi))
-        sys.exit(0)
-    print(json.dumps({"error": "Could not find FastAPI app (tried main:app, app:app, api:app, server:app)"}))
-    sys.exit(1)
-
-# Extract OpenAPI spec with full schema (includes requestBody definitions)
-try:
-    openapi_spec = app.openapi()
-    # Add entrypoint and detected env vars to the response
-    openapi_spec["x_entrypoint"] = detected_entrypoint
-    openapi_spec["x_detected_env_vars"] = list(detected_env_vars)
-    openapi_spec["x_extraction_method"] = "runtime"
-    print(json.dumps(openapi_spec))
-except Exception as e:
-    # Fall back to AST-extracted schema if runtime extraction fails
-    if ast_fallback_openapi:
-        print(json.dumps(ast_fallback_openapi))
-        sys.exit(0)
-    print(json.dumps({"error": f"Failed to extract OpenAPI: {str(e)}"}))
-    sys.exit(1)
+print(json.dumps({"error": "Could not find FastAPI endpoints via AST analysis (tried main.py, app.py, api.py, server.py)"}))
+sys.exit(1)
 `;
 
 /**
@@ -297,9 +258,8 @@ export async function extractOpenAPIFromZip(zipBase64: string): Promise<Extracte
       detected_env_vars,
     };
   } finally {
-    // Clean up (best effort)
-    try { unlinkSync(scriptPath); } catch { /* ignore */ }
-    try { unlinkSync(configPath); } catch { /* ignore */ }
+    // Clean up entire work directory (extracted user code + scripts)
+    try { rmSync(workDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 }
 

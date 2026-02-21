@@ -73,10 +73,19 @@ deploy.post('/:id/deploy', async (c) => {
 deploy.get('/:id/deploy/stream', async (c) => {
   const projectId = c.req.param('id');
 
-  // Get project to verify it exists
+  // Require authenticated user and verify ownership
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
   const project = await projectsStore.getProject(projectId);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
+  }
+
+  if (project.owner_id !== authContext.user.id) {
+    return c.json({ error: 'Not authorized' }, 403);
   }
 
   // Set up SSE stream
@@ -196,12 +205,22 @@ deploy.post('/:id/redeploy', async (c) => {
 deploy.get('/:id/deploy/status', async (c) => {
   const projectId = c.req.param('id');
 
+  // Require authenticated user and verify ownership
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
   const state = deployState.getDeployState(projectId);
   if (!state) {
     // Check database for status
     const project = await projectsStore.getProject(projectId);
     if (!project) {
       return c.json({ error: 'Project not found' }, 404);
+    }
+
+    if (project.owner_id !== authContext.user.id) {
+      return c.json({ error: 'Not authorized' }, 403);
     }
 
     return c.json({

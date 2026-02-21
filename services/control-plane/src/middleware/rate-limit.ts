@@ -190,26 +190,29 @@ async function checkRateLimitDB(key: string, limit: number, windowMs: number): P
     };
   }
 
-  // Within window - increment
-  if (existing.count < limit) {
-    await supabase
-      .from('rate_limits')
-      .update({ count: existing.count + 1 })
-      .eq('key', key);
+  // Atomic increment: only update if count < limit (prevents race condition)
+  const resetAt = new Date(existing.window_start).getTime() + windowMs;
+  const { data: updated, error: updateError } = await supabase
+    .from('rate_limits')
+    .update({ count: existing.count + 1 })
+    .eq('key', key)
+    .lt('count', limit)
+    .select('count')
+    .single();
 
-    const resetAt = new Date(existing.window_start).getTime() + windowMs;
+  if (updateError || !updated) {
+    // Limit exceeded (or concurrent request already incremented past limit)
     return {
-      allowed: true,
-      remaining: limit - existing.count - 1,
+      allowed: false,
+      remaining: 0,
       resetAt,
     };
   }
 
-  // Limit exceeded
   return {
-    allowed: false,
-    remaining: 0,
-    resetAt: new Date(existing.window_start).getTime() + windowMs,
+    allowed: true,
+    remaining: limit - updated.count,
+    resetAt,
   };
 }
 
