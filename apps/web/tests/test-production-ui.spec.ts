@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('Production UI loads and shows correct UI', async ({ page }) => {
   // Navigate to Next.js app
-  await page.goto('http://localhost:3000', { waitUntil: 'networkidle', timeout: 10000 });
+  await page.goto('/', { waitUntil: 'networkidle', timeout: 10000 });
 
   // Wait for the page to fully load
   await page.waitForSelector('h1', { timeout: 10000 });
@@ -25,7 +25,7 @@ test('Production UI loads and shows correct UI', async ({ page }) => {
 });
 
 test('Production UI attempts to connect to API', async ({ page }) => {
-  await page.goto('http://localhost:3000', { waitUntil: 'networkidle', timeout: 10000 });
+  await page.goto('/', { waitUntil: 'networkidle', timeout: 10000 });
 
   // Wait for loading to finish (either success or error state)
   await page.waitForFunction(
