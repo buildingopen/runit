@@ -40,6 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
 
+    // If Supabase is not configured, skip auth entirely
+    if (!supabase?.auth) {
+      setAuthState({ user: null, session: null, loading: false });
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setAuthState({

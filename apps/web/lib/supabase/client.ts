@@ -15,7 +15,8 @@ export function getSupabaseBrowserClient() {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    throw new Error('Supabase environment variables are not configured');
+    // Return null when Supabase is not configured (e.g., marketing pages)
+    return null as unknown as ReturnType<typeof createBrowserClient>;
   }
 
   client = createBrowserClient(url, anonKey);
