@@ -161,7 +161,7 @@ export default function SuccessPage({ params }: PageProps) {
         {/* Actions */}
         <div className="flex gap-3 justify-center">
           <Link
-            href="/"
+            href="/dashboard"
             className="px-8 py-4 bg-transparent border border-[var(--border)] text-[var(--text-secondary)] text-[16px] font-semibold rounded-[10px] hover:bg-[var(--bg-hover)] transition-colors"
           >
             &larr; Back to apps

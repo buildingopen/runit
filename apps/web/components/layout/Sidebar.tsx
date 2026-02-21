@@ -15,7 +15,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     label: 'Apps',
-    href: '/',
+    href: '/dashboard',
     icon: (
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
@@ -33,6 +33,7 @@ export function Sidebar() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>('checking');
 
   const isAuthPage = pathname === '/login' || pathname === '/signup' || pathname.startsWith('/auth/reset-password');
+  const isMarketingPage = pathname === '/' || pathname === '/pricing';
 
   // Check API health on mount and periodically
   useEffect(() => {
@@ -76,7 +77,7 @@ export function Sidebar() {
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
-  if (isAuthPage) return null;
+  if (isAuthPage || isMarketingPage) return null;
 
   return (
     <>
@@ -91,7 +92,7 @@ export function Sidebar() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
         </button>
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-6 h-6 bg-[var(--accent)] rounded-md flex items-center justify-center shadow-sm">
             <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -122,7 +123,7 @@ export function Sidebar() {
       >
         {/* Logo */}
         <div className="h-12 px-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
             <div className="w-6 h-6 bg-[var(--accent)] rounded-md flex items-center justify-center shadow-sm">
               <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />

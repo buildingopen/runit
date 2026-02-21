@@ -158,7 +158,7 @@ function ConfigurePageContent() {
       <div className="max-w-[560px] mx-auto px-6 py-12">
         {/* Back Link */}
         <Link
-          href="/"
+          href="/dashboard"
           className="inline-flex items-center gap-1.5 text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] mb-6 transition-colors"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -310,7 +310,7 @@ function ConfigurePageContent() {
         {/* Cancel Link */}
         <div className="text-center mt-3">
           <Link
-            href="/"
+            href="/dashboard"
             className="text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
           >
             Cancel

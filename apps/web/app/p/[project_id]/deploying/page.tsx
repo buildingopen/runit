@@ -163,7 +163,7 @@ export default function DeployingPage({ params }: PageProps) {
       <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2">
           <Link
-            href="/"
+            href="/dashboard"
             className="text-[13px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
           >
             Apps

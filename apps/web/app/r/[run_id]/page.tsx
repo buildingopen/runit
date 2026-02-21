@@ -52,7 +52,7 @@ function RunResultPage({ params }: { params: Promise<{ run_id: string }> }) {
               {error instanceof Error ? error.message : 'This run does not exist or has been deleted'}
             </p>
             <Link
-              href="/"
+              href="/dashboard"
               className="inline-flex items-center gap-2 mt-6 px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-md transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
