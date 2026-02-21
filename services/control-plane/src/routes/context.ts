@@ -10,8 +10,28 @@ import type {
 } from '../../../../packages/shared/src/contracts/control-plane';
 import { CONTEXT_MAX_SIZE_BYTES, PROJECT_CONTEXT_MAX_TOTAL_BYTES } from '../config/constants';
 import * as contextsStore from '../db/contexts-store.js';
+import * as projectsStore from '../db/projects-store.js';
+import { getAuthContext } from '../middleware/auth.js';
 
 const context = new Hono();
+
+/**
+ * Verify project ownership. Returns project or null (and sets response).
+ */
+async function verifyOwnership(c: any, projectId: string) {
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return { error: c.json({ error: 'Authentication required' }, 401) };
+  }
+  const project = await projectsStore.getProject(projectId);
+  if (!project) {
+    return { error: c.json({ error: 'Project not found' }, 404) };
+  }
+  if (project.owner_id !== authContext.user.id) {
+    return { error: c.json({ error: 'Not authorized' }, 403) };
+  }
+  return { project };
+}
 
 /**
  * POST /projects/:id/context
@@ -19,6 +39,10 @@ const context = new Hono();
  */
 context.post('/:id/context', async (c) => {
   const projectId = c.req.param('id');
+
+  const ownership = await verifyOwnership(c, projectId);
+  if ('error' in ownership && ownership.error) return ownership.error;
+
   const body = await c.req.json<FetchContextRequest>();
 
   if (!body.url || !body.name) {
@@ -74,6 +98,9 @@ context.post('/:id/context', async (c) => {
 context.get('/:id/context', async (c) => {
   const projectId = c.req.param('id');
 
+  const ownership = await verifyOwnership(c, projectId);
+  if ('error' in ownership && ownership.error) return ownership.error;
+
   const contexts = await contextsStore.listProjectContexts(projectId);
 
   return c.json({
@@ -96,6 +123,9 @@ context.get('/:id/context', async (c) => {
 context.get('/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
+
+  const ownership = await verifyOwnership(c, projectId);
+  if ('error' in ownership && ownership.error) return ownership.error;
 
   const ctx = await contextsStore.getProjectContext(projectId, contextId);
 
@@ -122,6 +152,9 @@ context.get('/:id/context/:cid', async (c) => {
 context.put('/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
+
+  const ownership = await verifyOwnership(c, projectId);
+  if ('error' in ownership && ownership.error) return ownership.error;
 
   const existingContext = await contextsStore.getProjectContext(projectId, contextId);
 
@@ -179,6 +212,9 @@ context.put('/:id/context/:cid', async (c) => {
 context.delete('/:id/context/:cid', async (c) => {
   const projectId = c.req.param('id');
   const contextId = c.req.param('cid');
+
+  const ownership = await verifyOwnership(c, projectId);
+  if ('error' in ownership && ownership.error) return ownership.error;
 
   const deleted = await contextsStore.deleteProjectContext(projectId, contextId);
 

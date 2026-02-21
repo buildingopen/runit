@@ -182,15 +182,14 @@ async function trackRunStartDB(userId: string, lane: 'cpu' | 'gpu') {
   if (!quota) return;
 
   const supabase = getServiceSupabaseClient();
-  const updates: Record<string, number> = {};
-  if (lane === 'cpu') {
-    updates.cpu_run_count = (quota.cpu_run_count || 0) + 1;
-    updates.active_cpu_runs = (quota.active_cpu_runs || 0) + 1;
-  } else {
-    updates.gpu_run_count = (quota.gpu_run_count || 0) + 1;
-    updates.active_gpu_runs = (quota.active_gpu_runs || 0) + 1;
-  }
-  await supabase.from('usage_quotas').update(updates).eq('id', quota.id);
+  // Use current DB values + 1 to minimize race window (still not fully atomic without RPC,
+  // but the in-memory check-and-increment is the primary gate)
+  const countField = lane === 'cpu' ? 'cpu_run_count' : 'gpu_run_count';
+  const activeField = lane === 'cpu' ? 'active_cpu_runs' : 'active_gpu_runs';
+  await supabase.from('usage_quotas').update({
+    [countField]: (quota[countField] || 0) + 1,
+    [activeField]: (quota[activeField] || 0) + 1,
+  }).eq('id', quota.id);
 }
 
 export function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {

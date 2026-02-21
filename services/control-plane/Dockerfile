@@ -32,6 +32,10 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
+# Install Python + pip (required for Modal bridge)
+RUN apk add --no-cache python3 py3-pip && \
+    pip3 install --no-cache-dir --break-system-packages modal
+
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 controlplane

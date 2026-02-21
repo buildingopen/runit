@@ -26,14 +26,20 @@ projectShare.post('/:id/share', async (c) => {
     target_ref: string;
   };
 
-  // Get authenticated user
+  // Require authenticated user and verify ownership
   const authContext = getAuthContext(c);
-  const created_by = authContext.user?.id || 'anonymous';
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const created_by = authContext.user.id;
 
-  // Validate project exists
   const project = await projectsStore.getProject(project_id);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
+  }
+
+  if (project.owner_id !== created_by) {
+    return c.json({ error: 'Not authorized' }, 403);
   }
 
   // Validate request
@@ -112,8 +118,23 @@ shareLinks.get('/:share_id', async (c) => {
 projectShare.delete('/:id/share/:share_id', async (c) => {
   const project_id = c.req.param('id');
   const share_id = c.req.param('share_id');
-  const shareLink = await shareLinksStore.getShareLink(share_id);
 
+  // Require authenticated user and verify ownership
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
+  const project = await projectsStore.getProject(project_id);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+
+  if (project.owner_id !== authContext.user.id) {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
+
+  const shareLink = await shareLinksStore.getShareLink(share_id);
   if (!shareLink) {
     return c.json({ error: 'Share link not found' }, 404);
   }
@@ -137,10 +158,19 @@ projectShare.delete('/:id/share/:share_id', async (c) => {
 projectShare.get('/:id/shares', async (c) => {
   const project_id = c.req.param('id');
 
-  // Get project
+  // Require authenticated user and verify ownership
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
   const project = await projectsStore.getProject(project_id);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
+  }
+
+  if (project.owner_id !== authContext.user.id) {
+    return c.json({ error: 'Not authorized' }, 403);
   }
 
   // Find all share links for this project

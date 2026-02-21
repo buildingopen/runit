@@ -92,14 +92,14 @@ export const rateLimitHitsTotal = new Counter({
 export const quotaExceededTotal = new Counter({
   name: 'quota_exceeded_total',
   help: 'Total number of quota exceeded events',
-  labelNames: ['user_id', 'quota_type'],
+  labelNames: ['quota_type'],
   registers: [metricsRegistry],
 });
 
 export const quotaUsageGauge = new Gauge({
   name: 'quota_usage_ratio',
   help: 'Current quota usage ratio (0-1)',
-  labelNames: ['user_id', 'quota_type'],
+  labelNames: ['quota_type'],
   registers: [metricsRegistry],
 });
 

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockSpawn = vi.fn();
 const mockWriteFileSync = vi.fn();
-const mockUnlinkSync = vi.fn();
+const mockRmSync = vi.fn();
 const mockMkdirSync = vi.fn();
 const mockTmpdir = vi.fn(() => '/tmp');
 const mockRandomUUID = vi.fn(() => 'uuid-123');
@@ -13,7 +13,7 @@ vi.mock('child_process', () => ({
 }));
 vi.mock('fs', () => ({
   writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
-  unlinkSync: (...args: unknown[]) => mockUnlinkSync(...args),
+  rmSync: (...args: unknown[]) => mockRmSync(...args),
   mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
 }));
 vi.mock('os', () => ({
@@ -80,8 +80,8 @@ describe('zip-extractor', () => {
     const configContent = JSON.parse(mockWriteFileSync.mock.calls[1][1]);
     expect(configContent.zip_base64).toBe('Zm9v');
     expect(configContent.work_dir).toContain('openapi-extract-');
-    // Both files cleaned up
-    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
+    // Work directory cleaned up
+    expect(mockRmSync).toHaveBeenCalledTimes(1);
     // Python spawned with config file as argument
     expect(mockSpawn).toHaveBeenCalledWith('python3', expect.arrayContaining([
       expect.stringContaining('extract.py'),
@@ -99,7 +99,7 @@ describe('zip-extractor', () => {
     proc.emit('close', 0);
 
     await expect(promise).rejects.toThrow('Could not find FastAPI app');
-    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
+    expect(mockRmSync).toHaveBeenCalledTimes(1);
   });
 
   it('propagates subprocess stderr failure', async () => {
@@ -112,7 +112,7 @@ describe('zip-extractor', () => {
     proc.emit('close', 1);
 
     await expect(promise).rejects.toThrow('OpenAPI extraction failed: Traceback...');
-    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
+    expect(mockRmSync).toHaveBeenCalledTimes(1);
   });
 
   it('propagates spawn runtime errors', async () => {
@@ -124,6 +124,6 @@ describe('zip-extractor', () => {
     proc.emit('error', new Error('spawn failed'));
 
     await expect(promise).rejects.toThrow('spawn failed');
-    expect(mockUnlinkSync).toHaveBeenCalledTimes(2);
+    expect(mockRmSync).toHaveBeenCalledTimes(1);
   });
 });
