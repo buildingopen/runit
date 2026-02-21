@@ -2,10 +2,10 @@
 Pytest configuration and fixtures for Runner tests
 """
 
-import pytest
 import sys
 from pathlib import Path
 
+import pytest
 
 RUNNER_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = RUNNER_ROOT.parent.parent
@@ -89,9 +89,9 @@ def mock_openapi_spec():
                                     "type": "object",
                                     "properties": {
                                         "name": {"type": "string"},
-                                        "price": {"type": "number"}
+                                        "price": {"type": "number"},
                                     },
-                                    "required": ["name", "price"]
+                                    "required": ["name", "price"],
                                 }
                             }
                         }
@@ -99,30 +99,23 @@ def mock_openapi_spec():
                     "responses": {
                         "200": {
                             "description": "Success",
-                            "content": {
-                                "application/json": {
-                                    "schema": {
-                                        "type": "object"
-                                    }
-                                }
-                            }
+                            "content": {"application/json": {"schema": {"type": "object"}}},
                         }
-                    }
+                    },
                 }
             }
-        }
+        },
     }
 
 
 # Skip tests that require Modal credentials if not available
 def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "requires_modal: mark test as requiring Modal credentials"
-    )
+    config.addinivalue_line("markers", "requires_modal: mark test as requiring Modal credentials")
 
 
 def pytest_collection_modifyitems(config, items):
     import os
+
     skip_modal = pytest.mark.skip(reason="Modal credentials not available")
 
     for item in items:

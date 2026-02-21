@@ -8,10 +8,8 @@ This is a critical integration test: if the formats drift, secrets
 silently fail to decrypt at runtime.
 """
 
-import base64
 import json
 import os
-import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -21,7 +19,7 @@ import pytest
 RUNNER_SRC = Path(__file__).resolve().parent.parent.parent / "src"
 sys.path.insert(0, str(RUNNER_SRC))
 
-from security.kms_client import decrypt_secrets_bundle, decrypt_secret
+from security.kms_client import decrypt_secrets_bundle  # noqa: E402
 
 CONTROL_PLANE_DIR = str(Path(__file__).resolve().parent.parent.parent.parent / "control-plane")
 MASTER_KEY = "dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch"
@@ -34,12 +32,12 @@ def _ts_encrypt_bundle(secrets: dict) -> str:
         f'process.env.MASTER_ENCRYPTION_KEY = "{MASTER_KEY}";'
         f'process.env.OTEL_TRACING_ENABLED = "false";'
         f'import("./src/encryption/kms.ts")'
-        f'  .then(async (mod) => {{'
-        f'    mod.resetKMSProvider();'
-        f'    const encrypted = await mod.encryptSecretsBundle({secrets_json});'
-        f'    process.stdout.write(encrypted);'
-        f'  }})'
-        f'  .catch(e => {{ process.stderr.write(String(e)); process.exit(1); }});'
+        f"  .then(async (mod) => {{"
+        f"    mod.resetKMSProvider();"
+        f"    const encrypted = await mod.encryptSecretsBundle({secrets_json});"
+        f"    process.stdout.write(encrypted);"
+        f"  }})"
+        f"  .catch(e => {{ process.stderr.write(String(e)); process.exit(1); }});"
     )
     result = subprocess.run(
         ["npx", "tsx", "--eval", script],

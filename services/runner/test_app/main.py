@@ -1,6 +1,7 @@
 """
 Simple FastAPI test app for validating Modal runtime
 """
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -19,10 +20,7 @@ class GreetResponse(BaseModel):
 @app.post("/greet", response_model=GreetResponse)
 def greet(request: GreetRequest) -> GreetResponse:
     """Simple greeting endpoint to test execution"""
-    return GreetResponse(
-        message=f"Hello, {request.name}! The Modal runtime works!",
-        success=True
-    )
+    return GreetResponse(message=f"Hello, {request.name}! The Modal runtime works!", success=True)
 
 
 @app.get("/health")

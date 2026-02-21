@@ -1,7 +1,8 @@
 """Tests for security redaction module."""
 
-from security.redaction import redact_secrets, redact_output, validate_context_keys
 import pytest
+
+from security.redaction import redact_output, redact_secrets, validate_context_keys
 
 
 def test_redact_exact_values():
@@ -22,7 +23,10 @@ def test_redact_openai_pattern():
 
 
 def test_redact_jwt_pattern():
-    jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+    jwt = (
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0"
+        ".dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+    )
     text = f"Token: {jwt}"
     result = redact_secrets(text, {})
     assert jwt not in result

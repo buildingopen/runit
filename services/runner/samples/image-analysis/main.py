@@ -8,24 +8,23 @@ Demonstrates:
 - Multiple artifact outputs
 """
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from pydantic import BaseModel, Field
 import io
 import sys
 from pathlib import Path
-from PIL import Image, ImageStat, ImageFilter
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from PIL import Image, ImageFilter, ImageStat
+from pydantic import BaseModel, Field
 
 # Add SDK to path (for local development)
 sdk_path = Path(__file__).parent.parent.parent / "sdk"
 if sdk_path.exists():
     sys.path.insert(0, str(sdk_path))
 
-from execution_layer import save_artifact, save_json
+from execution_layer import save_artifact, save_json  # noqa: E402
 
 app = FastAPI(
-    title="Image Analysis",
-    description="Analyze and process uploaded images",
-    version="1.0.0"
+    title="Image Analysis", description="Analyze and process uploaded images", version="1.0.0"
 )
 
 
@@ -45,7 +44,9 @@ class ImageInfo(BaseModel):
 
 
 @app.post("/analyze_image", response_model=ImageInfo)
-async def analyze_image(file: UploadFile = File(..., description="Image file to analyze")) -> ImageInfo:
+async def analyze_image(
+    file: UploadFile = File(..., description="Image file to analyze"),
+) -> ImageInfo:
     """
     Analyze uploaded image and generate thumbnails.
 
@@ -73,13 +74,13 @@ async def analyze_image(file: UploadFile = File(..., description="Image file to 
     aspect_ratio = width / height if height > 0 else 0
 
     # Check if grayscale
-    is_grayscale = image.mode in ('L', '1') or (
-        image.mode == 'RGB' and len(set(image.getdata()[0] if image.getdata() else (0, 0, 0))) == 1
+    is_grayscale = image.mode in ("L", "1") or (
+        image.mode == "RGB" and len(set(image.getdata()[0] if image.getdata() else (0, 0, 0))) == 1
     )
 
     # Calculate average brightness
-    if image.mode != 'L':
-        grayscale = image.convert('L')
+    if image.mode != "L":
+        grayscale = image.convert("L")
     else:
         grayscale = image
 
@@ -87,7 +88,7 @@ async def analyze_image(file: UploadFile = File(..., description="Image file to 
     avg_brightness = stat.mean[0]
 
     # Get dominant color (simplified - just get average color)
-    if image.mode == 'RGB' or image.mode == 'RGBA':
+    if image.mode == "RGB" or image.mode == "RGBA":
         # Resize to 1x1 to get average color
         tiny = image.resize((1, 1), Image.Resampling.LANCZOS)
         dominant_rgb = tiny.getpixel((0, 0))
@@ -100,7 +101,7 @@ async def analyze_image(file: UploadFile = File(..., description="Image file to 
         dominant_color = None
 
     # Save original image
-    original_path = save_artifact(f"original_{file.filename}", image_data)
+    save_artifact(f"original_{file.filename}", image_data)
 
     # Generate and save thumbnail (200x200)
     thumbnail = image.copy()
@@ -117,7 +118,7 @@ async def analyze_image(file: UploadFile = File(..., description="Image file to 
     save_artifact("thumbnail_800.png", medium_bytes.getvalue())
 
     # Apply some filters and save
-    if image.mode in ('RGB', 'L'):
+    if image.mode in ("RGB", "L"):
         # Blur
         blurred = image.filter(ImageFilter.GaussianBlur(radius=5))
         blur_bytes = io.BytesIO()
@@ -141,7 +142,7 @@ async def analyze_image(file: UploadFile = File(..., description="Image file to 
         "aspect_ratio": round(aspect_ratio, 2),
         "is_grayscale": is_grayscale,
         "average_brightness": round(avg_brightness, 2),
-        "dominant_color": dominant_color
+        "dominant_color": dominant_color,
     }
     save_json("analysis.json", analysis)
 
@@ -155,5 +156,5 @@ async def root():
         "service": "Image Analysis",
         "status": "ready",
         "version": "1.0.0",
-        "supported_formats": ["JPEG", "PNG", "GIF", "BMP", "WEBP"]
+        "supported_formats": ["JPEG", "PNG", "GIF", "BMP", "WEBP"],
     }

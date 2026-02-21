@@ -4,9 +4,10 @@ Test redaction system - Verify secrets are properly redacted from logs and outpu
 """
 
 import sys
-sys.path.insert(0, 'src')
 
-from security.redaction import redact_secrets, redact_output, REDACT_PATTERNS
+sys.path.insert(0, "src")
+
+from security.redaction import redact_output, redact_secrets
 
 
 def test_exact_value_redaction():
@@ -33,8 +34,12 @@ def test_exact_value_redaction():
     assert "my-secret-password-123" not in redacted, "Password not redacted!"
     assert "sk-test1234567890abcdef1234567890abcdef123456" not in redacted, "API key not redacted!"
     # Exact values are replaced first, then patterns, so we check for the key name
-    assert "[REDACTED:DATABASE_PASSWORD]" in redacted or "[REDACTED]" in redacted, "Missing redaction marker for password"
-    assert "[REDACTED:OPENAI_API_KEY]" in redacted or "[REDACTED]" in redacted, "Missing redaction marker for API key"
+    assert (
+        "[REDACTED:DATABASE_PASSWORD]" in redacted or "[REDACTED]" in redacted
+    ), "Missing redaction marker for password"
+    assert (
+        "[REDACTED:OPENAI_API_KEY]" in redacted or "[REDACTED]" in redacted
+    ), "Missing redaction marker for API key"
 
     print("✓ Exact value redaction works")
 
@@ -77,15 +82,15 @@ def test_output_redaction():
     output = {
         "status": "success",
         "api_key": "sk-test1234567890abcdef1234567890abcdef123456",
-        "data": {
-            "nested": "sk-test1234567890abcdef1234567890abcdef123456"
-        }
+        "data": {"nested": "sk-test1234567890abcdef1234567890abcdef123456"},
     }
 
     redacted, was_redacted = redact_output(output, secrets)
 
     assert was_redacted, "Should have been flagged as redacted"
-    assert "sk-test1234567890abcdef1234567890abcdef123456" not in str(redacted), "Secret leaked in output!"
+    assert "sk-test1234567890abcdef1234567890abcdef123456" not in str(
+        redacted
+    ), "Secret leaked in output!"
 
     print("✓ Output redaction works")
 

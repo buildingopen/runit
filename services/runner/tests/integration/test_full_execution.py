@@ -4,9 +4,7 @@ Integration tests for full execution flow
 
 import base64
 import io
-import json
 import zipfile
-from pathlib import Path
 
 import pytest
 
@@ -81,9 +79,7 @@ def test_extract_company_full_flow(extract_company_app, tmp_path):
         "deps_hash": "abc123",
         "entrypoint": "main:app",
         "endpoint": "POST /extract_company",
-        "request_data": {
-            "json": {"url": "https://example.com", "use_browser": False}
-        },
+        "request_data": {"json": {"url": "https://example.com", "use_browser": False}},
         "env": {},
         "context": {},
     }

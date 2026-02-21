@@ -7,8 +7,8 @@ Provides easy access to:
 - Artifact saving (write outputs)
 """
 
-from .context import context
 from .artifacts import save_artifact, save_dataframe, save_json
+from .context import context
 
 __version__ = "0.1.0"
 __all__ = ["context", "save_artifact", "save_dataframe", "save_json"]

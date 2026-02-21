@@ -6,11 +6,10 @@ Provides helpers to save outputs that users can download:
 - save_dataframe(): Save pandas/polars DataFrames in various formats
 """
 
-import os
 import json
+import os
 from pathlib import Path
 from typing import Any, Literal
-
 
 # Get artifacts directory from environment
 ARTIFACTS_DIR = Path(os.getenv("EL_ARTIFACTS_DIR", "/artifacts"))
@@ -58,9 +57,7 @@ def save_artifact(filename: str, data: bytes | str) -> str:
 
 
 def save_dataframe(
-    df: Any,
-    filename: str,
-    format: Literal["csv", "json", "parquet", "excel"] = "csv"
+    df: Any, filename: str, format: Literal["csv", "json", "parquet", "excel"] = "csv"
 ) -> str:
     """
     Save pandas or polars DataFrame as artifact.

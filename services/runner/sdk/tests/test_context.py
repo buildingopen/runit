@@ -1,10 +1,10 @@
 """Tests for context module."""
 
-import pytest
-import os
 import json
 import tempfile
 from pathlib import Path
+
+import pytest
 from execution_layer.context import Context
 
 
@@ -134,17 +134,8 @@ def test_get_secret_case_sensitivity(monkeypatch):
 def test_get_context_nested_data(context_with_temp_dir, temp_context_dir):
     """Test getting context with nested JSON data."""
     context_data = {
-        "company": {
-            "name": "ACME Inc",
-            "address": {
-                "city": "San Francisco",
-                "country": "USA"
-            }
-        },
-        "users": [
-            {"id": 1, "name": "Alice"},
-            {"id": 2, "name": "Bob"}
-        ]
+        "company": {"name": "ACME Inc", "address": {"city": "San Francisco", "country": "USA"}},
+        "users": [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}],
     }
     (temp_context_dir / "nested.json").write_text(json.dumps(context_data))
 
@@ -167,11 +158,7 @@ def test_get_context_large_file(context_with_temp_dir, temp_context_dir):
 
 def test_get_context_unicode(context_with_temp_dir, temp_context_dir):
     """Test getting context with unicode characters."""
-    context_data = {
-        "name": "日本語テスト",
-        "emoji": "🚀🎉",
-        "special": "café résumé naïve"
-    }
+    context_data = {"name": "日本語テスト", "emoji": "🚀🎉", "special": "café résumé naïve"}
     (temp_context_dir / "unicode.json").write_text(json.dumps(context_data, ensure_ascii=False))
 
     result = context_with_temp_dir.get_context("unicode")
@@ -182,7 +169,7 @@ def test_get_context_unicode(context_with_temp_dir, temp_context_dir):
 
 def test_list_contexts_ignores_non_json(context_with_temp_dir, temp_context_dir):
     """Test that list_contexts ignores non-JSON files."""
-    (temp_context_dir / "data.json").write_text('{}')
+    (temp_context_dir / "data.json").write_text("{}")
     (temp_context_dir / "readme.txt").write_text("not json")
     (temp_context_dir / "script.py").write_text("print('hello')")
 
@@ -228,7 +215,7 @@ def test_multiple_secrets(monkeypatch):
         "DATABASE_URL": "postgres://localhost/db",
         "REDIS_URL": "redis://localhost:6379",
         "API_KEY": "sk-test-123",
-        "WEBHOOK_SECRET": "whsec_test"
+        "WEBHOOK_SECRET": "whsec_test",
     }
     for key, value in secrets.items():
         monkeypatch.setenv(f"SECRET_{key}", value)
@@ -257,7 +244,7 @@ def test_get_context_numbers_and_booleans(context_with_temp_dir, temp_context_di
         "boolean_true": True,
         "boolean_false": False,
         "null_value": None,
-        "array": [1, 2, 3]
+        "array": [1, 2, 3],
     }
     (temp_context_dir / "types.json").write_text(json.dumps(context_data))
 
