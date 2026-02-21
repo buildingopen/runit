@@ -95,7 +95,7 @@ export default function MarketingPage() {
       </section>
 
       {/* Product mockup */}
-      <section className="py-24 px-6 bg-white/[0.015]">
+      <section className="py-24 px-6 bg-white/[0.015] border-t border-[var(--border-subtle)]">
         <div className="max-w-[960px] mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-[32px] font-bold text-[var(--text-primary)] mb-3">Your code gets a UI. Automatically.</h2>
@@ -170,7 +170,7 @@ export default function MarketingPage() {
       </section>
 
       {/* How it works */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 border-t border-[var(--border-subtle)]">
         <div className="max-w-[900px] mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-[32px] font-bold text-[var(--text-primary)] mb-3">Three steps. Sixty seconds.</h2>
@@ -197,7 +197,7 @@ export default function MarketingPage() {
       </section>
 
       {/* Built for */}
-      <section className="py-24 px-6 bg-white/[0.015]">
+      <section className="py-24 px-6 bg-white/[0.015] border-t border-[var(--border-subtle)]">
         <div className="max-w-[900px] mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-[32px] font-bold text-[var(--text-primary)] mb-3">Built for the new wave of AI builders</h2>
@@ -212,7 +212,7 @@ export default function MarketingPage() {
       </section>
 
       {/* Use cases */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 border-t border-[var(--border-subtle)]">
         <div className="max-w-[900px] mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-[32px] font-bold text-[var(--text-primary)] mb-3">What people are building</h2>
@@ -228,7 +228,7 @@ export default function MarketingPage() {
       </section>
 
       {/* Features */}
-      <section className="py-24 px-6 bg-white/[0.015]">
+      <section className="py-24 px-6 bg-white/[0.015] border-t border-[var(--border-subtle)]">
         <div className="max-w-[800px] mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-[32px] font-bold text-[var(--text-primary)] mb-3">Everything you need, nothing you don&apos;t</h2>
@@ -263,13 +263,13 @@ export default function MarketingPage() {
       </section>
 
       {/* Pricing */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 border-t border-[var(--border-subtle)]">
         <div className="max-w-[960px] mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-[32px] font-bold text-[var(--text-primary)] mb-3">Start free. Scale when you need to.</h2>
             <p className="text-[var(--text-secondary)] text-[16px]">No credit card required. Upgrade anytime.</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-5">
+          <div className="grid md:grid-cols-3 gap-5 pt-2">
             <PricingCard name="Free" price="$0" description="For trying things out" features={['100 runs / month', '3 apps', 'CPU only', 'Community support']} cta="Get started" ctaHref="/signup" highlighted={false} />
             <PricingCard name="Pro" price="$19" period="/mo" description="For builders shipping real projects" features={['2,000 runs / month', '20 apps', 'GPU access (A10G)', 'Unlimited share links', 'Email support']} cta="Start free trial" ctaHref="/signup" highlighted={true} />
             <PricingCard name="Team" price="$49" period="/mo" description="For teams and agencies" features={['10,000 runs / month', 'Unlimited apps', '500 GPU runs', 'Priority support', 'Custom domains (soon)']} cta="Contact us" ctaHref="mailto:fede@scaile.tech" highlighted={false} />
@@ -278,7 +278,7 @@ export default function MarketingPage() {
       </section>
 
       {/* CTA */}
-      <section className="relative py-28 px-6 overflow-hidden">
+      <section className="relative py-28 px-6 overflow-hidden border-t border-[var(--border-subtle)]">
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--accent)]/[0.04] via-[var(--accent)]/[0.02] to-transparent pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[var(--accent)]/[0.03] rounded-full blur-[100px] pointer-events-none" />
         <div className="relative max-w-[600px] mx-auto text-center">
