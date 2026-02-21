@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('Execution Layer UI renders with Tailwind CSS', async ({ page }) => {
   // Navigate to the app
-  await page.goto('http://localhost:3000');
+  await page.goto('/');
 
   // Wait for page to fully load
   await page.waitForLoadState('networkidle');
