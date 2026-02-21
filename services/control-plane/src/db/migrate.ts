@@ -1,4 +1,4 @@
-// ABOUTME: CLI migration runner that reads .sql files from the migrations directory, applies them in order via Supabase RPC.
+// ABOUTME: CLI migration runner that reads .sql files from the migrations directory, applies them via direct Postgres.
 // ABOUTME: Tracks applied migrations in a _migrations table to prevent re-application. Run with: npx tsx src/db/migrate.ts
 /**
  * Database Migration Runner
@@ -7,6 +7,8 @@
  * Tracks applied migrations in a `_migrations` table.
  *
  * Usage: npx tsx src/db/migrate.ts
+ *
+ * Requires DATABASE_URL environment variable for direct Postgres DDL execution.
  */
 
 import 'dotenv/config';
@@ -20,25 +22,34 @@ const __dirname = dirname(__filename);
 
 const MIGRATIONS_DIR = join(__dirname, 'migrations');
 
-async function ensureMigrationsTable(): Promise<void> {
-  const supabase = getServiceSupabaseClient();
-
-  // Create migrations tracking table if it doesn't exist
-  // Using raw RPC since Supabase JS doesn't support DDL directly
-  try {
-    await supabase.rpc('exec_sql', {
-      sql: `
-        CREATE TABLE IF NOT EXISTS _migrations (
-          id SERIAL PRIMARY KEY,
-          name TEXT NOT NULL UNIQUE,
-          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-      `
-    });
-  } catch {
-    // If exec_sql doesn't exist, the table may need manual creation
-    console.warn('Note: exec_sql RPC not available. Migration table may need manual creation.');
+/**
+ * Execute raw SQL using direct Postgres connection.
+ * Supabase JS client doesn't support DDL, so we use pg directly.
+ */
+async function execSQL(sql: string): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL not set. Required for running migrations.');
   }
+
+  const pg = await import('pg');
+  const client = new pg.default.Client({ connectionString: databaseUrl });
+  try {
+    await client.connect();
+    await client.query(sql);
+  } finally {
+    await client.end();
+  }
+}
+
+async function ensureMigrationsTable(): Promise<void> {
+  await execSQL(`
+    CREATE TABLE IF NOT EXISTS _migrations (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
 }
 
 async function getAppliedMigrations(): Promise<string[]> {
@@ -68,6 +79,12 @@ async function runMigrations(): Promise<void> {
     return;
   }
 
+  if (!process.env.DATABASE_URL) {
+    console.error('DATABASE_URL not set. Required for running migrations.');
+    console.error('Set it to your Supabase direct connection string.');
+    process.exit(1);
+  }
+
   console.log('Running database migrations...\n');
 
   await ensureMigrationsTable();
@@ -90,8 +107,7 @@ async function runMigrations(): Promise<void> {
     const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf-8');
 
     try {
-      const supabase = getServiceSupabaseClient();
-      await supabase.rpc('exec_sql', { sql });
+      await execSQL(sql);
       await recordMigration(file);
       count++;
       console.log(`  [done] ${file}`);

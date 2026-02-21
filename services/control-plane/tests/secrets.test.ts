@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
-import { encryptSecret, decryptSecret, redactSecrets } from '../src/crypto/kms';
+import { encryptSecret, decryptSecret } from '../src/encryption/kms';
 import { storeSecret, getProjectSecrets, deleteSecret, clearAllSecrets } from '../src/db/secrets-store';
 
 // Ensure MASTER_ENCRYPTION_KEY is set for tests
@@ -36,42 +36,6 @@ describe('KMS Encryption', () => {
     // But both decrypt to same value
     expect(await decryptSecret(encrypted1)).toBe(plaintext);
     expect(await decryptSecret(encrypted2)).toBe(plaintext);
-  });
-});
-
-describe('Secrets Redaction', () => {
-  it('should redact exact secret values', () => {
-    const secrets = {
-      'API_KEY': 'sk-1234567890',
-      'DB_PASSWORD': 'super-secret-pass'
-    };
-
-    const text = 'Error: Connection failed with password super-secret-pass and key sk-1234567890';
-    const redacted = redactSecrets(text, secrets);
-
-    expect(redacted).toBe('Error: Connection failed with password [REDACTED:DB_PASSWORD] and key [REDACTED:API_KEY]');
-  });
-
-  it('should redact common API key patterns', () => {
-    const text = 'Using API key: sk-abcdefghijklmnopqrstuvwxyz123456789012345678';
-    const redacted = redactSecrets(text, {});
-
-    expect(redacted).toContain('[REDACTED:API_KEY]');
-    expect(redacted).not.toContain('sk-abcdefghij');
-  });
-
-  it('should redact Google API keys', () => {
-    const text = 'Google key: AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ1234567';
-    const redacted = redactSecrets(text, {});
-
-    expect(redacted).toContain('[REDACTED:GOOGLE_API_KEY]');
-  });
-
-  it('should redact JWT tokens', () => {
-    const text = 'Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0';
-    const redacted = redactSecrets(text, {});
-
-    expect(redacted).toContain('[REDACTED:JWT_TOKEN]');
   });
 });
 

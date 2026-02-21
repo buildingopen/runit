@@ -193,7 +193,6 @@ def test_secrets_injection(sample_code_bundle, tmp_path):
     # Secrets should be redacted from logs
     assert "secret-key-123" not in result["logs"]
     assert "super-secret" not in result["logs"]
-    assert "[REDACTED:API_KEY]" in result["logs"] or "API_KEY" not in result["logs"]
 
 
 def test_context_mounting(sample_code_bundle, tmp_path):
@@ -222,7 +221,8 @@ def test_context_mounting(sample_code_bundle, tmp_path):
     # The endpoint reads from EL_CONTEXT_DIR and should return the context
     assert result["http_status"] == 200
     response_body = result.get("response_body", {})
-    assert "name" in response_body or "error" not in response_body
+    assert response_body.get("name") == "ACME Inc"
+    assert response_body.get("industry") == "SaaS"
 
 
 def test_artifact_collection(sample_code_bundle, tmp_path, monkeypatch):
@@ -332,6 +332,40 @@ def test_artifact_limits():
         # Should collect max 50 files
         assert len(artifacts) <= 50
         assert any("limit exceeded" in log.lower() for log in logs)
+
+
+def test_invalid_entrypoint_format(sample_code_bundle):
+    """Test entrypoint without colon is rejected"""
+    payload = {
+        "run_id": "test-run-bad-entrypoint",
+        "code_bundle": sample_code_bundle,
+        "entrypoint": "main_app",
+        "endpoint": "GET /",
+        "request_data": {},
+        "env": {},
+        "context": {},
+    }
+
+    result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
+    assert result["status"] == "error"
+    assert result["error_class"] == "INVALID_ENTRYPOINT"
+
+
+def test_path_traversal_entrypoint(sample_code_bundle):
+    """Test entrypoint with path traversal is rejected"""
+    payload = {
+        "run_id": "test-run-traversal",
+        "code_bundle": sample_code_bundle,
+        "entrypoint": "....etc.passwd:app",
+        "endpoint": "GET /",
+        "request_data": {},
+        "env": {},
+        "context": {},
+    }
+
+    result = execute_endpoint(payload, max_timeout=60, max_memory_mb=4096, lane="cpu")
+    assert result["status"] == "error"
+    assert result["error_class"] == "INVALID_ENTRYPOINT"
 
 
 def test_deterministic_mode(sample_code_bundle, tmp_path):

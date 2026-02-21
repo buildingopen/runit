@@ -55,33 +55,35 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Deploy Control Plane to Cloud Run (optional - uncomment if using GCP)
-  # deploy-control-plane:
-  #   name: Deploy Control Plane
-  #   runs-on: ubuntu-latest
-  #   needs: build-control-plane
-  #   environment: production
-  #
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Authenticate to Google Cloud
-  #       uses: google-github-actions/auth@v2
-  #       with:
-  #         credentials_json: ${{ secrets.GCP_SA_KEY }}
-  #
-  #     - name: Deploy to Cloud Run
-  #       uses: google-github-actions/deploy-cloudrun@v2
-  #       with:
-  #         service: execution-layer-control-plane
-  #         region: us-central1
-  #         image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-  #         env_vars: |
-  #           NODE_ENV=production
-  #           SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-  #           SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-  #           MASTER_ENCRYPTION_KEY=${{ secrets.MASTER_ENCRYPTION_KEY }}
+  # Deploy Control Plane to Cloud Run (runs only when GCP_SA_KEY secret is configured)
+  deploy-control-plane:
+    name: Deploy Control Plane
+    runs-on: ubuntu-latest
+    needs: build-control-plane
+    if: ${{ vars.DEPLOY_GCP == 'true' }}
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: execution-layer-control-plane
+          region: us-central1
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          env_vars: |
+            NODE_ENV=production
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            MASTER_ENCRYPTION_KEY=${{ secrets.MASTER_ENCRYPTION_KEY }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
 
   # Deploy Modal Runner
   deploy-runner:
@@ -123,15 +125,19 @@ jobs:
   notify:
     name: Notify
     runs-on: ubuntu-latest
-    needs: [build-control-plane, deploy-runner]
+    needs: [build-control-plane, deploy-control-plane, deploy-runner]
     if: always()
 
     steps:
       - name: Check status
         run: |
-          if [[ "${{ needs.build-control-plane.result }}" == "success" && "${{ needs.deploy-runner.result }}" == "success" ]]; then
+          BUILD="${{ needs.build-control-plane.result }}"
+          DEPLOY_CP="${{ needs.deploy-control-plane.result }}"
+          DEPLOY_RUNNER="${{ needs.deploy-runner.result }}"
+
+          if [[ "$BUILD" == "success" && "$DEPLOY_RUNNER" == "success" && ("$DEPLOY_CP" == "success" || "$DEPLOY_CP" == "skipped") ]]; then
             echo "All deployments successful"
           else
-            echo "Some deployments failed"
+            echo "Some deployments failed (build=$BUILD, control-plane=$DEPLOY_CP, runner=$DEPLOY_RUNNER)"
             exit 1
           fi

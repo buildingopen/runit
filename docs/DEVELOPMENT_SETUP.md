@@ -46,14 +46,6 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
-**Python SDK (optional):**
-```bash
-cd packages/sdk
-python3.11 -m venv venv
-source venv/bin/activate
-pip install -e ".[dev]"
-```
-
 ### 3. Environment Variables
 
 Copy the example file and fill in your values:

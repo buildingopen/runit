@@ -5,7 +5,7 @@
  */
 
 import { Hono } from 'hono';
-import { encryptSecret, decryptSecret } from '../crypto/kms';
+import { encryptSecret, decryptSecret } from '../encryption/kms.js';
 import { getProjectSecrets, storeSecret, deleteSecret, getSecret } from '../db/secrets-store';
 import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../config/constants';
 import { getAuthContext } from '../middleware/auth';
