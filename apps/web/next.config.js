@@ -10,6 +10,11 @@ const nextConfig = {
     '@runtime-ai/ui',
     '@runtime-ai/openapi-form',
   ],
+  async redirects() {
+    return [
+      { source: '/welcome', destination: '/', permanent: true },
+    ];
+  },
   async headers() {
     return [
       {
