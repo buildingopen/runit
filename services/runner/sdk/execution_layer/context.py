@@ -1,5 +1,5 @@
 """
-Context access utilities for Execution Layer.
+Context access utilities for Runtime.
 
 Provides access to:
 - Secrets (environment variables prefixed with SECRET_)

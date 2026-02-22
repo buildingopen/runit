@@ -246,7 +246,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
             href="/dashboard"
             className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium rounded-lg"
           >
-            Back to Projects
+            Back to Apps
           </Link>
         </div>
       </div>
@@ -332,7 +332,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
               />
             ) : (
               <p className="text-sm text-[var(--text-tertiary)]">
-                This endpoint doesn&apos;t require any input parameters.
+                This action doesn&apos;t require any inputs.
               </p>
             )}
           </div>

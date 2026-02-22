@@ -1,6 +1,6 @@
 # Infrastructure Scripts
 
-Operational scripts for the Execution Layer.
+Operational scripts for Runtime.
 
 ## Retention Cleanup
 

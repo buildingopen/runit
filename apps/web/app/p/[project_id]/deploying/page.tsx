@@ -14,11 +14,11 @@ interface DeployEvent {
 }
 
 const DEPLOY_STEPS = [
-  { key: 'queued', label: 'Queued', icon: 'clock' },
-  { key: 'installing_deps', label: 'Installing dependencies', icon: 'package' },
-  { key: 'building', label: 'Building container', icon: 'build' },
-  { key: 'starting', label: 'Starting sandbox', icon: 'play' },
-  { key: 'health_check', label: 'Health check', icon: 'check' },
+  { key: 'queued', label: 'In queue', icon: 'clock' },
+  { key: 'installing_deps', label: 'Installing packages', icon: 'package' },
+  { key: 'building', label: 'Setting up your app', icon: 'build' },
+  { key: 'starting', label: 'Starting your app', icon: 'play' },
+  { key: 'health_check', label: 'Final checks', icon: 'check' },
 ];
 
 interface PageProps {
@@ -34,7 +34,7 @@ export default function DeployingPage({ params }: PageProps) {
 
   const [currentStep, setCurrentStep] = useState('queued');
   const [progress, setProgress] = useState(0);
-  const [message, setMessage] = useState('Initializing deployment...');
+  const [message, setMessage] = useState('Getting ready...');
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -57,7 +57,7 @@ export default function DeployingPage({ params }: PageProps) {
         }
 
         if (status.status === 'failed') {
-          setError(status.deploy_error || status.error || 'Deployment failed');
+          setError(status.deploy_error || status.error || 'Something went wrong');
           return;
         }
 
@@ -85,7 +85,7 @@ export default function DeployingPage({ params }: PageProps) {
           if (!mounted) return;
           setIsComplete(true);
           setProgress(100);
-          setMessage('Deployment complete!');
+          setMessage('Your app is live!');
           eventSource?.close();
           // Redirect to success page
           setTimeout(() => {
@@ -97,9 +97,9 @@ export default function DeployingPage({ params }: PageProps) {
           if (!mounted) return;
           try {
             const data: DeployEvent = JSON.parse((e as MessageEvent).data);
-            setError(data.error || 'Deployment failed');
+            setError(data.error || 'Something went wrong');
           } catch {
-            setError('Deployment failed');
+            setError('Something went wrong');
           }
           eventSource?.close();
         });
@@ -137,7 +137,7 @@ export default function DeployingPage({ params }: PageProps) {
       // Reload to reconnect to stream
       window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to restart deployment');
+      setError(err instanceof Error ? err.message : 'Failed to retry');
       setIsRetrying(false);
     }
   };
@@ -171,7 +171,7 @@ export default function DeployingPage({ params }: PageProps) {
           <svg className="w-3 h-3 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-          <span className="text-[13px] font-medium text-[var(--text-primary)]">Deploying</span>
+          <span className="text-[13px] font-medium text-[var(--text-primary)]">Going live</span>
         </div>
         <span className="px-2 py-0.5 text-[10px] font-medium bg-[var(--accent)]/15 text-[var(--accent)] rounded">
           Step 3 of 3
@@ -232,7 +232,7 @@ export default function DeployingPage({ params }: PageProps) {
             <h2 className={`text-[16px] font-semibold mb-1 ${
               error ? 'text-[var(--error)]' : 'text-[var(--text-primary)]'
             }`}>
-              {error ? 'Deployment Failed' : isComplete ? 'Deployment Complete!' : message}
+              {error ? 'Something went wrong' : isComplete ? 'Your app is live!' : message}
             </h2>
             {error && (
               <p className="text-[13px] text-[var(--text-tertiary)]">{error}</p>

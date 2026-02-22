@@ -120,20 +120,20 @@ export function ShareModal({
                 Create Share Link
               </label>
               <p className="text-[12px] text-[var(--text-tertiary)] mb-3">
-                Create a public link that allows anyone to run this endpoint without authentication.
+                Create a public link that allows anyone to run this action without signing in.
               </p>
             </div>
 
             <div>
               <label className="block text-[12px] text-[var(--text-tertiary)] mb-1.5">
-                Select Endpoint
+                Select Action
               </label>
               <select
                 value={endpointToShare}
                 onChange={(e) => setEndpointToShare(e.target.value)}
                 className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border)] rounded text-[13px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
               >
-                <option value="">Select an endpoint...</option>
+                <option value="">Select an action...</option>
                 {endpoints.map((ep) => (
                   <option key={ep.endpoint_id} value={ep.endpoint_id}>
                     {ep.method} {ep.path} {ep.summary ? `- ${ep.summary}` : ''}
@@ -234,7 +234,7 @@ export function ShareModal({
         {/* Footer */}
         <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-primary)]">
           <p className="text-[11px] text-[var(--text-tertiary)]">
-            Share links are rate-limited to 100 runs per hour. Anyone with the link can execute the endpoint.
+            Share links are rate-limited to 100 runs per hour. Anyone with the link can run it.
           </p>
         </div>
       </div>

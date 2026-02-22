@@ -1,5 +1,5 @@
 """
-Image Analysis - File upload sample app for Execution Layer.
+Image Analysis - File upload sample app for Runtime.
 
 Demonstrates:
 - File upload handling

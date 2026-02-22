@@ -1,6 +1,6 @@
-# Execution Layer SDK Guide
+# Runtime SDK Guide
 
-The Execution Layer SDK provides simple utilities to make your FastAPI apps work seamlessly on the platform.
+The Runtime SDK provides simple utilities to make your apps work seamlessly on the platform.
 
 ## Installation
 
@@ -583,4 +583,4 @@ The SDK is intentionally minimal - just what you need to integrate with the plat
 2. `save_artifact()` - Save outputs
 3. Standard FastAPI patterns for everything else
 
-Keep it simple, and your app will run great on Execution Layer.
+Keep it simple, and your app will run great on Runtime.

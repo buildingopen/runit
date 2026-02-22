@@ -99,7 +99,7 @@ export function CreateProjectForm() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="my-fastapi-app"
+          placeholder="my-python-app"
           className="w-full px-4 py-2 border border-[var(--border)] rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
           required
         />

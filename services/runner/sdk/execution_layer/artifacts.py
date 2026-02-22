@@ -1,5 +1,5 @@
 """
-Artifact writing utilities for Execution Layer.
+Artifact writing utilities for Runtime.
 
 Provides helpers to save outputs that users can download:
 - save_artifact(): Save any file (text, binary, JSON)

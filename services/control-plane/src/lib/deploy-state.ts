@@ -103,14 +103,14 @@ export function completeDeploy(projectId: string): void {
 
   state.step = 'complete';
   state.progress = 100;
-  state.message = 'Deployment complete!';
+  state.message = 'Your app is live!';
   state.completedAt = new Date();
 
   notifySubscribers(projectId, {
     type: 'complete',
     step: 'complete',
     progress: 100,
-    message: 'Deployment complete!',
+    message: 'Your app is live!',
   });
 
   // Clean up after a delay to allow late subscribers to get final state
@@ -135,7 +135,7 @@ export function failDeploy(projectId: string, error: string): void {
     type: 'error',
     step: 'failed',
     progress: state.progress,
-    message: 'Deployment failed',
+    message: 'Something went wrong',
     error,
   });
 

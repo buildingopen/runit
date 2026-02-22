@@ -1,34 +1,28 @@
 import { test, expect } from '@playwright/test';
 
-test('Execution Layer UI renders with Tailwind CSS', async ({ page }) => {
-  // Navigate to the app
+test('Marketing page renders with correct content', async ({ page }) => {
   await page.goto('/');
-
-  // Wait for page to fully load
   await page.waitForLoadState('networkidle');
 
-  // Take a screenshot
   await page.screenshot({ path: '/tmp/ui-verification-browsertest.png', fullPage: true });
 
-  // Verify the header exists
-  const header = page.locator('header');
-  await expect(header).toBeVisible();
+  // Verify nav bar with Runtime branding
+  const nav = page.locator('nav');
+  await expect(nav).toBeVisible();
+  await expect(nav.locator('text=Runtime')).toBeVisible();
 
-  // Verify "Execution Layer" title exists
-  const title = page.locator('h1:has-text("Execution Layer")');
-  await expect(title).toBeVisible();
+  // Verify hero headline
+  const hero = page.locator('h1');
+  await expect(hero).toBeVisible();
+  await expect(hero).toContainText('You built it with AI');
 
-  // Verify the subtitle "Colab for Apps" exists
-  const subtitle = page.locator('text=Colab for Apps');
-  await expect(subtitle).toBeVisible();
+  // Verify primary CTA
+  const cta = page.locator('a:has-text("Go live for free")').first();
+  await expect(cta).toBeVisible();
 
-  // Verify API status indicator exists
-  const apiStatus = page.locator('text=API');
-  await expect(apiStatus).toBeVisible();
-
-  // Verify Refresh button exists
-  const refreshButton = page.locator('button:has-text("Refresh")');
-  await expect(refreshButton).toBeVisible();
+  // Verify sign-in link
+  const signIn = page.locator('a:has-text("Sign in")').first();
+  await expect(signIn).toBeVisible();
 
   // Check that Tailwind classes are applied by verifying computed styles
   const body = page.locator('body');
@@ -36,11 +30,6 @@ test('Execution Layer UI renders with Tailwind CSS', async ({ page }) => {
     return window.getComputedStyle(el).backgroundColor;
   });
 
-  // Verify background color is not white (should be gray-50)
   expect(bgColor).not.toBe('rgba(255, 255, 255, 1)');
   expect(bgColor).not.toBe('rgb(255, 255, 255)');
-
-  console.log('✅ All UI elements verified');
-  console.log('✅ Background color:', bgColor);
-  console.log('✅ Screenshot saved to /tmp/ui-verification-browsertest.png');
 });

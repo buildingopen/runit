@@ -19,13 +19,13 @@ test.describe('Homepage', () => {
     // Wait for initial loading to complete (max 10s)
     await page.waitForFunction(() => !document.body.textContent?.includes('Loading...'), { timeout: 10000 }).catch(() => {});
 
-    // Should display Execution Layer branding (visible in sidebar on desktop)
-    const executionLayerText = page.locator('text=Execution Layer');
-    const visibleCount = await executionLayerText.filter({ visible: true }).count();
+    // Should display Runtime branding
+    const runtimeText = page.locator('text=Runtime');
+    const visibleCount = await runtimeText.filter({ visible: true }).count();
     expect(visibleCount).toBeGreaterThan(0);
 
     // Should have main heading
-    await expect(page.locator('h1:has-text("Your Mini Apps")')).toBeVisible();
+    await expect(page.locator('h1:has-text("Your Apps")')).toBeVisible();
   });
 
   test('should have create project link', async ({ page }) => {
@@ -89,8 +89,8 @@ test.describe('Project Run Page', () => {
     // Wait for loading to complete
     await page.waitForFunction(() => !document.body.textContent?.includes('Loading...'), { timeout: 10000 }).catch(() => {});
 
-    // Sidebar should have Projects link for navigation
-    const hasBackNav = await page.locator('text=Projects').first().isVisible().catch(() => false);
+    // Sidebar should have Apps link for navigation
+    const hasBackNav = await page.locator('text=Apps').first().isVisible().catch(() => false);
     expect(hasBackNav).toBe(true);
   });
 });

@@ -54,7 +54,7 @@ export default function MarketingPage() {
               Turn any Python script into a live app with a shareable link. No servers, no Docker, no devops. Just your code.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-              <Link href="/signup" className="w-full sm:w-auto px-8 py-3.5 text-[15px] font-semibold bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-xl transition-all hover:shadow-[0_0_24px_rgba(16,185,129,0.25)] text-center">Deploy for free</Link>
+              <Link href="/signup" className="w-full sm:w-auto px-8 py-3.5 text-[15px] font-semibold bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-xl transition-all hover:shadow-[0_0_24px_rgba(16,185,129,0.25)] text-center">Go live for free</Link>
               <a href="https://github.com/federicodeponte/execution-layer" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto px-8 py-3.5 text-[15px] font-semibold bg-white/[0.04] border border-white/[0.08] text-[var(--text-primary)] rounded-xl hover:bg-white/[0.07] hover:border-white/[0.12] transition-all text-center">View on GitHub</a>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-8 text-[13px] text-[var(--text-tertiary)]">
@@ -165,7 +165,7 @@ export default function MarketingPage() {
               </div>
             </div>
           </div>
-          <p className="text-center text-[13px] text-[var(--text-tertiary)] mt-4">This is what your deployed app looks like. The form, the output, the share link: all generated from a Python script.</p>
+          <p className="text-center text-[13px] text-[var(--text-tertiary)] mt-4">This is what your live app looks like. The form, the output, the share link: all generated from a Python script.</p>
         </div>
       </section>
 
@@ -220,7 +220,7 @@ export default function MarketingPage() {
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             <UseCaseCard title="PDF to text converter" description="Upload a PDF, get clean extracted text. Built with PyMuPDF in 20 lines." tag="Document" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>} />
-            <UseCaseCard title="AI chatbot endpoint" description="Wrap any LLM API in a simple endpoint. Connect it to n8n or Make." tag="AI" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>} />
+            <UseCaseCard title="AI chatbot" description="Wrap any LLM API in a simple function. Connect it to n8n or Make." tag="AI" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>} />
             <UseCaseCard title="Data scraper" description="Give it a URL, get structured data back. Perfect for automations." tag="Scraping" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>} />
             <UseCaseCard title="Image generator" description="Text to image with GPU acceleration. Share it as a tool for your team." tag="GPU" icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M2.25 18V6a2.25 2.25 0 012.25-2.25h15A2.25 2.25 0 0121.75 6v12A2.25 2.25 0 0119.5 20.25H4.5A2.25 2.25 0 012.25 18z" /></svg>} />
           </div>
@@ -252,7 +252,7 @@ export default function MarketingPage() {
             </div>
             <div className="flex gap-4">
               <svg className="w-5 h-5 text-[var(--accent)] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" /></svg>
-              <div><h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">Webhook endpoints</h3><p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">Receive data from n8n, Make, or Zapier. Process it with Python, send results back.</p></div>
+              <div><h3 className="text-[14px] font-semibold text-[var(--text-primary)] mb-1">Webhooks</h3><p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">Receive data from n8n, Make, or Zapier. Process it with Python, send results back.</p></div>
             </div>
             <div className="flex gap-4">
               <svg className="w-5 h-5 text-[var(--accent)] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" /></svg>
@@ -283,8 +283,8 @@ export default function MarketingPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[var(--accent)]/[0.03] rounded-full blur-[100px] pointer-events-none" />
         <div className="relative max-w-[600px] mx-auto text-center">
           <h2 className="text-[40px] font-bold text-[var(--text-primary)] mb-5 leading-tight">Your code deserves to be live.</h2>
-          <p className="text-[var(--text-secondary)] text-[17px] mb-10 leading-relaxed">Stop sharing screenshots of terminal output. Deploy in 60 seconds and send a link.</p>
-          <Link href="/signup" className="inline-flex px-10 py-4 text-[16px] font-semibold bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-xl transition-all hover:shadow-[0_0_32px_rgba(16,185,129,0.3)]">Deploy for free</Link>
+          <p className="text-[var(--text-secondary)] text-[17px] mb-10 leading-relaxed">Stop sharing screenshots of terminal output. Go live in 60 seconds and send a link.</p>
+          <Link href="/signup" className="inline-flex px-10 py-4 text-[16px] font-semibold bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-xl transition-all hover:shadow-[0_0_32px_rgba(16,185,129,0.3)]">Go live for free</Link>
           <p className="mt-5 text-[13px] text-[var(--text-tertiary)]">Free forever for small projects. No credit card needed.</p>
         </div>
       </section>

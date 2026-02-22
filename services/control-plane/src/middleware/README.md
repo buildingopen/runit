@@ -1,6 +1,6 @@
 # FinOps Middleware
 
-Cost control and quota enforcement middleware for the Execution Layer control plane.
+Cost control and quota enforcement middleware for the Runtime control plane.
 
 ## Overview
 

@@ -37,7 +37,7 @@ test.describe('Golden Path', () => {
     // Should see either the app list or empty state
     const content = await page.textContent('body');
     const hasExpectedContent =
-      content?.includes('Mini Apps') ||
+      content?.includes('Your Apps') ||
       content?.includes('Create') ||
       content?.includes('new app') ||
       content?.includes('apps');
@@ -51,7 +51,7 @@ test.describe('Golden Path', () => {
 
     // Should see upload UI - check for heading specifically
     await expect(
-      page.getByRole('heading', { name: 'Create a mini app' })
+      page.getByRole('heading', { name: 'Create an app' })
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -125,10 +125,10 @@ test.describe('Golden Path', () => {
     expect(match).toBeTruthy();
     const projectId = match![1];
 
-    // Click Deploy button
-    const deployButton = page.locator('button:has-text("Deploy")');
-    await expect(deployButton).toBeVisible({ timeout: 5000 });
-    await deployButton.click();
+    // Click Go live button
+    const goLiveButton = page.locator('button:has-text("Go live")');
+    await expect(goLiveButton).toBeVisible({ timeout: 5000 });
+    await goLiveButton.click();
 
     // Wait for deploying page or success page
     await page.waitForURL(

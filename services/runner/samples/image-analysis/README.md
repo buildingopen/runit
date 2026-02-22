@@ -1,6 +1,6 @@
 # Image Analysis - File Upload Sample
 
-Demonstrates file upload handling and image processing on Execution Layer.
+Demonstrates file upload handling and image processing on Runtime.
 
 ## What it does
 

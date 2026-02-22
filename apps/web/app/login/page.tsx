@@ -63,7 +63,7 @@ function LoginForm() {
           Sign in
         </h1>
         <p className="text-[var(--text-secondary)] text-sm text-center mb-8">
-          Sign in to your Execution Layer account
+          Sign in to Runtime
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

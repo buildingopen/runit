@@ -1,5 +1,5 @@
 """
-Execution Layer SDK - Simple utilities for FastAPI apps running on Execution Layer.
+Runtime SDK - Simple utilities for apps running on Runtime.
 
 Provides easy access to:
 - Secrets (via environment variables)

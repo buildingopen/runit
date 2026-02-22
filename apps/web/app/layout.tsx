@@ -10,8 +10,8 @@ import { AuthProvider } from '../components/providers/AuthProvider';
 import { QueryProvider } from '../components/providers/QueryProvider';
 
 export const metadata: Metadata = {
-  title: 'Execution Layer',
-  description: 'Run FastAPI projects in ephemeral sandboxes',
+  title: 'Runtime',
+  description: 'Turn your Python script into a live app',
 };
 
 export const viewport: Viewport = {

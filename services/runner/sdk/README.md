@@ -1,10 +1,10 @@
-# Execution Layer SDK
+# Runtime SDK
 
-Simple utilities for building FastAPI apps on Execution Layer.
+Simple utilities for building FastAPI apps on Runtime.
 
 ## Installation
 
-The SDK is automatically available in the Execution Layer runtime. For local development:
+The SDK is automatically available in the Runtime runtime. For local development:
 
 ```bash
 pip install -e .

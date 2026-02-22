@@ -10,7 +10,7 @@ interface EmptyStateProps {
 
 export function EmptyState({
   title = 'No results yet',
-  description = 'Run an endpoint to see results here',
+  description = 'Run your app to see results here',
 }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">

@@ -1,7 +1,7 @@
 [project]
 name = "execution-layer-runner"
 version = "0.1.0"
-description = "Modal-based execution kernel for Execution Layer"
+description = "Modal-based execution kernel for Runtime"
 requires-python = ">=3.11"
 dependencies = [
     "modal>=0.60.0",

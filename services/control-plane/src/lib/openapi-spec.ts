@@ -8,8 +8,8 @@
 export const openAPISpec = {
   openapi: '3.0.3',
   info: {
-    title: 'Execution Layer Control Plane API',
-    description: `API for managing projects, runs, secrets, and deployments in the Execution Layer platform.
+    title: 'Runtime API',
+    description: `API for managing projects, runs, secrets, and deployments in the Runtime platform.
 
 ## Authentication
 All endpoints (except health checks and metrics) require a valid Bearer token in the Authorization header.

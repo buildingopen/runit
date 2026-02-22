@@ -3,7 +3,7 @@
 /**
  * @runtime-ai/openapi-form
  *
- * OpenAPI-driven form generation for Execution Layer.
+ * OpenAPI-driven form generation for Runtime.
  * Renders forms from OpenAPI schemas with automatic field rendering,
  * file uploads, and JSON editor fallback for complex schemas.
  */

@@ -1,4 +1,4 @@
-"""Setup script for Execution Layer SDK."""
+"""Setup script for Runtime SDK."""
 
 from pathlib import Path
 
@@ -11,12 +11,12 @@ long_description = readme_file.read_text() if readme_file.exists() else ""
 setup(
     name="execution-layer",
     version="0.1.0",
-    description="SDK for building FastAPI apps on Execution Layer",
+    description="SDK for building apps on Runtime",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Execution Layer",
-    author_email="support@executionlayer.com",
-    url="https://github.com/executionlayer/execution-layer",
+    author="Runtime AI",
+    author_email="support@runtime.ai",
+    url="https://github.com/federicodeponte/execution-layer",
     packages=find_packages(exclude=["tests", "tests.*"]),
     python_requires=">=3.11",
     install_requires=[
@@ -45,10 +45,10 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
     ],
-    keywords="fastapi execution layer sdk runtime serverless",
+    keywords="fastapi runtime sdk serverless",
     project_urls={
-        "Documentation": "https://docs.executionlayer.com",
-        "Source": "https://github.com/executionlayer/execution-layer",
-        "Tracker": "https://github.com/executionlayer/execution-layer/issues",
+        "Documentation": "https://docs.runtime.ai",
+        "Source": "https://github.com/federicodeponte/execution-layer",
+        "Tracker": "https://github.com/federicodeponte/execution-layer/issues",
     },
 )
