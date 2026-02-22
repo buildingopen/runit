@@ -1,5 +1,5 @@
 """
-OpenDraft - AI Research Paper Generator for Execution Layer.
+OpenDraft - AI Research Paper Generator for Runtime.
 
 Generates master-level research papers with real citations using AI.
 

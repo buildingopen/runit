@@ -146,9 +146,9 @@ def run_endpoint_gpu(payload: dict) -> dict:
 @app.local_entrypoint()
 def main():
     """Local testing entrypoint"""
-    print(f"Execution Layer Runtime v{BASE_IMAGE_VERSION}")
+    print(f"Runtime v{BASE_IMAGE_VERSION}")
     print(f"Python: {modal.Image.python_version}")
-    print("Ready to execute FastAPI endpoints")
+    print("Ready to run apps")
     print("")
     print("Available functions:")
     print("  - run_endpoint_cpu (2 CPU, 4GB, 60s)")

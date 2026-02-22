@@ -1,4 +1,4 @@
--- Execution Layer Database Schema
+-- Runtime Database Schema
 -- See CLAUDE.md Section 35.4 for complete schema
 
 -- Projects

@@ -107,7 +107,7 @@ def test_main_prints_expected_status(monkeypatch, capsys):
 
     mod.main()
     out = capsys.readouterr().out
-    assert "Execution Layer Runtime v" in out
+    assert "Runtime v" in out
     assert "Available functions:" in out
     assert "run_endpoint_cpu" in out
     assert "run_endpoint_gpu" in out

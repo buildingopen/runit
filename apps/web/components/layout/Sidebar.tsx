@@ -98,7 +98,7 @@ export function Sidebar() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <span className="font-semibold text-[var(--text-primary)] text-[13px]">Execution Layer</span>
+          <span className="font-semibold text-[var(--text-primary)] text-[13px]">Runtime</span>
         </Link>
         <div className="w-9" /> {/* Spacer for centering */}
       </header>
@@ -129,7 +129,7 @@ export function Sidebar() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <span className="font-semibold text-[var(--text-primary)] text-[13px] tracking-tight">Execution Layer</span>
+            <span className="font-semibold text-[var(--text-primary)] text-[13px] tracking-tight">Runtime</span>
           </Link>
           {/* Close button (mobile only) */}
           <button

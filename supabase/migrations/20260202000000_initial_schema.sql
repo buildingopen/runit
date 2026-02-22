@@ -1,4 +1,4 @@
--- Execution Layer Initial Schema
+-- Runtime Initial Schema
 -- Run this in Supabase SQL Editor or via CLI: supabase db push
 
 -- ============================================

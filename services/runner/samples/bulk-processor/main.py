@@ -1,5 +1,5 @@
 """
-Bulk Processor - Array processing sample app for Execution Layer.
+Bulk Processor - Array processing sample app for Runtime.
 
 Demonstrates:
 - Processing arrays/lists of items

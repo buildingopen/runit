@@ -1,5 +1,5 @@
 /**
- * API Client for Execution Layer Control Plane
+ * API Client for Runtime Control Plane
  */
 
 import { createBrowserClient } from '@supabase/ssr';

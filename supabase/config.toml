@@ -1,4 +1,4 @@
-# Supabase Configuration for Execution Layer
+# Supabase Configuration for Runtime
 # See: https://supabase.com/docs/guides/cli/config
 
 [api]

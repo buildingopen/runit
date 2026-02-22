@@ -1,5 +1,5 @@
 """
-Extract Company Demo - Golden sample app for Execution Layer.
+Extract Company Demo - Golden sample app for Runtime.
 
 Demonstrates:
 - URL input

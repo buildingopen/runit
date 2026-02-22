@@ -1,6 +1,6 @@
 # Extract Company - Golden Demo App
 
-This is the canonical demo app for Execution Layer. It demonstrates all key features in a real-world use case.
+This is the canonical demo app for Runtime. It demonstrates all key features in a real-world use case.
 
 ## What it does
 

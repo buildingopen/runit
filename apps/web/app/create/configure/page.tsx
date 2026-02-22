@@ -110,7 +110,7 @@ function ConfigurePageContent() {
       // Redirect to deploying page
       router.push(`/p/${projectId}/deploying`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start deployment');
+      setError(err instanceof Error ? err.message : 'Failed to go live');
       setIsDeploying(false);
     }
   };
@@ -182,7 +182,7 @@ function ConfigurePageContent() {
                   <path d="M18 6L6 18M6 6l12 12"/>
                 </svg>
               </div>
-              <span className="text-[14px] font-semibold text-[var(--error)]">Deployment failed</span>
+              <span className="text-[14px] font-semibold text-[var(--error)]">Something went wrong</span>
             </div>
             <p className="text-[13px] text-[var(--text-secondary)] ml-[42px]">{error}</p>
             <button
@@ -206,7 +206,7 @@ function ConfigurePageContent() {
                 <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
                 <polyline points="22 4 12 14.01 9 11.01"/>
               </svg>
-              Detected {endpoints.length} endpoint{endpoints.length !== 1 ? 's' : ''}
+              Detected {endpoints.length} action{endpoints.length !== 1 ? 's' : ''}
             </div>
             <div className="flex flex-wrap gap-2">
               {endpoints.map((ep: { id: string; path: string }) => (
@@ -250,7 +250,7 @@ function ConfigurePageContent() {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
               <path d="M7 11V7a5 5 0 0110 0v4"/>
             </svg>
-            Environment Variables
+            Secrets
           </div>
           {detectedEnvVars.length > 0 ? (
             <div className="space-y-2.5">
@@ -283,7 +283,7 @@ function ConfigurePageContent() {
             </div>
           ) : (
             <div className="p-4 bg-[var(--bg-secondary)] border border-dashed border-[var(--border)] rounded-lg text-center text-[var(--text-tertiary)] text-[13px]">
-              No environment variables detected
+              No secrets detected
             </div>
           )}
         </div>
@@ -300,10 +300,10 @@ function ConfigurePageContent() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              Starting deployment...
+              Going live...
             </>
           ) : (
-            <>Deploy &rarr;</>
+            <>Go live &rarr;</>
           )}
         </button>
 

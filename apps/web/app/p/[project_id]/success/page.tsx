@@ -68,7 +68,7 @@ export default function SuccessPage({ params }: PageProps) {
   };
 
   const handleShareTwitter = () => {
-    const text = `I just deployed ${project?.name || 'my app'} on Runtime!`;
+    const text = `I just launched ${project?.name || 'my app'} on Runtime!`;
     const shareUrl = hasUrl ? runtimeUrl : window.location.href;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -140,7 +140,7 @@ export default function SuccessPage({ params }: PageProps) {
             </div>
           ) : (
             <p className="text-[13px] text-[var(--text-tertiary)] py-3">
-              URL will be available once deployment is fully provisioned
+              URL will be available once your app is fully ready
             </p>
           )}
         </div>

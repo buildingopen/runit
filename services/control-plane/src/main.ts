@@ -215,7 +215,7 @@ app.use('/runs/*', quotaMiddleware);
 // Health check
 app.get('/', (c) => {
   return c.json({
-    name: 'Execution Layer Control Plane',
+    name: 'Runtime Control Plane',
     version: '0.1.0',
     status: 'operational',
     features: ['projects', 'runs', 'secrets', 'context', 'rate-limiting', 'quotas', 'metrics'],

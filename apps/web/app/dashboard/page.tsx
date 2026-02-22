@@ -73,7 +73,7 @@ export default function HomePage() {
       <div className="max-w-[800px] mx-auto px-6 py-12">
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-[28px] font-bold text-[var(--text-primary)] mb-1.5">Your Mini Apps</h1>
+          <h1 className="text-[28px] font-bold text-[var(--text-primary)] mb-1.5">Your Apps</h1>
           <p className="text-[var(--text-secondary)]">Create, run, and share</p>
         </div>
 
@@ -111,7 +111,7 @@ export default function HomePage() {
             <div className="text-5xl mb-4 opacity-50">📦</div>
             <h2 className="text-[18px] font-semibold text-[var(--text-primary)] mb-2">No apps yet</h2>
             <p className="text-[14px] text-[var(--text-secondary)] mb-6">
-              Import your Python code and deploy it as a mini app in seconds
+              Import your Python code and go live in seconds
             </p>
             <Link
               href="/new"
@@ -289,5 +289,5 @@ function AppItem({ project, onDeleteClick }: { project: Project; onDeleteClick: 
 }
 
 function getDefaultDescription(): string {
-  return 'FastAPI mini app';
+  return 'Python app';
 }

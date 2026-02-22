@@ -1,11 +1,11 @@
-# Testing Guide - Execution Layer v0
+# Testing Guide - Runtime v0
 
 **Status:** Infrastructure Ready ✅
 **Last Updated:** 2024-12-30
 
 ## Overview
 
-This guide covers testing strategies, infrastructure, and commands for all 10 agents working on Execution Layer.
+This guide covers testing strategies, infrastructure, and commands for all 10 agents working on Runtime.
 
 > Current authoritative CI gates and thresholds are in `docs/QUALITY_GATES.md`.
 

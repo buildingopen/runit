@@ -1,4 +1,4 @@
-# Execution Layer Control Plane
+# Runtime Control Plane
 # Multi-stage build for production deployment
 
 # Stage 1: Build dependencies and compile TypeScript

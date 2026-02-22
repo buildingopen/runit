@@ -72,7 +72,7 @@ export default function SignupPage() {
           Create account
         </h1>
         <p className="text-[var(--text-secondary)] text-sm text-center mb-8">
-          Get started with Execution Layer
+          Get started with Runtime
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
