@@ -1,184 +1,135 @@
-# Execution Layer - Sharpening Roadmap
+# Runtime AI — Validation Roadmap
 
-## Vision
-**"You built it with AI. We make it live."**
+## Thesis
+People who build with AI tools (Cursor, ChatGPT, n8n) can GET code but can't DEPLOY it. Runtime AI is the missing piece: upload a ZIP, get a live endpoint in 30 seconds.
 
-Target: People who just started using AI tools (Cursor, n8n, ChatGPT). They can GET code but can't DEPLOY it. Runtime AI is the missing piece.
+Open source alone doesn't validate anything. People don't want to self-host — that's the whole point. If they could self-host, they'd just use Modal directly. We need to prove demand exists before investing in infrastructure.
 
-## Current State
-- v0.1.0, feature-complete
-- Deployed on Render (web + API) + Modal (runner)
-- No landing page (home = dashboard)
-- No billing/payments
-- No templates
-- No user analytics
-- Developer-oriented messaging ("FastAPI", "OpenAPI", "endpoints")
-
----
-
-## Week 1: Landing Page + Repositioning
-
-### 1.1 Marketing Landing Page
-**Files:** New `/apps/web/app/(marketing)/page.tsx` (separate from dashboard)
-- Hero: "Turn your Python script into a live app. No servers. No Docker. No devops."
-- Subhero: "Built something with Cursor or ChatGPT? Make it live in 60 seconds."
-- 3-step visual: Write code → Upload → Share link
-- Use cases section: PDF converter, AI chatbot, data scraper, webhook for n8n
-- Social proof placeholder (GitHub stars, "open source")
-- CTA: "Deploy for free" → signup
-- Pricing section (free / pro / team)
-- Footer with links
-
-### 1.2 Rename & Dejargon
-**Global search-replace across `/apps/web/`:**
-| Old | New |
-|-----|-----|
-| "Endpoint" (user-facing) | "Action" |
-| "Environment Variables" | "Secrets" (already partially used) |
-| "OpenAPI" | remove entirely from UI |
-| "FastAPI" | "Python app" (in error messages) |
-| "Deploy" | "Go live" |
-| "Runtime" (product name) | "Runtime" (keep, it's fine) |
-| "Execution Layer" (login page) | "Runtime" |
-| "Mini App" | "App" (simpler) |
-
-### 1.3 SEO & Meta
-- Add metadataBase, OG images, Twitter cards
-- robots.txt
-- Sitemap
+## What's Built (done)
+- Full product: upload ZIP/GitHub → detect actions → go live → run via share link
+- Landing page, auth, dashboard, templates, billing routes, share links
+- Docker backend (self-hosted on AX41) + Modal backend (cloud)
+- 190+ tests, E2E passing
+- Dejargoned: all user-facing text is plain English
+- Self-hosted Supabase for auth/DB
 
 ---
 
-## Week 2: Simplified Onboarding + Templates
+## Validation Plays (cheapest to most expensive)
 
-### 2.1 Paste-Your-Code Upload
-**File:** Modify `/apps/web/app/new/page.tsx`
-- Add third option: "Paste your Python code"
-- Simple textarea with syntax highlighting
-- Auto-wraps in FastAPI if it's a plain script
-- Backend: create ZIP from pasted code, feed into existing pipeline
-- This is THE killer feature for the target audience
+### Play 1: Landing Page + Waitlist
+**Effort:** 1 day | **Cost:** $0
 
-### 2.2 Template Gallery
-**Files:** New `/apps/web/app/templates/page.tsx` + template data
-- 6-8 starter templates:
-  1. "PDF to Text" - upload PDF, get extracted text
-  2. "AI Chatbot" - simple Gemini/OpenAI wrapper
-  3. "Image Generator" - text to image (GPU)
-  4. "Data Scraper" - URL in, structured data out
-  5. "CSV Analyzer" - upload CSV, get insights
-  6. "Webhook Handler" - receive n8n/Make webhooks
-  7. "Email Sender" - simple email API
-  8. "File Converter" - convert between formats
-- Each template: one-click deploy, pre-filled code + config
-- Store templates in `/services/runner/templates/` as .py files
+- [ ] Get domain (runtimeai.dev or similar)
+- [ ] Ship landing page (already built — just needs a domain)
+- [ ] Add waitlist form (email collection → Supabase table or simple Google Form)
+- [ ] Record 60s demo video: ZIP upload → running endpoint → share link
+- [ ] Post on HN ("Show HN: Upload a Python API, get a live endpoint in 30 seconds")
+- [ ] Post on Reddit: r/Python, r/MachineLearning, r/webdev
+- [ ] Tweet/X thread with video
 
-### 2.3 Onboarding Flow
-**File:** Modify post-signup redirect
-- After signup: "What do you want to build?" → template selector
-- Skip option: "I have my own code"
-- Tooltip tour on first project (optional, don't overdo)
+**Signal:** 500+ signups in first week = real interest. <50 = move on.
 
-### 2.4 Integration Docs
-**Files:** New `/apps/web/app/(marketing)/integrations/page.tsx`
-- "Works with n8n" - show how to use share link as webhook
-- "Works with Make" - HTTP module pointing to share link
-- "Works with Zapier" - webhook trigger
-- Simple copy-paste instructions, not full docs
+### Play 2: "Deploy This For Me" Concierge
+**Effort:** 0 days build | **Cost:** $0
 
----
+- [ ] Find 10 people on ML Twitter/Discord who have a FastAPI project
+- [ ] DM them: "Send me your ZIP, I'll deploy it in 30 seconds and send you the link"
+- [ ] Do it manually with the existing AX41 setup
+- [ ] Track reactions
 
-## Week 3: Billing (Stripe)
+**Signal:** Do they say "holy shit" or "cool I guess"? Do they ask for more? Do they tell friends?
 
-### 3.1 Pricing Tiers
-| | Free | Pro ($19/mo) | Team ($49/mo) |
-|---|------|-------------|---------------|
-| CPU runs | 100/month | 2,000/month | 10,000/month |
-| GPU runs | 0 | 100/month | 500/month |
-| Apps | 3 | 20 | Unlimited |
-| Secrets per app | 5 | 20 | 50 |
-| Share links | 3 | Unlimited | Unlimited |
-| File upload | 10MB | 50MB | 100MB |
-| Support | Community | Email | Priority |
+### Play 3: Hosted Free Tier
+**Effort:** 1 week | **Cost:** ~$50/mo
 
-### 3.2 Stripe Integration
-**Files:**
-- New `/services/control-plane/src/routes/billing.ts`
-- New `/apps/web/app/settings/billing/page.tsx`
-- New Supabase migration: `subscriptions` table
+- [ ] Host on existing infra: AX41 (Docker backend) or Render + Modal free tier
+- [ ] Free tier: 5 runs/day, CPU only, 60s timeout, 3 apps max
+- [ ] Behind auth (Supabase already wired)
+- [ ] Modal free tier covers ~30 hours/month — enough for validation
 
-Implementation:
-- Stripe Checkout for upgrades
-- Stripe Customer Portal for management
-- Webhook handler for subscription events
-- Quota enforcement tied to subscription tier
-- Usage meter on dashboard ("47/100 runs used this month")
+**Signal:** Do people come back? Do they share their endpoints? What do they build?
 
-### 3.3 Usage Dashboard
-**File:** New `/apps/web/app/settings/usage/page.tsx`
-- Run count (CPU/GPU) with progress bar
-- Per-app breakdown
-- Billing period info
-- Upgrade CTA when approaching limits
+### Play 4: ProductHunt + HN Launch
+**Effort:** 1 day | **Cost:** $0
+
+- [ ] The product works. Just launch it.
+- [ ] Title: "Runtime AI — upload a Python API, get a live endpoint in 30 seconds"
+- [ ] Host on Render (blueprint exists) or just use AX41
+- [ ] Track: upvotes, comments, signups, what people try to build
 
 ---
 
-## Week 4: Launch
+## Week-by-Week Plan
 
-### 4.1 Analytics
-- PostHog (EU region, already have key)
-- Track: signups, first deploy, runs, share link creates, template usage
-- Funnel: visit → signup → first deploy → first share
+### Week 1: Landing Page + Waitlist + First Posts
+1. Buy domain
+2. Point DNS, set up SSL (Caddy or nginx)
+3. Add waitlist form to landing page
+4. Record demo video (Loom or screen recording)
+5. Write and post: HN, Reddit r/Python, Twitter
+6. Start concierge outreach (DM 10 people)
 
-### 4.2 Domain
-- Get domain (runtime.ai already in README, check availability)
-- Or: runtimeapp.dev, getruntime.dev, etc.
-- SSL, DNS, update Render config
+### Week 2: Evaluate Signals + Host Free Tier (if signals are good)
+- If >200 signups: deploy hosted free tier on Modal + Render
+- If <50 signups: pivot messaging, try different channels, or shelve
+- Continue concierge conversations
+- Talk to anyone who signed up — what are they trying to build?
 
-### 4.3 Launch Prep
-- GitHub repo: make public, clean README for open source
-- Record 60s demo video (Cursor → Runtime → live app)
-- Write launch posts:
-  - Product Hunt
-  - Hacker News (Show HN)
-  - r/selfhosted, r/Python, r/webdev
-  - Twitter/X thread
-  - n8n community forum
+### Week 3: Watch What People Build
+- Monitor usage: what apps do people create?
+- Talk to top 10 users (email/DM)
+- Identify patterns: what's the most common use case?
+- Fix any blocking bugs that real users hit
 
-### 4.4 Polish
-- Error messages: friendly, actionable ("Your code has an error on line X. Here's how to fix it")
-- Loading states: fun, engaging (not just spinners)
-- Empty states: helpful, guide to next action
-- Mobile responsive check on all pages
+### Week 4: Decision
+- **Invest:** >100 active users, retention, word-of-mouth → add Stripe, scale infra
+- **Pivot:** interest but wrong positioning → adjust messaging/audience
+- **Shelve:** no real demand → move on, keep the code
 
 ---
 
-## Implementation Order (Priority)
+## Pre-Launch Checklist
 
-1. Landing page (highest impact, gates everything)
-2. Paste-your-code (removes biggest friction)
-3. Templates (gives users a starting point)
-4. Dejargon pass (makes everything approachable)
-5. Stripe billing (enables revenue)
-6. Analytics (measures funnel)
-7. Launch materials (Product Hunt, HN, etc.)
+### Already Done
+- [x] Landing page with clear value prop
+- [x] Auth (signup/login via Supabase)
+- [x] Dashboard, project CRUD, deploy flow
+- [x] Docker + Modal execution backends
+- [x] Templates (PDF extractor, AI chatbot, web scraper)
+- [x] Share links (public endpoints)
+- [x] Rate limiting + quota enforcement
+- [x] Dejargon pass (plain English everywhere)
+- [x] Billing routes (Stripe integration scaffolded)
+- [x] 190+ tests passing
 
-## Files to Create
-- `/apps/web/app/(marketing)/page.tsx` - Landing page
-- `/apps/web/app/(marketing)/pricing/page.tsx` - Pricing page
-- `/apps/web/app/(marketing)/integrations/page.tsx` - Integration docs
-- `/apps/web/app/(marketing)/layout.tsx` - Marketing layout (no sidebar)
-- `/apps/web/app/templates/page.tsx` - Template gallery
-- `/services/runner/templates/*.py` - Template Python files
-- `/services/control-plane/src/routes/billing.ts` - Stripe routes
-- `/apps/web/app/settings/billing/page.tsx` - Billing UI
-- `/apps/web/app/settings/usage/page.tsx` - Usage dashboard
+### Still Needed for Launch
+- [ ] Domain + DNS + SSL
+- [ ] Waitlist form on landing page
+- [ ] Demo video (60s screen recording)
+- [ ] OG image / Twitter card meta tags
+- [ ] Paste-your-code option (huge for target audience — they copy from ChatGPT)
+- [ ] PostHog analytics (key exists, just wire it up)
+- [ ] Render deploy config (or keep on AX41 behind Caddy)
 
-## Files to Modify
-- `/apps/web/app/new/page.tsx` - Add paste-code option
-- `/apps/web/app/page.tsx` - Dashboard (add usage bar)
-- `/apps/web/app/login/page.tsx` - Update branding
-- `/apps/web/app/signup/page.tsx` - Update branding + post-signup flow
-- `/apps/web/app/layout.tsx` - Add meta tags
-- `/services/control-plane/src/middleware/quota.ts` - Tie to Stripe tiers
-- All user-facing components - dejargon pass
+### Nice-to-Have (post-validation)
+- [ ] Stripe billing (only after proving demand)
+- [ ] Usage dashboard
+- [ ] Integration docs (n8n, Make, Zapier)
+- [ ] GPU support
+- [ ] Custom domains for share links
+
+---
+
+## Hosting Strategy
+
+Validation phase: use existing infra, don't scale prematurely.
+
+| Phase | Hosting | Cost |
+|-------|---------|------|
+| Waitlist only | Static page on Vercel/Netlify | $0 |
+| Free tier (<100 users) | AX41 Docker backend | $0 (already paying for AX41) |
+| Free tier (100-500 users) | Render + Modal free tier | ~$50/mo |
+| Paid tier (post-validation) | Render Pro + Modal pay-as-you-go | Scales with revenue |
+
+The AX41 can handle the validation phase easily. Only move to Render + Modal when there's actual demand.
