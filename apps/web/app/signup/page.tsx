@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSupabaseBrowserClient } from '../../lib/supabase/client';
@@ -13,6 +13,13 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Dev mode: skip signup, redirect straight to dashboard
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
+      router.replace('/dashboard');
+    }
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,6 +34,10 @@ export default function SignupPage() {
 
     try {
       const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        router.push('/dashboard');
+        return;
+      }
       const { error: authError } = await supabase.auth.signUp({
         email,
         password,

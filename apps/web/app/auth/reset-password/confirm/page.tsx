@@ -24,6 +24,10 @@ export default function ResetPasswordConfirmPage() {
 
     try {
       const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        setError('Authentication is not configured');
+        return;
+      }
       const { error: updateError } = await supabase.auth.updateUser({ password });
 
       if (updateError) {
