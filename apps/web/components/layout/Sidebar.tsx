@@ -226,9 +226,9 @@ export function Sidebar() {
             />
             <span className="text-[11px] text-[var(--text-tertiary)]">
               {apiStatus === 'connected'
-                ? 'API Connected'
+                ? 'Connected'
                 : apiStatus === 'disconnected'
-                ? 'API Disconnected'
+                ? 'Disconnected'
                 : 'Connecting...'}
             </span>
           </div>
