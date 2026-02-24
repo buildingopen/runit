@@ -4,6 +4,8 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api/client';
+import { getSupabaseBrowserClient } from '../../../../lib/supabase/client';
+import { trackDeploySuccess } from '../../../../lib/analytics';
 
 interface DeployEvent {
   type: 'status' | 'complete' | 'error';
@@ -67,9 +69,18 @@ export default function DeployingPage({ params }: PageProps) {
           return;
         }
 
-        // Connect to SSE stream
+        // Connect to SSE stream (pass token via query param since EventSource can't send headers)
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-        eventSource = new EventSource(`${API_BASE_URL}/projects/${projectId}/deploy/stream`);
+        let streamUrl = `${API_BASE_URL}/v1/projects/${projectId}/deploy/stream`;
+        try {
+          const supabase = getSupabaseBrowserClient();
+          const sessionResult = await supabase?.auth.getSession();
+          const token = sessionResult?.data?.session?.access_token;
+          if (token) {
+            streamUrl += `?token=${encodeURIComponent(token)}`;
+          }
+        } catch { /* proceed without token */ }
+        eventSource = new EventSource(streamUrl);
 
         eventSource.addEventListener('status', (e) => {
           if (!mounted) return;
@@ -83,6 +94,7 @@ export default function DeployingPage({ params }: PageProps) {
 
         eventSource.addEventListener('complete', () => {
           if (!mounted) return;
+          trackDeploySuccess(projectId);
           setIsComplete(true);
           setProgress(100);
           setMessage('Your app is live!');

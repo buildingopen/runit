@@ -19,6 +19,8 @@ import {
 } from '@/lib/hooks/useProject';
 import { apiClient } from '@/lib/api/client';
 import { getProjectEmoji } from '@/lib/utils';
+import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { trackRunExecuted, trackShareLinkCreated } from '@/lib/analytics';
 
 type RunPageState = 'pre-run' | 'running' | 'post-run';
 
@@ -49,6 +51,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   const [isRedeploying, setIsRedeploying] = useState(false);
   const [redeployStep, setRedeployStep] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
 
   // Fetch project details
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
@@ -91,9 +94,18 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
     try {
       await apiClient.redeploy(projectId);
 
-      // Connect to SSE stream for progress updates
+      // Connect to SSE stream for progress updates (pass token via query param)
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-      const es = new EventSource(`${API_BASE_URL}/projects/${projectId}/deploy/stream`);
+      let streamUrl = `${API_BASE_URL}/v1/projects/${projectId}/deploy/stream`;
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const sessionResult = await supabase?.auth.getSession();
+        const token = sessionResult?.data?.session?.access_token;
+        if (token) {
+          streamUrl += `?token=${encodeURIComponent(token)}`;
+        }
+      } catch { /* proceed without token */ }
+      const es = new EventSource(streamUrl);
       eventSourceRef.current = es;
 
       es.addEventListener('status', (e) => {
@@ -132,7 +144,8 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   };
 
   // Get latest version ID
-  const versionId = project?.versions?.[project.versions.length - 1]?.version_id || null;
+  // Versions are returned in created_at DESC order — [0] is the latest
+  const versionId = project?.versions?.[0]?.version_id || null;
 
   // Fetch endpoints to get selected endpoint info
   const { data: endpointsData } = useEndpoints(projectId, versionId || undefined);
@@ -184,6 +197,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
     setElapsedTime(0);
 
     try {
+      trackRunExecuted(projectId, selectedEndpointId, 'cpu');
       const result = await executeRun.mutateAsync({
         project_id: projectId,
         version_id: versionId,
@@ -272,18 +286,40 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
           <div className="text-[13px] text-[var(--text-secondary)] truncate">{endpointDisplayName}</div>
         </div>
         <button
-          onClick={() => {
-            const url = window.location.href;
-            navigator.clipboard.writeText(url);
-            setShareCopied(true);
-            setTimeout(() => setShareCopied(false), 2000);
+          onClick={async () => {
+            if (!selectedEndpointId) {
+              // Fallback: copy page URL if no endpoint selected
+              navigator.clipboard.writeText(window.location.href);
+              setShareCopied(true);
+              setTimeout(() => setShareCopied(false), 2000);
+              return;
+            }
+            setShareLoading(true);
+            try {
+              const result = await apiClient.createShareLink(projectId, {
+                target_type: 'endpoint_template',
+                target_ref: selectedEndpointId,
+              });
+              navigator.clipboard.writeText(result.share_url);
+              trackShareLinkCreated(projectId, 'endpoint_template');
+              setShareCopied(true);
+              setTimeout(() => setShareCopied(false), 2000);
+            } catch {
+              // Fallback to copying page URL
+              navigator.clipboard.writeText(window.location.href);
+              setShareCopied(true);
+              setTimeout(() => setShareCopied(false), 2000);
+            } finally {
+              setShareLoading(false);
+            }
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-[13px] font-medium hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
+          disabled={shareLoading}
+          className="flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] text-[13px] font-medium hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all disabled:opacity-50"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
           </svg>
-          {shareCopied ? 'Copied!' : 'Share'}
+          {shareLoading ? 'Creating...' : shareCopied ? 'Link copied!' : 'Share'}
         </button>
       </header>
 

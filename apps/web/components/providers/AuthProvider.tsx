@@ -32,8 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const signOut = useCallback(async () => {
-    const supabase = getSupabaseBrowserClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = getSupabaseBrowserClient();
+      await supabase?.auth.signOut();
+    } catch {
+      // Ignore signOut errors in dev mode
+    }
     router.push('/login');
   }, [router]);
 
@@ -47,27 +51,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setAuthState({
-        user: session?.user ?? null,
-        session,
-        loading: false,
-      });
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
         setAuthState({
           user: session?.user ?? null,
           session,
           loading: false,
         });
-      }
-    );
+      })
+      .catch(() => {
+        setAuthState({ user: null, session: null, loading: false });
+      });
+
+    // Listen for auth changes
+    let subscription: { unsubscribe: () => void } | undefined;
+    try {
+      const { data } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          setAuthState({
+            user: session?.user ?? null,
+            session,
+            loading: false,
+          });
+        }
+      );
+      subscription = data.subscription;
+    } catch {
+      setAuthState({ user: null, session: null, loading: false });
+    }
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 

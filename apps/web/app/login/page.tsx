@@ -24,6 +24,13 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
+  // Dev mode: skip login, redirect straight to dashboard
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
+      router.replace(redirectTo);
+    }
+  }, [router, redirectTo]);
+
   // Prefetch the target route to warm it up
   useEffect(() => {
     router.prefetch(redirectTo);
@@ -36,6 +43,10 @@ function LoginForm() {
 
     try {
       const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        router.push(redirectTo);
+        return;
+      }
       const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,

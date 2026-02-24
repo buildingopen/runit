@@ -15,10 +15,14 @@ export function getSupabaseBrowserClient() {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
-    // Return null when Supabase is not configured (e.g., marketing pages)
-    return null as unknown as ReturnType<typeof createBrowserClient>;
+    // Return null when Supabase is not configured (e.g., dev mode)
+    return null;
   }
 
-  client = createBrowserClient(url, anonKey);
-  return client;
+  try {
+    client = createBrowserClient(url, anonKey);
+    return client;
+  } catch {
+    return null;
+  }
 }
