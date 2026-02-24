@@ -43,7 +43,7 @@ metrics.get('/health', (c) => {
 
   return c.json({
     status: circuitOpen ? 'degraded' : 'healthy',
-    circuitBreakers: getCircuitBreakerStats(),
+    serviceHealth: getCircuitBreakerStats(),
   });
 });
 

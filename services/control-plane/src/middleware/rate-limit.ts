@@ -305,10 +305,10 @@ export async function rateLimitMiddleware(c: Context, next: Next) {
     });
 
     return c.json({
-      error: 'Rate limit exceeded',
+      error: 'Too many requests',
       message: isAuthenticated
-        ? `Limit: ${config.requestsPerMinute} requests per minute for authenticated users`
-        : `Limit: ${config.requestsPerMinute} requests per minute for anonymous users. Sign in for higher limits.`,
+        ? `You can make up to ${config.requestsPerMinute} requests per minute. Please wait a moment and try again.`
+        : `You can make up to ${config.requestsPerMinute} requests per minute. Sign in for higher limits.`,
       resetAt: new Date(result.resetAt).toISOString()
     }, 429);
   }
@@ -340,8 +340,8 @@ export async function shareLinkRateLimitMiddleware(c: Context, next: Next) {
     });
 
     return c.json({
-      error: 'Share link rate limit exceeded',
-      message: `This share link has exceeded its limit of ${LIMITS.shareLink.runsPerHour} runs per hour`,
+      error: 'Too many requests on this share link',
+      message: `This share link allows up to ${LIMITS.shareLink.runsPerHour} runs per hour. Please wait and try again.`,
       resetAt: new Date(result.resetAt).toISOString()
     }, 429);
   }

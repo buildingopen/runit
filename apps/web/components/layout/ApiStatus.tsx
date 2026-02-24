@@ -29,8 +29,8 @@ export function ApiStatus() {
   }
 
   const statusConfig = {
-    online: { color: 'bg-[var(--success)]', text: 'API Online' },
-    offline: { color: 'bg-[var(--error)]', text: 'API Offline' },
+    online: { color: 'bg-[var(--success)]', text: 'Connected' },
+    offline: { color: 'bg-[var(--error)]', text: 'Disconnected' },
     checking: { color: 'bg-[var(--warning)]', text: 'Checking...' },
   };
 

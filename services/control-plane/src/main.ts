@@ -4,7 +4,7 @@
  * Control Plane API
  *
  * Source of truth for projects, versions, runs, secrets, and sharing.
- * Production-hardened with:
+ * Includes:
  * - Request timeouts
  * - HTTPS redirect
  * - Circuit breakers
@@ -37,9 +37,12 @@ import secrets from './routes/secrets.js';
 import contextRoutes from './routes/context';
 import { projectShare, shareLinks } from './routes/share.js';
 import deploy from './routes/deploy.js';
+import billing from './routes/billing.js';
+import templates from './routes/templates.js';
 import metrics from './routes/metrics';
 import { rateLimitMiddleware, shutdownRateLimit } from './middleware/rate-limit';
 import { quotaMiddleware } from './middleware/quota';
+import { cloudIPFilterMiddleware } from './middleware/ip-filter';
 import { bodySizeLimitMiddleware, contentTypeMiddleware } from './middleware/request-validation';
 import { authMiddleware } from './middleware/auth';
 import { loggerMiddleware, devLoggerMiddleware } from './middleware/logger';
@@ -77,16 +80,9 @@ async function startupHealthCheck(): Promise<void> {
   if (isSupabaseConfigured()) {
     const supabaseCheck = await testSupabaseConnection();
     if (!supabaseCheck.connected) {
-      if (isProduction) {
-        logger.error('[Startup] FATAL: Supabase connectivity check failed', undefined, {
-          error: supabaseCheck.error,
-        });
-        process.exit(1);
-      } else {
-        logger.warn('[Startup] Supabase connectivity check failed (continuing in development)', {
-          error: supabaseCheck.error,
-        });
-      }
+      logger.warn('[Startup] Supabase connectivity check failed (continuing - may recover)', {
+        error: supabaseCheck.error,
+      });
     } else {
       logger.info(`[Startup] Supabase connected (${supabaseCheck.latencyMs}ms)`);
     }
@@ -105,9 +101,8 @@ async function startupHealthCheck(): Promise<void> {
   // Check Sentry
   if (isSentryInitialized()) {
     logger.info('[Startup] Sentry initialized');
-  } else if (isProduction) {
-    logger.error('[Startup] FATAL: Sentry not initialized in production');
-    process.exit(1);
+  } else {
+    logger.warn('[Startup] Sentry not initialized (running without error tracking)');
   }
 
   logger.info('[Startup] Health checks complete');
@@ -158,14 +153,15 @@ const allowedOrigins = (() => {
 
 app.use('/*', cors({
   origin: (origin) => {
-    // Allow requests with no origin (server-to-server, curl)
-    if (!origin) return '*';
+    // In production, reject requests with no origin (blocks arbitrary server-to-server)
+    // In development, allow for curl/Postman convenience
+    if (!origin) return isProduction ? null : '*';
 
     // Check explicit allowlist first
     if (allowedOrigins.includes(origin)) return origin;
 
     // In development, allow localhost
-    if (process.env.NODE_ENV !== 'production') {
+    if (!isProduction) {
       if (origin.startsWith('http://localhost:')) return origin;
       if (origin.startsWith('http://127.0.0.1:')) return origin;
     }
@@ -192,7 +188,7 @@ app.use('/*', contentTypeMiddleware);
 
 // Authentication middleware - validates JWT and attaches user to context
 // Excluded: /metrics (Prometheus scraping), /health (load balancer probes), /openapi.json (docs)
-const AUTH_EXCLUDED_PATHS = ['/metrics', '/health', '/openapi.json', '/v1/openapi.json'];
+const AUTH_EXCLUDED_PATHS = ['/metrics', '/health', '/openapi.json', '/v1/openapi.json', '/v1/billing/webhook', '/billing/webhook', '/v1/templates', '/templates'];
 app.use('/*', async (c, next) => {
   if (AUTH_EXCLUDED_PATHS.some(path => c.req.path === path || c.req.path.startsWith(path + '/'))) {
     return next();
@@ -209,8 +205,13 @@ app.use('/*', async (c, next) => {
   return rateLimitMiddleware(c, next);
 });
 
-// Apply quota enforcement on run endpoints
+// Block cloud/datacenter IPs from executing runs (before quota check)
+app.use('/runs/*', cloudIPFilterMiddleware);
+app.use('/v1/runs/*', cloudIPFilterMiddleware);
+
+// Apply quota enforcement on run endpoints (both versioned and legacy paths)
 app.use('/runs/*', quotaMiddleware);
+app.use('/v1/runs/*', quotaMiddleware);
 
 // Health check
 app.get('/', (c) => {
@@ -271,7 +272,7 @@ app.get('/health/deep', async (c) => {
   // Check circuit breakers
   const circuitStats = getCircuitBreakerStats();
   checks.circuit_breakers = hasOpenCircuit()
-    ? { status: 'degraded', error: 'One or more circuit breakers open' }
+    ? { status: 'degraded', error: 'One or more services are temporarily unavailable' }
     : { status: 'healthy' };
 
   const overall = Object.values(checks).every((ch) => ch.status === 'healthy' || ch.status === 'configured' || ch.status === 'not_configured')
@@ -285,7 +286,7 @@ app.get('/health/deep', async (c) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     checks,
-    circuitBreakers: circuitStats,
+    serviceHealth: circuitStats,
   }, overall === 'unhealthy' ? 503 : 200);
 });
 
@@ -310,6 +311,8 @@ apiRouter.route('/projects', projectShare);  // /projects/:id/share
 apiRouter.route('/projects', deploy);        // /projects/:id/deploy, /projects/:id/deploy/stream
 apiRouter.route('/share', shareLinks);       // /share/:share_id
 apiRouter.route('/runs', runs);
+apiRouter.route('/billing', billing);       // /billing/subscription, /billing/checkout, etc.
+apiRouter.route('/templates', templates);   // /templates (list), /templates/:id (details)
 
 // Mount v1 API (recommended)
 app.route('/v1', apiRouter);
@@ -343,6 +346,8 @@ app.use('/runs/*', async (c, next) => {
   c.header('Link', '</v1/runs>; rel="successor-version"');
 });
 app.route('/runs', runs);
+app.route('/billing', billing);
+app.route('/templates', templates);
 
 // Metrics always at root (Prometheus convention)
 app.route('/metrics', metrics);

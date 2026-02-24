@@ -6,9 +6,9 @@
  */
 
 export const VALIDATION_LIMITS = {
-  // Body size limits
-  MAX_BODY_SIZE_BYTES: 5 * 1024 * 1024,       // 5MB max payload
-  MAX_ZIP_DATA_SIZE_BYTES: 10 * 1024 * 1024,  // 10MB for ZIP uploads only
+  // Body size limits (global max; tier-specific enforcement at route level)
+  MAX_BODY_SIZE_BYTES: 150 * 1024 * 1024,     // 150MB max payload (supports 100MB ZIP as base64)
+  MAX_ZIP_DATA_SIZE_BYTES: 10 * 1024 * 1024,  // 10MB default for ZIP uploads (overridden by tier)
 
   // String length limits
   MAX_PROJECT_NAME_LENGTH: 128,

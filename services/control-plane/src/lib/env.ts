@@ -66,8 +66,8 @@ const ENV_VARS: EnvVar[] = [
   },
   {
     name: 'SENTRY_DSN',
-    required: 'production',
-    description: 'Sentry DSN for error tracking (required in production)'
+    required: 'optional',
+    description: 'Sentry DSN for error tracking (optional)'
   },
   {
     name: 'CORS_ORIGINS',

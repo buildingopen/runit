@@ -1,0 +1,7 @@
+{
+  "id": "pdf-text-extractor",
+  "name": "PDF Text Extractor",
+  "description": "Upload a PDF and extract all text from it. Uses PyMuPDF for fast, accurate extraction.",
+  "category": "document",
+  "requiredSecrets": []
+}

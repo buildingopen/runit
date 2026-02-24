@@ -1,0 +1,7 @@
+{
+  "id": "web-scraper",
+  "name": "Web Scraper",
+  "description": "Scrape any web page and extract its title, text content, and links.",
+  "category": "data",
+  "requiredSecrets": []
+}

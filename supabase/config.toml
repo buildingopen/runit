@@ -1,6 +1,8 @@
 # Supabase Configuration for Runtime
 # See: https://supabase.com/docs/guides/cli/config
 
+project_id = "runtime-ai"
+
 [api]
 enabled = true
 port = 54321
@@ -33,13 +35,13 @@ pop3_port = 54326
 
 [auth]
 enabled = true
-site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = ["http://localhost:3000", "http://127.0.0.1:3000"]
+site_url = "http://65.21.90.216:3000"
+additional_redirect_urls = ["http://localhost:3000", "http://127.0.0.1:3000", "http://65.21.90.216:3000"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 enable_signup = true
-enable_anonymous_sign_ins = false
+# enable_anonymous_sign_ins = false (removed - not supported in this CLI version)
 
 [auth.email]
 enable_signup = true
@@ -60,9 +62,7 @@ enabled = false
 enabled = true
 file_size_limit = "50MiB"
 
-[edge_runtime]
-enabled = true
-policy = "oneshot"
+# [edge_runtime] removed - not supported in this CLI version
 
 [analytics]
 enabled = false

@@ -139,13 +139,17 @@ async function executeDeploySteps(
       : 'No additional dependencies required.'
   );
 
-  // Step 3: Verify Modal runtime is configured
+  // Step 3: Verify compute runtime is configured
   deployState.updateDeployProgress(projectId, 'starting', 65, 'Checking runtime availability...');
 
-  const hasModal = !!(process.env.MODAL_TOKEN_ID && process.env.MODAL_TOKEN_SECRET);
-  if (!hasModal) {
-    throw new Error('Modal runtime not configured — MODAL_TOKEN_ID and MODAL_TOKEN_SECRET required');
+  const computeBackend = process.env.COMPUTE_BACKEND || 'modal';
+  if (computeBackend === 'modal') {
+    const hasModal = !!(process.env.MODAL_TOKEN_ID && process.env.MODAL_TOKEN_SECRET);
+    if (!hasModal) {
+      throw new Error('Modal runtime not configured — MODAL_TOKEN_ID and MODAL_TOKEN_SECRET required');
+    }
   }
+  // Docker backend: no credentials needed, just needs runtime-runner image
 
   deployState.updateDeployProgress(projectId, 'starting', 75, 'Runtime available.');
 

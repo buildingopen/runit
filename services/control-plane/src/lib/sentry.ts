@@ -20,12 +20,7 @@ export async function initSentry(): Promise<void> {
   const isProduction = process.env.NODE_ENV === 'production';
 
   if (!dsn) {
-    if (isProduction) {
-      // This should never happen as env.ts validates SENTRY_DSN in production
-      console.error('[Sentry] FATAL: SENTRY_DSN not set in production');
-      process.exit(1);
-    }
-    console.log('[Sentry] Skipping initialization (no DSN configured in development)');
+    console.log(`[Sentry] Skipping initialization (no DSN configured${isProduction ? ' - running without error tracking' : ''})`);
     return;
   }
 
@@ -50,11 +45,7 @@ export async function initSentry(): Promise<void> {
     sentryInitialized = true;
     console.log('[Sentry] Initialized successfully');
   } catch (error) {
-    if (isProduction) {
-      console.error('[Sentry] FATAL: Failed to initialize in production:', error);
-      process.exit(1);
-    }
-    console.warn('[Sentry] Failed to initialize (development):', error);
+    console.warn('[Sentry] Failed to initialize:', error);
   }
 }
 
