@@ -30,7 +30,7 @@ export const ERROR_FIXES: Record<ErrorClass, string> = {
     'Check that all imports in your code are valid and dependencies are listed in requirements.txt',
 
   no_fastapi_app:
-    'Your main.py needs a FastAPI app (e.g., app = FastAPI()). We look for common names: main:app, app:app, api:app',
+    'Your main.py needs an app variable. Add this to your file: app = FastAPI()',
 
   schema_extraction_failed:
     'Make sure your app starts without errors. Check for any code that runs on startup',
@@ -48,7 +48,7 @@ export const ERROR_FIXES: Record<ErrorClass, string> = {
     'Your code has circular imports (file A imports file B, which imports file A). Try reorganizing your imports',
 
   entrypoint_not_found:
-    'Name your main file main.py with app = FastAPI() inside it. Or create an executionlayer.toml to specify which file to use'
+    'Name your main file main.py and make sure it has an app variable (e.g., app = FastAPI())'
 };
 
 /**

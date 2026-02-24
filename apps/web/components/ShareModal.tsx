@@ -234,7 +234,7 @@ export function ShareModal({
         {/* Footer */}
         <div className="p-4 border-t border-[var(--border)] bg-[var(--bg-primary)]">
           <p className="text-[11px] text-[var(--text-tertiary)]">
-            Share links are rate-limited to 100 runs per hour. Anyone with the link can run it.
+            Share links allow up to 100 runs per hour. Anyone with the link can run it.
           </p>
         </div>
       </div>
