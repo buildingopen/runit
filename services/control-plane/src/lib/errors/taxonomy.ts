@@ -1,5 +1,5 @@
 /**
- * Error Taxonomy for OpenAPI Extraction
+ * Error Taxonomy for App Analysis
  *
  * ABOUTME: Defines error classes and structured error responses
  * ABOUTME: Used to classify and provide actionable error messages
@@ -27,40 +27,40 @@ export interface ClassifiedError {
  */
 export const ERROR_FIXES: Record<ErrorClass, string> = {
   import_error:
-    'Check that all imports in your code are valid and dependencies are in requirements.txt',
+    'Check that all imports in your code are valid and dependencies are listed in requirements.txt',
 
   no_fastapi_app:
-    'Create a FastAPI instance: app = FastAPI(). Common patterns: main:app, app:app, api:app',
+    'Your main.py needs a FastAPI app (e.g., app = FastAPI()). We look for common names: main:app, app:app, api:app',
 
   schema_extraction_failed:
-    'Ensure your FastAPI app can be instantiated without errors. Check startup/lifespan events',
+    'Make sure your app starts without errors. Check for any code that runs on startup',
 
   timeout:
-    'Import took too long (>30s). Move heavy initialization to lazy-loaded functions or endpoints',
+    'Your app took too long to start (>30s). Try moving slow setup code inside your functions instead of at the top level',
 
   dependency_missing:
-    'Add the missing package to requirements.txt with a pinned version',
+    'Add the missing package to your requirements.txt file',
 
   syntax_error:
-    'Fix Python syntax errors in your code. Test locally with: python -m py_compile <file>',
+    'There\'s a syntax error in your Python code. Try running it locally first to check: python -m py_compile your_file.py',
 
   circular_import:
-    'Restructure your code to avoid circular imports. Consider lazy imports or dependency injection',
+    'Your code has circular imports (file A imports file B, which imports file A). Try reorganizing your imports',
 
   entrypoint_not_found:
-    'Rename your file to main.py and export app = FastAPI(), or create executionlayer.toml with: entrypoint = "your_module:app"'
+    'Name your main file main.py with app = FastAPI() inside it. Or create an executionlayer.toml to specify which file to use'
 };
 
 /**
  * User-friendly error messages
  */
 export const ERROR_MESSAGES: Record<ErrorClass, string> = {
-  import_error: 'Could not import your FastAPI application',
-  no_fastapi_app: 'No FastAPI app instance found in your code',
-  schema_extraction_failed: 'Failed to extract OpenAPI schema from your app',
-  timeout: 'Import timeout - application startup took too long',
-  dependency_missing: 'Required Python package is missing',
-  syntax_error: 'Python syntax error in your code',
+  import_error: 'Could not load your Python app',
+  no_fastapi_app: 'No app found in your code',
+  schema_extraction_failed: 'Failed to analyze your app',
+  timeout: 'Your app took too long to start',
+  dependency_missing: 'A required Python package is missing',
+  syntax_error: 'Your code has a syntax error',
   circular_import: 'Circular import detected in your code',
-  entrypoint_not_found: 'Could not find FastAPI app entrypoint'
+  entrypoint_not_found: 'Could not find your app\'s main file'
 };

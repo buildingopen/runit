@@ -1,0 +1,7 @@
+{
+  "id": "ai-chatbot",
+  "name": "AI Chatbot",
+  "description": "A simple AI chatbot powered by Google Gemini. Send a message, get an AI response.",
+  "category": "ai",
+  "requiredSecrets": ["GEMINI_API_KEY"]
+}

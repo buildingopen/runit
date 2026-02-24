@@ -27,6 +27,18 @@ vi.mock('../../src/middleware/auth', () => ({
   getAuthUser: vi.fn(),
 }));
 
+vi.mock('../../src/db/billing-store', () => ({
+  incrementProjectsCount: vi.fn().mockResolvedValue(undefined),
+  getUserTier: vi.fn().mockResolvedValue('free'),
+}));
+
+vi.mock('../../src/config/tiers', () => ({
+  getTierLimits: vi.fn().mockReturnValue({
+    cpuRunsPerHour: 50, gpuRunsPerHour: 5, maxConcurrentCpu: 1,
+    maxConcurrentGpu: 1, maxProjects: 3, maxSecretsPerProject: 5, maxFileSizeMB: 10,
+  }),
+}));
+
 vi.mock('../../src/lib/openapi/zip-extractor', () => ({
   extractOpenAPIFromZip: vi.fn(),
 }));
@@ -307,37 +319,8 @@ describe('POST /projects - Create project', () => {
     expect(body.error).toContain('zip bomb');
   });
 
-  it('should use anonymous owner_id when user not authenticated', async () => {
-    // Reset all validation mocks to valid
-    vi.mocked(validateProjectName).mockReturnValue({ valid: true });
-    vi.mocked(validateBase64).mockReturnValue({ valid: true });
-    vi.mocked(validateZipMagicBytes).mockReturnValue({ valid: true });
-    vi.mocked(validateZipDataSize).mockReturnValue({ valid: true });
-    vi.mocked(validateZipDecompressionSafe).mockReturnValue({ valid: true });
-
+  it('should return 401 when user not authenticated', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: null, isAuthenticated: false });
-    vi.mocked(projectsStore.createProject).mockImplementation(async (input) => ({
-      id: 'proj-123',
-      slug: 'my-project-proj-123',
-      name: input.name,
-      owner_id: input.owner_id,
-      status: 'draft',
-      deployed_at: null,
-      deploy_error: null,
-      runtime_url: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
-    vi.mocked(projectsStore.createVersion).mockResolvedValue({
-      id: 'ver-123',
-      version_hash: 'abc123',
-    } as any);
-    vi.mocked(extractOpenAPIFromZip).mockResolvedValue({
-      openapi: null,
-      endpoints: [],
-      entrypoint: null,
-      detected_env_vars: [],
-    });
 
     const res = await projects.request('/', {
       method: 'POST',
@@ -349,10 +332,9 @@ describe('POST /projects - Create project', () => {
       }),
     });
 
-    expect(res.status).toBe(201);
-    expect(projectsStore.createProject).toHaveBeenCalledWith(
-      expect.objectContaining({ owner_id: 'anonymous' })
-    );
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBe('Authentication required');
   });
 });
 
@@ -411,13 +393,14 @@ describe('GET /projects - List projects', () => {
     expect(body.total).toBe(0);
   });
 
-  it('should use anonymous owner_id for unauthenticated users', async () => {
+  it('should return 401 for unauthenticated users', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: null, isAuthenticated: false });
-    vi.mocked(projectsStore.listProjects).mockResolvedValue([]);
 
-    await projects.request('/', { method: 'GET' });
+    const res = await projects.request('/', { method: 'GET' });
 
-    expect(projectsStore.listProjects).toHaveBeenCalledWith('anonymous');
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBe('Authentication required');
   });
 });
 
@@ -493,27 +476,21 @@ describe('GET /projects/:id - Get single project', () => {
     expect(body.error).toBe('Not authorized');
   });
 
-  it('should allow anonymous access to anonymous projects', async () => {
+  it('should return 401 for unauthenticated access to any project', async () => {
     const mockProject = {
       id: 'proj-123',
       slug: 'my-project',
       name: 'My Project',
       owner_id: 'anonymous',
       status: 'draft',
-      deployed_at: null,
-      deploy_error: null,
-      runtime_url: null,
-      created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z',
     };
 
     vi.mocked(getAuthContext).mockReturnValue({ user: null, isAuthenticated: false });
     vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
-    vi.mocked(projectsStore.listVersions).mockResolvedValue([]);
 
     const res = await projects.request('/proj-123', { method: 'GET' });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(401);
   });
 });
 

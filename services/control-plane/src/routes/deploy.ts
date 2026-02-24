@@ -6,10 +6,34 @@
 
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { getAuthContext } from '../middleware/auth.js';
+import { getAuthContext, type AuthContext } from '../middleware/auth.js';
+import { getSupabaseClient, isSupabaseConfigured } from '../db/supabase.js';
 import * as projectsStore from '../db/projects-store.js';
 import * as deployState from '../lib/deploy-state.js';
 import { runDeployment } from '../lib/deploy-bridge.js';
+
+/**
+ * Validate a token from query param for SSE endpoints.
+ * EventSource API cannot send Authorization headers, so we accept ?token= instead.
+ */
+async function getAuthFromToken(token: string): Promise<AuthContext> {
+  if (!isSupabaseConfigured()) {
+    return { user: null, isAuthenticated: false };
+  }
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) {
+      return { user: null, isAuthenticated: false };
+    }
+    return {
+      user: { id: data.user.id, email: data.user.email, role: data.user.role },
+      isAuthenticated: true,
+    };
+  } catch {
+    return { user: null, isAuthenticated: false };
+  }
+}
 
 const deploy = new Hono();
 
@@ -73,8 +97,15 @@ deploy.post('/:id/deploy', async (c) => {
 deploy.get('/:id/deploy/stream', async (c) => {
   const projectId = c.req.param('id');
 
-  // Require authenticated user and verify ownership
-  const authContext = getAuthContext(c);
+  // Support auth via ?token= query param (EventSource cannot send headers)
+  const queryToken = c.req.query('token');
+  let authContext: AuthContext;
+  if (queryToken) {
+    authContext = await getAuthFromToken(queryToken);
+  } else {
+    authContext = getAuthContext(c);
+  }
+
   if (!authContext.isAuthenticated || !authContext.user) {
     return c.json({ error: 'Authentication required' }, 401);
   }

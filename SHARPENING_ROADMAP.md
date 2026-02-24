@@ -6,7 +6,7 @@
 Target: People who just started using AI tools (Cursor, n8n, ChatGPT). They can GET code but can't DEPLOY it. Runtime AI is the missing piece.
 
 ## Current State
-- v0.1.0, feature-complete, production-hardened
+- v0.1.0, feature-complete
 - Deployed on Render (web + API) + Modal (runner)
 - No landing page (home = dashboard)
 - No billing/payments

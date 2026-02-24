@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '../../lib/api/client';
+import { trackProjectCreated } from '../../lib/analytics';
 
 const isValidGithubUrl = (url: string): boolean => {
   return /^https?:\/\/github\.com\/[\w.-]+\/[\w.-]+/.test(url);
@@ -116,13 +117,14 @@ export default function NewProjectPage() {
       });
       if (response.endpoints.length === 0) {
         setError(
-          'No functions detected in this repository. Make sure your project has a Python file with defined functions (e.g., main.py with a function that takes inputs and returns outputs).'
+          'No actions found in this repository. Make sure your project has a Python file with functions (e.g., main.py with at least one function).'
         );
         setIsSubmitting(false);
         setSubmittingStep('');
         return;
       }
 
+      trackProjectCreated(response.project_id, 'github');
       setSubmittingStep('Redirecting...');
       router.push(`/create/configure?project=${response.project_id}`);
     } catch (err) {
@@ -155,13 +157,14 @@ export default function NewProjectPage() {
       });
       if (response.endpoints.length === 0) {
         setError(
-          'No functions detected in this upload. Make sure your project has a Python file with defined functions (e.g., main.py with a function that takes inputs and returns outputs).'
+          'No actions found in this upload. Make sure your project has a Python file with functions (e.g., main.py with at least one function).'
         );
         setIsSubmitting(false);
         setSubmittingStep('');
         return;
       }
 
+      trackProjectCreated(response.project_id, 'zip');
       setSubmittingStep('Redirecting...');
       router.push(`/create/configure?project=${response.project_id}`);
     } catch (err) {
@@ -333,6 +336,34 @@ export default function NewProjectPage() {
                 <span className="text-[13px] text-[var(--text-secondary)]">Drop project folder or .zip</span>
               </div>
             )}
+          </>
+        )}
+
+        {/* Templates Section */}
+        {!isSubmitting && (
+          <>
+            <div className="text-center text-[12px] text-[var(--text-tertiary)] my-4">or start from a template</div>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { id: 'pdf-text-extractor', name: 'PDF Extractor', desc: 'Extract text from PDFs', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+                { id: 'ai-chatbot', name: 'AI Chatbot', desc: 'Chat with Gemini AI', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z' },
+                { id: 'web-scraper', name: 'Web Scraper', desc: 'Scrape any web page', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9' },
+              ].map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/templates`}
+                  className="p-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg hover:border-[var(--accent)] transition-colors text-center"
+                >
+                  <div className="w-8 h-8 bg-[var(--bg-tertiary)] rounded-md flex items-center justify-center mx-auto mb-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--text-secondary)]">
+                      <path strokeLinecap="round" strokeLinejoin="round" d={t.icon} />
+                    </svg>
+                  </div>
+                  <div className="text-[12px] font-medium text-[var(--text-primary)]">{t.name}</div>
+                  <div className="text-[11px] text-[var(--text-tertiary)]">{t.desc}</div>
+                </Link>
+              ))}
+            </div>
           </>
         )}
       </div>

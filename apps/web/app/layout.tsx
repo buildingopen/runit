@@ -8,6 +8,7 @@ import { Sidebar } from '../components/layout/Sidebar';
 import { MainContent } from '../components/layout/MainContent';
 import { AuthProvider } from '../components/providers/AuthProvider';
 import { QueryProvider } from '../components/providers/QueryProvider';
+import { PostHogProvider } from '../components/providers/PostHogProvider';
 
 export const metadata: Metadata = {
   title: 'Runtime',
@@ -30,8 +31,10 @@ export default function RootLayout({
       <body className="antialiased">
         <QueryProvider>
           <AuthProvider>
-            <Sidebar />
-            <MainContent>{children}</MainContent>
+            <PostHogProvider>
+              <Sidebar />
+              <MainContent>{children}</MainContent>
+            </PostHogProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

@@ -11,7 +11,7 @@ import type {
   GetRunStatusResponse,
 } from '@runtime-ai/shared';
 import { getProject } from './projects.js';
-import { executeOnModal } from '../lib/modal/client.js';
+import { getComputeBackend } from '../lib/compute/index.js';
 import { getDecryptedSecretsForRun } from './secrets.js';
 import { encryptSecretsBundle } from '../encryption/kms.js';
 import { getAuthContext } from '../middleware/auth.js';
@@ -47,9 +47,12 @@ const runs = new Hono<RunsEnv>();
 runs.post('/', async (c) => {
   const body = await c.req.json() as CreateRunRequest;
 
-  // Get authenticated user
+  // Require authenticated user
   const authContext = getAuthContext(c);
-  const owner_id = authContext.user?.id || 'anonymous';
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const owner_id = authContext.user.id;
 
   // Validate request
   if (!body.project_id || !body.version_id || !body.endpoint_id) {
@@ -114,10 +117,11 @@ runs.post('/', async (c) => {
     return c.json({ error: 'Failed to prepare run: secrets decryption error' }, 500);
   }
 
-  // Execute on Modal asynchronously (in background)
+  // Execute on compute backend asynchronously (in background)
   const requestId = c.get('requestId');
-  logger.info('Starting Modal execution', { runId: run.id, entrypoint: version.entrypoint || 'main:app' });
-  executeOnModal({
+  const computeBackend = getComputeBackend();
+  logger.info('Starting execution', { runId: run.id, entrypoint: version.entrypoint || 'main:app' });
+  computeBackend.execute({
     run_id: run.id,
     code_bundle: version.code_bundle_ref,
     endpoint: `${endpoint.method} ${endpoint.path}`,
@@ -205,10 +209,13 @@ runs.get('/:id', async (c) => {
     return c.json({ error: 'Run not found' }, 404);
   }
 
-  // Verify ownership (allow anonymous access to anonymous runs for share links)
+  // Verify ownership
   const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || 'anonymous';
-  if (run.owner_id !== userId && run.owner_id !== 'anonymous') {
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
+  if (run.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
 

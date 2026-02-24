@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense, KeyboardEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient, type Project } from '../../../lib/api/client';
+import { trackDeployStarted } from '../../../lib/analytics';
 
 function ConfigurePageContent() {
   const router = useRouter();
@@ -105,6 +106,7 @@ function ConfigurePageContent() {
       }
 
       // Start deployment
+      trackDeployStarted(projectId);
       await apiClient.startDeploy(projectId);
 
       // Redirect to deploying page

@@ -156,7 +156,7 @@ const quotaLimits = {
 ## Future Enhancements
 
 - [ ] Redis backend for distributed operation
-- [ ] Per-tier quotas (free/pro/enterprise)
+- [ ] Per-tier quotas (free/pro/team)
 - [ ] Dynamic quota adjustments
 - [ ] Cost estimation before run
 - [ ] Budget alerts

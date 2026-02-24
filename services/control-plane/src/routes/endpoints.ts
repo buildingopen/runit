@@ -36,7 +36,7 @@ endpoints.get('/:project_id/endpoints', async (c) => {
   }
 
   if (!version.endpoints) {
-    return c.json({ error: 'OpenAPI not yet extracted for this version' }, 400);
+    return c.json({ error: 'No actions detected yet for this version' }, 400);
   }
 
   const response: ListEndpointsResponse = {
@@ -74,7 +74,7 @@ endpoints.get('/:project_id/versions/:version_id/endpoints/:endpoint_id/schema',
   }
 
   if (!version.openapi) {
-    return c.json({ error: 'OpenAPI not yet extracted' }, 400);
+    return c.json({ error: 'No actions detected yet' }, 400);
   }
 
   const endpoint = version.endpoints?.find((ep: { id: string }) => ep.id === endpoint_id);
@@ -86,7 +86,7 @@ endpoints.get('/:project_id/versions/:version_id/endpoints/:endpoint_id/schema',
   const openapi = version.openapi as OpenAPISpec & { paths?: Record<string, Record<string, any>> };
   const operation = openapi.paths?.[endpoint.path]?.[endpoint.method.toLowerCase()];
   if (!operation) {
-    return c.json({ error: 'Endpoint schema not found in OpenAPI' }, 500);
+    return c.json({ error: 'Could not load details for this action' }, 500);
   }
 
   // Get raw schemas

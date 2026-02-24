@@ -47,7 +47,7 @@ openapi.post('/:project_id/versions/:version_id/extract-openapi', async (c) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return c.json({
-      error: 'Failed to extract OpenAPI',
+      error: 'Failed to analyze your app',
       detail: message,
     }, 500);
   }

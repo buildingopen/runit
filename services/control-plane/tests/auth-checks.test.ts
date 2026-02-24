@@ -22,6 +22,18 @@ vi.mock('../src/middleware/auth', () => ({
   getAuthUser: vi.fn(),
 }));
 
+vi.mock('../src/db/billing-store', () => ({
+  incrementProjectsCount: vi.fn().mockResolvedValue(undefined),
+  getUserTier: vi.fn().mockResolvedValue('free'),
+}));
+
+vi.mock('../src/config/tiers', () => ({
+  getTierLimits: vi.fn().mockReturnValue({
+    cpuRunsPerHour: 50, gpuRunsPerHour: 5, maxConcurrentCpu: 1,
+    maxConcurrentGpu: 1, maxProjects: 3, maxSecretsPerProject: 5, maxFileSizeMB: 10,
+  }),
+}));
+
 import runs from '../src/routes/runs';
 import projects from '../src/routes/projects';
 import * as runsStore from '../src/db/runs-store';
@@ -85,13 +97,13 @@ describe('GET /runs/:id Authorization', () => {
     expect(body.error).toBe('Not authorized');
   });
 
-  it('should allow anonymous access to anonymous runs (share links)', async () => {
+  it('should return 401 for unauthenticated access to any run', async () => {
     const mockRun = {
       id: 'run-123',
       project_id: 'proj-1',
       version_id: 'ver-1',
       endpoint_id: 'ep-1',
-      owner_id: 'anonymous', // Anonymous run
+      owner_id: 'anonymous',
       status: 'success',
       created_at: new Date().toISOString(),
     };
@@ -100,16 +112,18 @@ describe('GET /runs/:id Authorization', () => {
 
     const res = await runs.request('/run-123', { method: 'GET' });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBe('Authentication required');
   });
 
-  it('should deny anonymous access to authenticated user runs', async () => {
+  it('should return 401 for unauthenticated access to user-owned runs', async () => {
     const mockRun = {
       id: 'run-123',
       project_id: 'proj-1',
       version_id: 'ver-1',
       endpoint_id: 'ep-1',
-      owner_id: 'user-1', // Owned by real user
+      owner_id: 'user-1',
       status: 'success',
       created_at: new Date().toISOString(),
     };
@@ -118,9 +132,9 @@ describe('GET /runs/:id Authorization', () => {
 
     const res = await runs.request('/run-123', { method: 'GET' });
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
     const body = await res.json();
-    expect(body.error).toBe('Not authorized');
+    expect(body.error).toBe('Authentication required');
   });
 });
 
@@ -181,7 +195,7 @@ describe('GET /projects/:id Authorization', () => {
     expect(body.error).toBe('Not authorized');
   });
 
-  it('should allow anonymous access to anonymous projects (dev mode)', async () => {
+  it('should return 401 for unauthenticated access to any project', async () => {
     const mockProject = {
       id: 'proj-123',
       slug: 'my-project',
@@ -192,12 +206,13 @@ describe('GET /projects/:id Authorization', () => {
       updated_at: new Date().toISOString(),
     };
     vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
-    vi.mocked(projectsStore.listVersions).mockResolvedValue([]);
     vi.mocked(getAuthContext).mockReturnValue({ user: null, isAuthenticated: false });
 
     const res = await projects.request('/proj-123', { method: 'GET' });
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toBe('Authentication required');
   });
 });
 

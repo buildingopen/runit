@@ -22,10 +22,10 @@ ERROR_TAXONOMY = {
         ),
     },
     "ENTRYPOINT_NOT_FOUND": {
-        "message": "Couldn't find your FastAPI app.",
+        "message": "Couldn't find your app's main file.",
         "suggested_fix": (
-            "Rename your file to main.py and export app = FastAPI(), "
-            "or create executionlayer.toml with: entrypoint = 'your_module:app'"
+            "Name your main file main.py with app = FastAPI() inside it, "
+            "or create executionlayer.toml to specify which file to use."
         ),
     },
     "IMPORT_ERROR": {
@@ -36,10 +36,10 @@ ERROR_TAXONOMY = {
         ),
     },
     "IMPORT_TIMEOUT": {
-        "message": "Import took too long (>30s).",
+        "message": "Your app took too long to start (>30s).",
         "suggested_fix": (
-            "Your app does heavy work at import/startup. "
-            "Try moving initialization to a lazy-loaded function or endpoint."
+            "Your app does heavy work at startup. "
+            "Try moving slow setup code inside your functions instead of at the top level."
         ),
     },
     "CIRCULAR_IMPORT": {
@@ -47,24 +47,24 @@ ERROR_TAXONOMY = {
         "suggested_fix": ("Refactor your code to remove circular dependencies between modules."),
     },
     "OPENAPI_GENERATION_FAILED": {
-        "message": "Couldn't generate OpenAPI schema from your app.",
+        "message": "Couldn't analyze the actions in your app.",
         "suggested_fix": (
-            "Check that your FastAPI app is properly configured. "
-            "Try accessing app.openapi() locally."
+            "Make sure your app starts without errors. "
+            "Try running it locally first to check."
         ),
     },
     "ENDPOINT_NOT_FOUND": {
-        "message": "The requested endpoint doesn't exist in your app.",
+        "message": "The requested action doesn't exist in your app.",
         "suggested_fix": (
-            "Check that the endpoint path and method match your FastAPI routes. "
-            "Try accessing the /docs page locally."
+            "Check that the path and method match the routes in your code. "
+            "Try running your app locally to see available routes."
         ),
     },
     "REQUEST_VALIDATION_FAILED": {
-        "message": "Invalid input for this endpoint.",
+        "message": "Invalid input for this action.",
         "suggested_fix": (
-            "Check that your inputs match the endpoint's schema. "
-            "See the OpenAPI docs for required fields and types."
+            "Check that your inputs match the expected format. "
+            "Look at the input fields to see what's required."
         ),
     },
     "TIMEOUT": {
@@ -101,9 +101,10 @@ ERROR_TAXONOMY = {
         ),
     },
     "LIFESPAN_FAILED": {
-        "message": "FastAPI startup event crashed.",
+        "message": "Your app crashed during startup.",
         "suggested_fix": (
-            "Check your @app.on_event('startup') handlers. " "They should not raise exceptions."
+            "Check your startup code for errors. "
+            "Any code that runs when your app starts should not crash."
         ),
     },
     "PYTHON_VERSION_MISMATCH": {

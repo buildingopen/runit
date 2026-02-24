@@ -27,6 +27,8 @@ import {
 import { getAuthContext, getAuthUser } from '../middleware/auth.js';
 import * as projectsStore from '../db/projects-store.js';
 import * as runsStore from '../db/runs-store.js';
+import { incrementProjectsCount, getUserTier } from '../db/billing-store.js';
+import { getTierLimits } from '../config/tiers.js';
 import { logger } from '../lib/logger.js';
 
 // Validation patterns for GitHub inputs (prevent command injection)
@@ -122,9 +124,12 @@ const projects = new Hono();
 projects.post('/', async (c) => {
   const body = await c.req.json() as CreateProjectRequest;
 
-  // Get authenticated user
+  // Require authenticated user
   const authContext = getAuthContext(c);
-  const owner_id = authContext.user?.id || 'anonymous';
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const owner_id = authContext.user.id;
 
   // Validate required fields
   if (!body.name || !body.source_type) {
@@ -143,6 +148,21 @@ projects.post('/', async (c) => {
   const nameValidation = validateProjectName(body.name);
   if (!nameValidation.valid) {
     return c.json({ error: nameValidation.error }, 400);
+  }
+
+  // Enforce maxProjects tier limit
+  try {
+    const tier = await getUserTier(owner_id);
+    const limits = getTierLimits(tier);
+    const existingProjects = await projectsStore.listProjects(owner_id);
+    if (existingProjects.length >= limits.maxProjects) {
+      return c.json({
+        error: `Project limit reached (${limits.maxProjects} for ${tier} plan). Upgrade to create more projects.`,
+      }, 403);
+    }
+  } catch (err) {
+    logger.warn('Failed to check project limits', { error: String(err) });
+    // Allow creation if billing check fails (graceful degradation)
   }
 
   // Validate ZIP-specific requirements
@@ -252,16 +272,78 @@ projects.post('/', async (c) => {
     })),
   };
 
+  // Track project creation in billing usage
+  incrementProjectsCount(owner_id).catch((err) => {
+    logger.warn('Failed to increment projects count', { error: String(err) });
+  });
+
   return c.json(response, 201);
+});
+
+/**
+ * PATCH /projects/:id - Update a project
+ */
+projects.patch('/:id', async (c) => {
+  const project_id = c.req.param('id');
+
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
+
+  const project = await projectsStore.getProject(project_id);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  if (project.owner_id !== userId) {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
+
+  const body = await c.req.json();
+  const updates: Partial<{ name: string; slug: string }> = {};
+
+  if (body.name) {
+    const nameValidation = validateProjectName(body.name);
+    if (!nameValidation.valid) {
+      return c.json({ error: nameValidation.error }, 400);
+    }
+    updates.name = body.name;
+  }
+  if (body.slug) {
+    updates.slug = body.slug;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return c.json({ error: 'No valid fields to update' }, 400);
+  }
+
+  const updated = await projectsStore.updateProject(project_id, updates);
+  if (!updated) {
+    return c.json({ error: 'Failed to update project' }, 500);
+  }
+
+  return c.json({
+    project_id: updated.id,
+    project_slug: updated.slug,
+    name: updated.name,
+    owner_id: updated.owner_id,
+    status: updated.status,
+    created_at: updated.created_at,
+    updated_at: updated.updated_at,
+  });
 });
 
 /**
  * GET /projects - List all projects
  */
 projects.get('/', async (c) => {
-  // Get authenticated user
+  // Require authenticated user (anonymous fallback only in dev mode)
   const authContext = getAuthContext(c);
-  const owner_id = authContext.user?.id || 'anonymous';
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const owner_id = authContext.user.id;
 
   // List projects for this user
   const userProjects = await projectsStore.listProjects(owner_id);
@@ -301,10 +383,13 @@ projects.get('/:id', async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  // Verify ownership (allow anonymous for dev mode)
+  // Verify ownership
   const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || 'anonymous';
-  if (project.owner_id !== userId && project.owner_id !== 'anonymous') {
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
+  if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
 
@@ -399,10 +484,13 @@ projects.get('/:id/endpoints', async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  // Verify ownership (allow anonymous for dev mode)
+  // Verify ownership
   const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || 'anonymous';
-  if (project.owner_id !== userId && project.owner_id !== 'anonymous') {
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
+  if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
 
@@ -419,7 +507,7 @@ projects.get('/:id/endpoints', async (c) => {
   }
 
   if (!version.endpoints || version.endpoints.length === 0) {
-    return c.json({ error: 'OpenAPI not yet extracted for this version' }, 400);
+    return c.json({ error: 'No actions detected yet for this version' }, 400);
   }
 
   // Map id to endpoint_id for frontend compatibility
@@ -480,10 +568,13 @@ projects.get('/:id/runs', async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
-  // Verify ownership (allow anonymous for dev mode)
+  // Verify ownership
   const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || 'anonymous';
-  if (project.owner_id !== userId && project.owner_id !== 'anonymous') {
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
+  if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
 

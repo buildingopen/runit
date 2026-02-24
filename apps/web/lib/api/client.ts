@@ -99,10 +99,12 @@ class APIClient {
 
   async request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
     if (!this.baseURL) {
-      throw new Error('API URL is not configured. Set NEXT_PUBLIC_API_URL environment variable.');
+      throw new Error('Unable to connect — the service is not configured yet.');
     }
 
-    const url = `${this.baseURL}${path}`;
+    // Use versioned API prefix for all resource paths
+    const versionedPath = path.startsWith('/v1/') || path === '/health' || path === '/' ? path : `/v1${path}`;
+    const url = `${this.baseURL}${versionedPath}`;
 
     const controller = new AbortController();
     const timeoutMs = options?.timeout || 10000;
@@ -133,7 +135,7 @@ class APIClient {
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request timeout - API took too long to respond');
+        throw new Error('The server took too long to respond. Please try again.');
       }
       throw error;
     }
@@ -408,12 +410,86 @@ class APIClient {
     });
   }
 
-  // Create EventSource for deploy streaming
-  createDeployStream(projectId: string): EventSource {
+  // List templates
+  async listTemplates() {
+    return this.request<{
+      templates: Array<{
+        id: string;
+        name: string;
+        description: string;
+        category: string;
+        requiredSecrets: string[];
+      }>;
+    }>('/templates');
+  }
+
+  // Get template details with code
+  async getTemplate(templateId: string) {
+    return this.request<{
+      id: string;
+      name: string;
+      description: string;
+      category: string;
+      requiredSecrets: string[];
+      files: Record<string, string>;
+    }>(`/templates/${templateId}`);
+  }
+
+  // Create project bundle from template (returns ZIP data)
+  async createFromTemplate(templateId: string) {
+    return this.request<{
+      template_id: string;
+      name: string;
+      zip_data: string;
+      detected_env_vars: string[];
+    }>(`/templates/${templateId}/create`, {
+      method: 'POST',
+    });
+  }
+
+  // Get billing subscription info
+  async getBillingSubscription() {
+    return this.request<{
+      tier: string;
+      status: string;
+      current_period_end: string | null;
+      usage: { cpu_runs: number; gpu_runs: number; projects_count: number };
+      limits: {
+        cpuRunsPerHour: number;
+        gpuRunsPerHour: number;
+        maxConcurrentCpu: number;
+        maxConcurrentGpu: number;
+        maxProjects: number;
+        maxSecretsPerProject: number;
+        maxFileSizeMB: number;
+      };
+    }>('/billing/subscription');
+  }
+
+  // Create Stripe checkout session
+  async createCheckoutSession(tier: 'pro' | 'team') {
+    return this.request<{ url: string }>('/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ tier, success_url: window.location.origin, cancel_url: window.location.origin }),
+    });
+  }
+
+  // Create Stripe customer portal session
+  async createPortalSession() {
+    return this.request<{ url: string }>('/billing/portal', {
+      method: 'POST',
+    });
+  }
+
+  // Create EventSource for deploy streaming (passes token via query param since EventSource can't send headers)
+  async createDeployStream(projectId: string): Promise<EventSource> {
     if (!this.baseURL) {
-      throw new Error('API URL is not configured');
+      throw new Error('Unable to connect — the service is not configured yet.');
     }
-    const url = `${this.baseURL}/projects/${projectId}/deploy/stream`;
+    const token = await getAccessToken();
+    const url = token
+      ? `${this.baseURL}/v1/projects/${projectId}/deploy/stream?token=${encodeURIComponent(token)}`
+      : `${this.baseURL}/v1/projects/${projectId}/deploy/stream`;
     return new EventSource(url);
   }
 }
