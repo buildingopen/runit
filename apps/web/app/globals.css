@@ -72,3 +72,90 @@ body {
 button, a, input, textarea, select {
   transition: all 0.15s ease;
 }
+
+/* Hero gradient animation */
+.hero-gradient {
+  background: radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.08) 0%, transparent 60%);
+  animation: pulseGlow 8s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Scroll-triggered fade-in sections */
+.fade-in-section {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.fade-in-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Terminal animation */
+.term-line {
+  opacity: 0;
+  animation: termReveal 0.3s ease forwards;
+}
+.term-line-1 { animation-delay: 0.5s; }
+.term-line-2 { animation-delay: 1.2s; }
+.term-line-3 { animation-delay: 1.8s; }
+.term-line-4 { animation-delay: 2.3s; }
+.term-line-5 { animation-delay: 3.0s; }
+.term-line-6 { animation-delay: 3.8s; }
+.term-line-7 { animation-delay: 4.5s; }
+
+@keyframes termReveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sticky mobile CTA */
+.sticky-mobile-cta {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 8px 16px;
+  background: var(--bg-primary);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.sticky-mobile-cta.visible {
+  transform: translateY(0);
+}
+
+@media (min-width: 768px) {
+  .sticky-mobile-cta {
+    display: none;
+  }
+}
+
+/* Step connecting line (mobile) */
+.step-connector {
+  position: relative;
+}
+
+.step-connector::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, rgba(16,185,129,0.2), transparent);
+  transform: translateX(-50%);
+}
+
+@media (min-width: 768px) {
+  .step-connector::before {
+    display: none;
+  }
+}
