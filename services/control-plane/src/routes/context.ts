@@ -64,7 +64,7 @@ context.post('/:id/context', async (c) => {
     const fetchedContext = await fetchContextFromURL(body.url, body.name);
 
     // Check size limit
-    const dataSize = JSON.stringify(fetchedContext.data).length;
+    const dataSize = Buffer.byteLength(JSON.stringify(fetchedContext.data), 'utf-8');
     if (dataSize > CONTEXT_MAX_SIZE_BYTES) {
       return c.json({ error: `Context data exceeds ${CONTEXT_MAX_SIZE_BYTES / (1024 * 1024)}MB limit` }, 400);
     }
@@ -177,7 +177,7 @@ context.put('/:id/context/:cid', async (c) => {
     );
 
     // Check size limit
-    const dataSize = JSON.stringify(fetchedContext.data).length;
+    const dataSize = Buffer.byteLength(JSON.stringify(fetchedContext.data), 'utf-8');
     if (dataSize > CONTEXT_MAX_SIZE_BYTES) {
       return c.json({ error: `Context data exceeds ${CONTEXT_MAX_SIZE_BYTES / (1024 * 1024)}MB limit` }, 400);
     }

@@ -27,12 +27,13 @@ const PLANS = [
 export default function BillingPage() {
   const [billing, setBilling] = useState<BillingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [upgrading, setUpgrading] = useState<string | null>(null);
 
   useEffect(() => {
     apiClient.getBillingSubscription()
       .then(setBilling)
-      .catch(() => {})
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load billing info'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -41,7 +42,8 @@ export default function BillingPage() {
     try {
       const { url } = await apiClient.createCheckoutSession(tier);
       if (url) window.location.href = url;
-    } catch {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start checkout');
       setUpgrading(null);
     }
   };
@@ -50,7 +52,9 @@ export default function BillingPage() {
     try {
       const { url } = await apiClient.createPortalSession();
       if (url) window.location.href = url;
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to open billing portal');
+    }
   };
 
   if (loading) {
@@ -80,6 +84,14 @@ export default function BillingPage() {
         <p className="text-[14px] text-[var(--text-secondary)] mb-8">
           Manage your subscription and usage
         </p>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="mb-6 p-4 bg-[var(--error)]/10 border border-[var(--error)]/30 rounded-lg flex items-center justify-between">
+            <span className="text-[13px] text-[var(--error)]">{error}</span>
+            <button onClick={() => setError(null)} className="text-[var(--error)] hover:opacity-70 text-[18px] leading-none">&times;</button>
+          </div>
+        )}
 
         {/* Current Usage */}
         {billing && (

@@ -9,9 +9,28 @@ import { encryptSecret, decryptSecret } from '../encryption/kms.js';
 import { getProjectSecrets, storeSecret, deleteSecret, getSecret } from '../db/secrets-store';
 import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../config/constants';
 import { getAuthContext } from '../middleware/auth';
+import * as projectsStore from '../db/projects-store';
 import { logger } from '../lib/logger';
 import { captureMessage } from '../lib/sentry';
 import { recordSecretsOperation } from '../lib/metrics';
+
+/**
+ * Verify project ownership. Returns owner_id or null response.
+ */
+async function verifyProjectOwnership(c: any, projectId: string): Promise<string | Response> {
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const project = await projectsStore.getProject(projectId);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  if (project.owner_id !== authContext.user.id) {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
+  return authContext.user.id;
+}
 
 const secrets = new Hono();
 
@@ -57,14 +76,25 @@ function auditLogSecret(
  */
 secrets.post('/:projectId/secrets', async (c) => {
   const { projectId } = c.req.param();
-  const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || null;
+  const ownerResult = await verifyProjectOwnership(c, projectId);
+  if (ownerResult instanceof Response) return ownerResult;
+  const userId: string | null = ownerResult;
 
   const body = await c.req.json();
   const { key, value } = body;
 
   if (!key || !value) {
     return c.json({ error: 'Missing required fields: key, value' }, 400);
+  }
+
+  // Validate key length
+  if (key.length > 64) {
+    return c.json({ error: 'Secret key exceeds maximum length of 64 characters' }, 400);
+  }
+
+  // Validate value size (64KB max)
+  if (Buffer.byteLength(value, 'utf-8') > 64 * 1024) {
+    return c.json({ error: 'Secret value exceeds maximum allowed size (64KB)' }, 400);
   }
 
   // Validate key name
@@ -124,8 +154,9 @@ secrets.post('/:projectId/secrets', async (c) => {
  */
 secrets.get('/:projectId/secrets', async (c) => {
   const { projectId } = c.req.param();
-  const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || null;
+  const ownerResult = await verifyProjectOwnership(c, projectId);
+  if (ownerResult instanceof Response) return ownerResult;
+  const userId: string | null = ownerResult;
 
   try {
     const projectSecrets = await getProjectSecrets(projectId);
@@ -163,8 +194,9 @@ secrets.get('/:projectId/secrets', async (c) => {
  */
 secrets.delete('/:projectId/secrets/:key', async (c) => {
   const { projectId, key } = c.req.param();
-  const authContext = getAuthContext(c);
-  const userId = authContext.user?.id || null;
+  const ownerResult = await verifyProjectOwnership(c, projectId);
+  if (ownerResult instanceof Response) return ownerResult;
+  const userId: string | null = ownerResult;
 
   try {
     await deleteSecret(projectId, key);

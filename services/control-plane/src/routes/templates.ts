@@ -3,6 +3,7 @@
 
 import { Hono } from 'hono';
 import { readFileSync, readdirSync, existsSync } from 'fs';
+import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import AdmZip from 'adm-zip';
@@ -47,8 +48,15 @@ function loadTemplates(): TemplateMetadata[] {
     if (!existsSync(metaPath)) continue;
 
     try {
-      const meta = JSON.parse(readFileSync(metaPath, 'utf-8'));
-      result.push(meta);
+      const raw = JSON.parse(readFileSync(metaPath, 'utf-8'));
+      // Whitelist only expected fields to prevent prototype pollution or data leaks
+      result.push({
+        id: String(raw.id || entry.name),
+        name: String(raw.name || entry.name),
+        description: String(raw.description || ''),
+        category: String(raw.category || 'general'),
+        requiredSecrets: Array.isArray(raw.requiredSecrets) ? raw.requiredSecrets.map(String) : [],
+      });
     } catch {
       // Skip malformed templates
     }
@@ -57,18 +65,23 @@ function loadTemplates(): TemplateMetadata[] {
   return result;
 }
 
+// Cache template list (static files, no need to re-read on every request)
+let cachedTemplates: TemplateMetadata[] | null = null;
+
 /**
  * GET /templates - List all templates
  */
 templates.get('/', (c) => {
-  const templateList = loadTemplates();
-  return c.json({ templates: templateList });
+  if (!cachedTemplates) {
+    cachedTemplates = loadTemplates();
+  }
+  return c.json({ templates: cachedTemplates });
 });
 
 /**
  * GET /templates/:id - Get template details with code preview
  */
-templates.get('/:id', (c) => {
+templates.get('/:id', async (c) => {
   const templateId = c.req.param('id');
   // Sanitize template ID to prevent directory traversal
   if (!/^[a-zA-Z0-9_-]+$/.test(templateId)) {
@@ -86,20 +99,25 @@ templates.get('/:id', (c) => {
     return c.json({ error: 'Template metadata not found' }, 404);
   }
 
-  const meta = JSON.parse(readFileSync(metaPath, 'utf-8'));
+  const raw = JSON.parse(await readFile(metaPath, 'utf-8'));
 
-  // Load code files
+  // Load code files (async to avoid blocking event loop)
   const files: Record<string, string> = {};
   const codeFiles = ['main.py', 'requirements.txt'];
   for (const filename of codeFiles) {
     const filePath = join(templateDir, filename);
     if (existsSync(filePath)) {
-      files[filename] = readFileSync(filePath, 'utf-8');
+      files[filename] = await readFile(filePath, 'utf-8');
     }
   }
 
+  // Whitelist only expected fields
   return c.json({
-    ...meta,
+    id: String(raw.id || templateId),
+    name: String(raw.name || templateId),
+    description: String(raw.description || ''),
+    category: String(raw.category || 'general'),
+    requiredSecrets: Array.isArray(raw.requiredSecrets) ? raw.requiredSecrets.map(String) : [],
     files,
   });
 });
@@ -133,15 +151,15 @@ templates.post('/:id/create', async (c) => {
     return c.json({ error: 'Template metadata not found' }, 404);
   }
 
-  const meta = JSON.parse(readFileSync(metaPath, 'utf-8'));
+  const meta = JSON.parse(await readFile(metaPath, 'utf-8'));
 
-  // Build a real ZIP from template files
+  // Build a real ZIP from template files (async reads to avoid blocking event loop)
   const zip = new AdmZip();
   const codeFiles = ['main.py', 'requirements.txt'];
   for (const filename of codeFiles) {
     const filePath = join(templateDir, filename);
     if (existsSync(filePath)) {
-      zip.addFile(filename, readFileSync(filePath));
+      zip.addFile(filename, await readFile(filePath));
     }
   }
 

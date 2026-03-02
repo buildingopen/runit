@@ -51,7 +51,7 @@ describe('FinOps Acceptance Tests', () => {
       expect(next).not.toHaveBeenCalled();
       expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Rate limit exceeded',
+          error: 'Too many requests',
           message: expect.stringContaining('120 requests per minute'),
         }),
         429
@@ -83,7 +83,7 @@ describe('FinOps Acceptance Tests', () => {
       expect(next).not.toHaveBeenCalled();
       expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Rate limit exceeded',
+          error: 'Too many requests',
         }),
         429
       );
@@ -116,7 +116,7 @@ describe('FinOps Acceptance Tests', () => {
       expect(next).not.toHaveBeenCalled();
       expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Share link rate limit exceeded',
+          error: 'Too many requests on this share link',
         }),
         429
       );
@@ -143,7 +143,7 @@ describe('FinOps Acceptance Tests', () => {
       // 101st run should be blocked
       const { allowed, reason } = checkQuota(userId, 'cpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('CPU quota exceeded');
+      expect(reason).toContain('100 runs per hour');
     });
 
     it('should enforce 10 GPU runs/hour per user', () => {
@@ -159,7 +159,7 @@ describe('FinOps Acceptance Tests', () => {
       // 11th run should be blocked
       const { allowed, reason } = checkQuota(userId, 'gpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('GPU quota exceeded');
+      expect(reason).toContain('10 runs per hour');
     });
 
     it('should enforce 2 concurrent CPU runs', () => {
@@ -170,7 +170,7 @@ describe('FinOps Acceptance Tests', () => {
       // 3rd concurrent run should be blocked
       const { allowed, reason } = checkQuota(userId, 'cpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('concurrent limit');
+      expect(reason).toContain('same time');
 
       // Complete one run
       trackRunComplete(userId, 'cpu-1', 'cpu');
@@ -187,7 +187,7 @@ describe('FinOps Acceptance Tests', () => {
       // 2nd concurrent run should be blocked
       const { allowed, reason } = checkQuota(userId, 'gpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('concurrent limit');
+      expect(reason).toContain('same time');
 
       // Complete the run
       trackRunComplete(userId, 'gpu-1', 'gpu');

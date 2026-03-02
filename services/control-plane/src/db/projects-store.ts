@@ -131,6 +131,55 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
 }
 
 /**
+ * Atomically create a project with limit check (prevents TOCTOU race).
+ * Uses pg_advisory_xact_lock to serialize concurrent creates per user.
+ * Returns null if the user has reached their project limit.
+ */
+export async function createProjectAtomic(
+  input: CreateProjectInput,
+  maxProjects: number
+): Promise<Project | null> {
+  const id = uuidv4();
+  const slug = input.slug || generateSlug(input.name) + '-' + id.substring(0, 8);
+
+  if (!isSupabaseConfigured()) {
+    // In-memory: simple count check (single-process, no race)
+    const existing = Array.from(inMemoryProjects.values()).filter(
+      (p) => p.owner_id === input.owner_id
+    );
+    if (existing.length >= maxProjects) return null;
+
+    const now = new Date().toISOString();
+    const project: Project = {
+      id, owner_id: input.owner_id, slug, name: input.name, status: 'draft',
+      deployed_at: null, deploy_error: null, runtime_url: null,
+      created_at: now, updated_at: now,
+    };
+    inMemoryProjects.set(id, project);
+    return project;
+  }
+
+  const supabase = getServiceSupabaseClient();
+  const { data, error } = await supabase.rpc('create_project_atomic', {
+    p_id: id,
+    p_owner_id: input.owner_id,
+    p_name: input.name,
+    p_slug: slug,
+    p_max_projects: maxProjects,
+  });
+
+  if (error) {
+    throw new Error(`Failed to create project: ${error.message}`);
+  }
+
+  // RPC returns false if limit reached
+  if (data === false) return null;
+
+  // Fetch the created project
+  return getProject(id);
+}
+
+/**
  * Get a project by ID
  */
 export async function getProject(projectId: string): Promise<Project | null> {

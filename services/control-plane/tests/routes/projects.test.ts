@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock the database stores before importing routes
 vi.mock('../../src/db/projects-store', () => ({
   createProject: vi.fn(),
+  createProjectAtomic: vi.fn(),
   getProject: vi.fn(),
   listProjects: vi.fn(),
   deleteProject: vi.fn(),
@@ -103,7 +104,7 @@ describe('POST /projects - Create project', () => {
     };
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
-    vi.mocked(projectsStore.createProject).mockResolvedValue(mockProject as any);
+    vi.mocked(projectsStore.createProjectAtomic).mockResolvedValue(mockProject as any);
     vi.mocked(projectsStore.createVersion).mockResolvedValue(mockVersion as any);
     vi.mocked(extractOpenAPIFromZip).mockResolvedValue({
       openapi: { openapi: '3.0.0' },

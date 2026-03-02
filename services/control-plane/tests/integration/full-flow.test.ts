@@ -14,6 +14,13 @@ vi.mock('../../src/db/projects-store', () => ({
     projectsMap.set(id, project);
     return project;
   }),
+  createProjectAtomic: vi.fn(async (input: any, _maxProjects: number) => {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    const project = { id, ...input, slug: `${input.name}-${id.slice(0, 8)}`, status: 'draft', created_at: now, updated_at: now };
+    projectsMap.set(id, project);
+    return project;
+  }),
   getProject: vi.fn(async (id: string) => projectsMap.get(id) || null),
   createVersion: vi.fn(async (input: any) => {
     const id = uuidv4();

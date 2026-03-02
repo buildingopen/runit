@@ -313,11 +313,8 @@ export function isCloudIP(ip: string): boolean {
  * Behind Caddy reverse proxy, the last entry in X-Forwarded-For is the real client IP.
  */
 function getClientIP(c: Context): string | null {
-  // X-Real-IP (highest priority, set by some proxies)
-  const realIp = c.req.header('x-real-ip');
-  if (realIp) return realIp.trim();
-
-  // X-Forwarded-For: take the LAST entry (appended by our trusted proxy, Caddy)
+  // X-Forwarded-For: take the LAST entry (appended by our trusted proxy, Caddy).
+  // We do NOT trust X-Real-IP since Caddy doesn't set it — an attacker could spoof it.
   const xff = c.req.header('x-forwarded-for');
   if (xff) {
     const ips = xff.split(',').map(ip => ip.trim()).filter(Boolean);

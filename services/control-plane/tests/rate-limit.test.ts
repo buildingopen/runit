@@ -130,7 +130,7 @@ describe('rate-limit', () => {
       expect(c.json).toHaveBeenCalled();
       const callArgs = (c.json as any).mock.calls[0];
       expect(callArgs[1]).toBe(429);
-      expect(callArgs[0].error).toBe('Rate limit exceeded');
+      expect(callArgs[0].error).toBe('Too many requests');
 
       // Clean up
       resetRateLimit('api:ip:10.0.0.1');
@@ -152,7 +152,7 @@ describe('rate-limit', () => {
       expect(c.json).toHaveBeenCalled();
       const callArgs = (c.json as any).mock.calls[0];
       expect(callArgs[1]).toBe(429);
-      expect(callArgs[0].message).toContain('authenticated users');
+      expect(callArgs[0].message).toContain('120 requests per minute');
 
       // Clean up
       resetRateLimit('api:user:rate-limit-test-user');
@@ -219,7 +219,7 @@ describe('rate-limit', () => {
       expect(next.wasCalled()).toBe(false);
       const callArgs = (c.json as any).mock.calls[0];
       expect(callArgs[1]).toBe(429);
-      expect(callArgs[0].error).toBe('Share link rate limit exceeded');
+      expect(callArgs[0].error).toBe('Too many requests on this share link');
 
       resetRateLimit('share:blocked-link');
     });

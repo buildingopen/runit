@@ -98,6 +98,14 @@ async function cloneGitHubRepo(github_url: string, github_ref?: string): Promise
     const gitDir = join(repoDir, '.git');
     await rm(gitDir, { recursive: true, force: true });
 
+    // Enforce repo size limit after clone (prevents multi-GB repos from exhausting disk/memory)
+    const MAX_REPO_SIZE_MB = 50;
+    const duOutput = await runCommand('du', ['-sm', repoDir], { timeout: 10000 });
+    const repoSizeMB = parseInt(duOutput.split('\t')[0], 10);
+    if (repoSizeMB > MAX_REPO_SIZE_MB) {
+      throw new Error(`Repository is ${repoSizeMB}MB, exceeding the ${MAX_REPO_SIZE_MB}MB limit`);
+    }
+
     // Create ZIP of the repo using spawn (safe)
     const zipPath = join(tempDir, 'repo.zip');
     await runCommand('zip', ['-r', zipPath, '.'], { cwd: repoDir, timeout: 30000 });
@@ -150,19 +158,14 @@ projects.post('/', async (c) => {
     return c.json({ error: nameValidation.error }, 400);
   }
 
-  // Enforce maxProjects tier limit
+  // Get tier limits for atomic project creation
+  let maxProjects = 5; // default
   try {
     const tier = await getUserTier(owner_id);
     const limits = getTierLimits(tier);
-    const existingProjects = await projectsStore.listProjects(owner_id);
-    if (existingProjects.length >= limits.maxProjects) {
-      return c.json({
-        error: `Project limit reached (${limits.maxProjects} for ${tier} plan). Upgrade to create more projects.`,
-      }, 403);
-    }
+    maxProjects = limits.maxProjects;
   } catch (err) {
-    logger.warn('Failed to check project limits', { error: String(err) });
-    // Allow creation if billing check fails (graceful degradation)
+    logger.warn('Failed to check tier limits, using default', { error: String(err) });
   }
 
   // Validate ZIP-specific requirements
@@ -217,11 +220,17 @@ projects.post('/', async (c) => {
   }
   const version_hash = createHash('sha256').update(code_bundle).digest('hex').substring(0, 12);
 
-  // Create project in database
-  const project = await projectsStore.createProject({
+  // Atomically create project with limit check (prevents TOCTOU race)
+  const project = await projectsStore.createProjectAtomic({
     owner_id,
     name: body.name,
-  });
+  }, maxProjects);
+
+  if (!project) {
+    return c.json({
+      error: `Project limit reached (${maxProjects} max). Upgrade to create more projects.`,
+    }, 403);
+  }
 
   // Extract OpenAPI spec
   let openapi: Record<string, unknown> | null = null;
@@ -242,17 +251,26 @@ projects.post('/', async (c) => {
     }
   }
 
-  // Create version in database
-  const version = await projectsStore.createVersion({
-    project_id: project.id,
-    version_hash,
-    code_bundle_ref: code_bundle, // In production, store in blob storage
-    openapi,
-    endpoints: endpoints as projectsStore.Endpoint[],
-    entrypoint,
-    detected_env_vars,
-    status: 'ready',
-  });
+  // Create version in database — clean up project if this fails
+  let version;
+  try {
+    version = await projectsStore.createVersion({
+      project_id: project.id,
+      version_hash,
+      // TODO(v2): Move code bundles to blob storage (S3/R2) instead of Postgres.
+      // Acceptable for launch: free tier only, 10MB max enforced by validateZipDataSize.
+      code_bundle_ref: code_bundle,
+      openapi,
+      endpoints: endpoints as projectsStore.Endpoint[],
+      entrypoint,
+      detected_env_vars,
+      status: 'ready',
+    });
+  } catch (err) {
+    // Delete orphaned project to free the project limit slot
+    await projectsStore.deleteProject(project.id).catch(() => {});
+    throw err;
+  }
 
   const response: CreateProjectResponse & {
     detected_env_vars: string[];
@@ -311,6 +329,15 @@ projects.patch('/:id', async (c) => {
     updates.name = body.name;
   }
   if (body.slug) {
+    // Validate slug format: lowercase alphanumeric + hyphens, 3-60 chars
+    if (!/^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/.test(body.slug)) {
+      return c.json({ error: 'Invalid slug. Use lowercase letters, numbers, and hyphens (3-60 chars).' }, 400);
+    }
+    // Check uniqueness
+    const existing = await projectsStore.getProjectBySlug(body.slug);
+    if (existing && existing.id !== project_id) {
+      return c.json({ error: 'Slug already in use' }, 409);
+    }
     updates.slug = body.slug;
   }
 
@@ -318,7 +345,17 @@ projects.patch('/:id', async (c) => {
     return c.json({ error: 'No valid fields to update' }, 400);
   }
 
-  const updated = await projectsStore.updateProject(project_id, updates);
+  let updated;
+  try {
+    updated = await projectsStore.updateProject(project_id, updates);
+  } catch (err) {
+    // Catch DB unique constraint violation on slug (TOCTOU race fallback)
+    const msg = err instanceof Error ? err.message : '';
+    if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('idx_projects_slug_unique')) {
+      return c.json({ error: 'Slug already in use' }, 409);
+    }
+    throw err;
+  }
   if (!updated) {
     return c.json({ error: 'Failed to update project' }, 500);
   }
@@ -377,18 +414,18 @@ projects.get('/', async (c) => {
  */
 projects.get('/:id', async (c) => {
   const project_id = c.req.param('id');
-  const project = await projectsStore.getProject(project_id);
 
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  // Verify ownership
+  // Auth check BEFORE DB access (prevents project existence leak via 404 vs 401)
   const authContext = getAuthContext(c);
   if (!authContext.isAuthenticated || !authContext.user) {
     return c.json({ error: 'Authentication required' }, 401);
   }
   const userId = authContext.user.id;
+
+  const project = await projectsStore.getProject(project_id);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
   if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
@@ -478,18 +515,17 @@ projects.get('/:id/endpoints', async (c) => {
   const project_id = c.req.param('id');
   const version_id = c.req.query('version_id');
 
-  const project = await projectsStore.getProject(project_id);
-
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  // Verify ownership
+  // Auth check BEFORE DB access
   const authContext = getAuthContext(c);
   if (!authContext.isAuthenticated || !authContext.user) {
     return c.json({ error: 'Authentication required' }, 401);
   }
   const userId = authContext.user.id;
+
+  const project = await projectsStore.getProject(project_id);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
   if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
@@ -498,6 +534,10 @@ projects.get('/:id/endpoints', async (c) => {
   let version: projectsStore.ProjectVersion | null;
   if (version_id) {
     version = await projectsStore.getVersion(version_id);
+    // Verify version belongs to this project (prevents cross-project data leak)
+    if (version && version.project_id !== project_id) {
+      return c.json({ error: 'Version not found' }, 404);
+    }
   } else {
     version = await projectsStore.getLatestVersion(project_id);
   }
@@ -560,23 +600,25 @@ projects.delete('/:id', async (c) => {
  */
 projects.get('/:id/runs', async (c) => {
   const project_id = c.req.param('id');
-  const limit = parseInt(c.req.query('limit') || '20');
 
-  // Get project and verify ownership
-  const project = await projectsStore.getProject(project_id);
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-
-  // Verify ownership
+  // Auth check BEFORE DB access
   const authContext = getAuthContext(c);
   if (!authContext.isAuthenticated || !authContext.user) {
     return c.json({ error: 'Authentication required' }, 401);
   }
   const userId = authContext.user.id;
+
+  const project = await projectsStore.getProject(project_id);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
   if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
+
+  // Clamp limit to prevent unbounded DB queries (#8, #10)
+  const rawLimit = parseInt(c.req.query('limit') || '20');
+  const limit = isNaN(rawLimit) ? 20 : Math.max(1, Math.min(rawLimit, 100));
 
   const runs = await runsStore.listProjectRuns(project_id, { limit });
 

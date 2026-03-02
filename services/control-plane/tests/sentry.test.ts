@@ -58,7 +58,7 @@ describe('lib/sentry', () => {
     expect(sentry.isSentryInitialized()).toBe(false);
     expect(mockSentry.init).not.toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith(
-      '[Sentry] Skipping initialization (no DSN configured in development)'
+      '[Sentry] Skipping initialization (no DSN configured)'
     );
 
     consoleLogSpy.mockRestore();
@@ -79,20 +79,21 @@ describe('lib/sentry', () => {
     consoleLogSpy.mockRestore();
   });
 
-  it('fails fast in production when DSN is missing', async () => {
+  it('logs warning and continues in production when DSN is missing', async () => {
     setEnv('production');
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit called');
-    }) as never);
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const sentry = await import('../src/lib/sentry');
 
-    await expect(sentry.initSentry()).rejects.toThrow('process.exit called');
-    expect(consoleErrorSpy).toHaveBeenCalledWith('[Sentry] FATAL: SENTRY_DSN not set in production');
+    await sentry.initSentry();
 
-    exitSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+    expect(sentry.isSentryInitialized()).toBe(false);
+    expect(mockSentry.init).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      '[Sentry] Skipping initialization (no DSN configured - running without error tracking)'
+    );
+
+    consoleLogSpy.mockRestore();
   });
 
   it('captures exception/message/user/breadcrumb after initialization', async () => {

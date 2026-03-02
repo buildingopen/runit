@@ -191,13 +191,24 @@ async function checkQuotaDB(
     };
   }
 
+  // Check concurrent run limit
+  const activeCount = lane === 'cpu' ? (quota.active_cpu_runs || 0) : (quota.active_gpu_runs || 0);
+  if (activeCount >= limits.maxConcurrent) {
+    return {
+      allowed: false,
+      reason: `${lane.toUpperCase()} concurrent limit reached: ${limits.maxConcurrent} max concurrent runs`,
+      concurrentRemaining: 0,
+    };
+  }
+
   return {
     allowed: true,
     runsRemaining: limits.runsPerHour - count - 1,
+    concurrentRemaining: limits.maxConcurrent - activeCount - 1,
   };
 }
 
-export function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
+export async function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'): Promise<void> {
   const usage = getQuotaUsageMemory(userId);
   if (lane === 'cpu') {
     usage.cpuRunsThisHour++;
@@ -208,11 +219,13 @@ export function trackRunStart(userId: string, runId: string, lane: 'cpu' | 'gpu'
   }
   quotaStore.set(userId, usage);
 
-  // Also update DB if available
+  // Synchronously update DB (not fire-and-forget) so quota is consistent
   if (isSupabaseConfigured()) {
-    trackRunStartDB(userId, lane).catch((err) => {
+    try {
+      await trackRunStartDB(userId, lane);
+    } catch (err) {
       logger.warn('Failed to track run start in DB', { userId, lane, error: String(err) });
-    });
+    }
   }
 }
 
@@ -229,7 +242,7 @@ async function trackRunStartDB(userId: string, lane: 'cpu' | 'gpu') {
   });
 }
 
-export function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'gpu'): void {
+export async function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'gpu'): Promise<void> {
   const usage = quotaStore.get(userId);
   if (!usage) return;
 
@@ -240,10 +253,13 @@ export function trackRunComplete(userId: string, runId: string, lane: 'cpu' | 'g
   }
   quotaStore.set(userId, usage);
 
+  // Synchronously update DB so active run slots are released promptly
   if (isSupabaseConfigured()) {
-    trackRunCompleteDB(userId, lane).catch((err) => {
+    try {
+      await trackRunCompleteDB(userId, lane);
+    } catch (err) {
       logger.warn('Failed to track run completion in DB', { userId, lane, error: String(err) });
-    });
+    }
   }
 }
 
@@ -276,7 +292,12 @@ export async function quotaMiddleware(c: Context, next: Next) {
   }
   const userId = authContext.user.id;
 
-  const body = await c.req.json().catch(() => ({}));
+  let body: Record<string, unknown>;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON in request body' }, 400);
+  }
   const lane = body.lane || 'cpu';
 
   if (lane !== 'cpu' && lane !== 'gpu') {
@@ -303,12 +324,14 @@ export async function quotaMiddleware(c: Context, next: Next) {
     }, 429);
   }
 
+  // Store parsed lane + body in context so route handler doesn't re-parse
   c.set('quotaTracking', {
     userId,
     lane,
-    trackStart: (runId: string) => trackRunStart(userId, runId, lane),
-    trackComplete: (runId: string) => trackRunComplete(userId, runId, lane)
+    trackStart: (runId: string) => trackRunStart(userId, runId, lane),   // now returns Promise
+    trackComplete: (runId: string) => trackRunComplete(userId, runId, lane), // now returns Promise
   });
+  c.set('parsedBody', body);
 
   c.header('X-Quota-CPU-Remaining', result.runsRemaining?.toString() || '0');
   c.header('X-Quota-CPU-Concurrent', result.concurrentRemaining?.toString() || '0');

@@ -123,29 +123,44 @@ export function validateZipDecompressionSafe(base64Data: string): { valid: boole
     const compressedSize = buffer.length;
 
     for (const entry of entries) {
-      const uncompressedSize = entry.header.size;
+      // Use header-declared sizes for quick pre-check
+      const declaredSize = entry.header.size;
       const entryCompressedSize = entry.header.compressedSize;
 
-      totalUncompressed += uncompressedSize;
-
-      // Check ratio per file (skip if compressed size is 0 to avoid division by zero)
-      if (entryCompressedSize > 0 && uncompressedSize > entryCompressedSize * MAX_PER_FILE_RATIO) {
+      // Quick ratio check on declared sizes (catches obvious zip bombs)
+      if (entryCompressedSize > 0 && declaredSize > entryCompressedSize * MAX_PER_FILE_RATIO) {
         return { valid: false, error: 'Suspicious compression ratio detected in ZIP entry' };
+      }
+
+      // Actually decompress to verify real size (header sizes can be spoofed)
+      try {
+        const data = entry.getData();
+        const actualSize = data.length;
+        totalUncompressed += actualSize;
+
+        // Check actual ratio per file
+        if (entryCompressedSize > 0 && actualSize > entryCompressedSize * MAX_PER_FILE_RATIO) {
+          return { valid: false, error: 'Suspicious compression ratio detected in ZIP entry' };
+        }
+
+        // Bail early if total exceeds max
+        if (totalUncompressed > MAX_DECOMPRESSED_SIZE) {
+          return { valid: false, error: 'ZIP would decompress to more than 500MB' };
+        }
+      } catch {
+        return { valid: false, error: 'Failed to decompress ZIP entry — possibly corrupted or malicious' };
       }
     }
 
-    // Total uncompressed max
-    if (totalUncompressed > MAX_DECOMPRESSED_SIZE) {
-      return { valid: false, error: 'ZIP would decompress to more than 500MB' };
-    }
-
-    // Overall ratio check (skip if compressed size is 0)
+    // Overall ratio check
     if (compressedSize > 0 && totalUncompressed > compressedSize * MAX_OVERALL_RATIO) {
       return { valid: false, error: 'Suspicious overall compression ratio in ZIP' };
     }
 
     return { valid: true };
-  } catch {
+  } catch (err) {
+    // Log the error before returning — don't silently swallow OOM or library bugs
+    console.error('[ZIP Validation] Failed to analyze ZIP structure:', err);
     return { valid: false, error: 'Failed to analyze ZIP structure' };
   }
 }

@@ -25,8 +25,8 @@ import { logger } from '../lib/logger.js';
 interface QuotaTracking {
   userId: string;
   lane: 'cpu' | 'gpu';
-  trackStart: (runId: string) => void;
-  trackComplete: (runId: string) => void;
+  trackStart: (runId: string) => void | Promise<void>;
+  trackComplete: (runId: string) => void | Promise<void>;
 }
 
 /**
@@ -35,6 +35,7 @@ interface QuotaTracking {
 type RunsEnv = {
   Variables: {
     quotaTracking?: QuotaTracking;
+    parsedBody?: Record<string, unknown>;
     requestId?: string;
   };
 };
@@ -45,7 +46,8 @@ const runs = new Hono<RunsEnv>();
  * POST /runs - Create and execute a new run
  */
 runs.post('/', async (c) => {
-  const body = await c.req.json() as CreateRunRequest;
+  // Use pre-parsed body from quota middleware if available, else parse fresh
+  const body = (c.get('parsedBody') || await c.req.json()) as CreateRunRequest;
 
   // Require authenticated user
   const authContext = getAuthContext(c);
@@ -62,10 +64,13 @@ runs.post('/', async (c) => {
   // Get quota tracking from middleware (if present)
   const quotaTracking = c.get('quotaTracking');
 
-  // Get project and version from DB
+  // Get project and verify ownership
   const project = await projectsStore.getProject(body.project_id);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
+  }
+  if (project.owner_id !== owner_id) {
+    return c.json({ error: 'Not authorized' }, 403);
   }
 
   const version = await projectsStore.getVersion(body.version_id);
@@ -78,6 +83,17 @@ runs.post('/', async (c) => {
     return c.json({ error: 'Endpoint not found' }, 404);
   }
 
+  // Strip sensitive headers before persisting (authorization, cookies, etc.)
+  const SENSITIVE_HEADERS = ['authorization', 'cookie', 'set-cookie', 'proxy-authorization', 'x-api-key'];
+  const safeHeaders: Record<string, unknown> = {};
+  if (body.headers && typeof body.headers === 'object') {
+    for (const [key, value] of Object.entries(body.headers as Record<string, unknown>)) {
+      if (!SENSITIVE_HEADERS.includes(key.toLowerCase())) {
+        safeHeaders[key] = value;
+      }
+    }
+  }
+
   // Create run record in database
   const run = await runsStore.createRun({
     project_id: body.project_id,
@@ -86,13 +102,13 @@ runs.post('/', async (c) => {
     owner_id,
     request_params: body.params as Record<string, unknown>,
     request_body: body.json as Record<string, unknown>,
-    request_headers: body.headers as Record<string, unknown>,
+    request_headers: safeHeaders,
     resource_lane: body.lane || 'cpu',
   });
 
   // Track run start in quota system BEFORE returning 202 (prevents race condition)
   if (quotaTracking) {
-    quotaTracking.trackStart(run.id);
+    await quotaTracking.trackStart(run.id);
   }
 
   // Mark run as started
@@ -172,9 +188,9 @@ runs.post('/', async (c) => {
       });
     }
 
-    // Release quota slot
+    // Release quota slot (awaited so DB is updated before moving on)
     if (quotaTracking) {
-      quotaTracking.trackComplete(run.id);
+      await quotaTracking.trackComplete(run.id);
     }
   }).catch(async (error) => {
     logger.error('Modal execution failed', { runId: run.id, error: String(error) });
@@ -185,7 +201,7 @@ runs.post('/', async (c) => {
     });
 
     if (quotaTracking) {
-      quotaTracking.trackComplete(run.id);
+      await quotaTracking.trackComplete(run.id);
     }
   });
 
@@ -202,6 +218,13 @@ runs.post('/', async (c) => {
  * GET /runs/:id - Get run status and result
  */
 runs.get('/:id', async (c) => {
+  // Verify auth before any DB access
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+  const userId = authContext.user.id;
+
   const run_id = c.req.param('id');
   const run = await runsStore.getRun(run_id);
 
@@ -210,11 +233,6 @@ runs.get('/:id', async (c) => {
   }
 
   // Verify ownership
-  const authContext = getAuthContext(c);
-  if (!authContext.isAuthenticated || !authContext.user) {
-    return c.json({ error: 'Authentication required' }, 401);
-  }
-  const userId = authContext.user.id;
   if (run.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }

@@ -24,6 +24,10 @@ vi.mock('../../src/middleware/auth', () => ({
   getAuthContext: vi.fn(),
 }));
 
+vi.mock('../../src/db/projects-store', () => ({
+  getProject: vi.fn(),
+}));
+
 vi.mock('../../src/lib/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -45,9 +49,13 @@ vi.mock('../../src/lib/metrics', () => ({
 
 import secrets from '../../src/routes/secrets';
 import * as secretsStore from '../../src/db/secrets-store';
+import * as projectsStore from '../../src/db/projects-store';
 import { encryptSecret, decryptSecret } from '../../src/encryption/kms';
 import { getAuthContext } from '../../src/middleware/auth';
 import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../../src/config/constants';
+
+// Default mock: project exists and is owned by user-1
+const mockProject = { id: 'proj-1', owner_id: 'user-1', name: 'Test', slug: 'test', status: 'draft' };
 
 describe('POST /projects/:projectId/secrets - Create secret', () => {
   beforeEach(() => {
@@ -65,6 +73,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
     };
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
     vi.mocked(encryptSecret).mockResolvedValue('encrypted-value');
     vi.mocked(secretsStore.storeSecret).mockResolvedValue(mockSecret as any);
@@ -105,6 +114,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
     };
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(existingSecret as any);
     vi.mocked(encryptSecret).mockResolvedValue('new-encrypted');
     vi.mocked(secretsStore.storeSecret).mockResolvedValue(updatedSecret as any);
@@ -126,6 +136,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
 
   it('should return 400 when key is missing', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
 
     const res = await secrets.request('/proj-1/secrets', {
       method: 'POST',
@@ -142,6 +153,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
 
   it('should return 400 when value is missing', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
 
     const res = await secrets.request('/proj-1/secrets', {
       method: 'POST',
@@ -158,6 +170,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
 
   it('should return 400 for invalid key format (lowercase)', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
 
     const res = await secrets.request('/proj-1/secrets', {
       method: 'POST',
@@ -175,6 +188,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
 
   it('should return 400 for invalid key format (special characters)', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
 
     const res = await secrets.request('/proj-1/secrets', {
       method: 'POST',
@@ -192,6 +206,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
 
   it('should return 400 for invalid key format (starts with number)', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
 
     const res = await secrets.request('/proj-1/secrets', {
       method: 'POST',
@@ -209,6 +224,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
 
   it('should return 400 for reserved prefix', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
 
     const res = await secrets.request('/proj-1/secrets', {
       method: 'POST',
@@ -227,6 +243,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
 
   it('should return 500 when encryption fails', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
     vi.mocked(encryptSecret).mockRejectedValue(new Error('KMS error'));
 
@@ -247,6 +264,7 @@ describe('POST /projects/:projectId/secrets - Create secret', () => {
 
   it('should return 500 when store fails', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
     vi.mocked(encryptSecret).mockResolvedValue('encrypted-value');
     vi.mocked(secretsStore.storeSecret).mockRejectedValue(new Error('Database error'));
@@ -293,6 +311,7 @@ describe('GET /projects/:projectId/secrets - List secrets', () => {
     ];
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getProjectSecrets).mockResolvedValue(mockSecrets as any);
 
     const res = await secrets.request('/proj-1/secrets', { method: 'GET' });
@@ -311,6 +330,7 @@ describe('GET /projects/:projectId/secrets - List secrets', () => {
 
   it('should return empty list when no secrets exist', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getProjectSecrets).mockResolvedValue([]);
 
     const res = await secrets.request('/proj-1/secrets', { method: 'GET' });
@@ -322,6 +342,7 @@ describe('GET /projects/:projectId/secrets - List secrets', () => {
 
   it('should return 500 when listing fails', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getProjectSecrets).mockRejectedValue(new Error('Database error'));
 
     const res = await secrets.request('/proj-1/secrets', { method: 'GET' });
@@ -340,6 +361,7 @@ describe('DELETE /projects/:projectId/secrets/:key - Delete secret', () => {
 
   it('should delete a secret', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.deleteSecret).mockResolvedValue(true);
 
     const res = await secrets.request('/proj-1/secrets/API_KEY', { method: 'DELETE' });
@@ -352,6 +374,7 @@ describe('DELETE /projects/:projectId/secrets/:key - Delete secret', () => {
 
   it('should return 500 when delete fails', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.deleteSecret).mockRejectedValue(new Error('Database error'));
 
     const res = await secrets.request('/proj-1/secrets/API_KEY', { method: 'DELETE' });
@@ -364,6 +387,7 @@ describe('DELETE /projects/:projectId/secrets/:key - Delete secret', () => {
 
   it('should handle non-existent secret deletion gracefully', async () => {
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.deleteSecret).mockResolvedValue(false);
 
     const res = await secrets.request('/proj-1/secrets/NON_EXISTENT_KEY', { method: 'DELETE' });
@@ -391,6 +415,7 @@ describe('Secrets - Audit logging', () => {
     };
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
     vi.mocked(encryptSecret).mockResolvedValue('encrypted');
     vi.mocked(secretsStore.storeSecret).mockResolvedValue(mockSecret as any);
@@ -423,6 +448,7 @@ describe('Secrets - Audit logging', () => {
     };
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(existingSecret as any);
     vi.mocked(encryptSecret).mockResolvedValue('new-encrypted');
     vi.mocked(secretsStore.storeSecret).mockResolvedValue(existingSecret as any);
@@ -447,6 +473,7 @@ describe('Secrets - Audit logging', () => {
     const { logger } = await import('../../src/lib/logger');
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.deleteSecret).mockResolvedValue(true);
 
     await secrets.request('/proj-1/secrets/API_KEY', { method: 'DELETE' });
@@ -465,6 +492,7 @@ describe('Secrets - Audit logging', () => {
     const { logger } = await import('../../src/lib/logger');
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
     vi.mocked(encryptSecret).mockRejectedValue(new Error('KMS error'));
 
@@ -490,6 +518,7 @@ describe('Secrets - Valid key formats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
     vi.mocked(encryptSecret).mockResolvedValue('encrypted');
     vi.mocked(secretsStore.storeSecret).mockResolvedValue({
@@ -554,6 +583,7 @@ describe('Secrets - Metrics tracking', () => {
     const { recordSecretsOperation } = await import('../../src/lib/metrics');
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
     vi.mocked(encryptSecret).mockResolvedValue('encrypted');
     vi.mocked(secretsStore.storeSecret).mockResolvedValue({
@@ -576,6 +606,7 @@ describe('Secrets - Metrics tracking', () => {
     const { recordSecretsOperation } = await import('../../src/lib/metrics');
 
     vi.mocked(getAuthContext).mockReturnValue({ user: { id: 'user-1' }, isAuthenticated: true });
+    vi.mocked(projectsStore.getProject).mockResolvedValue(mockProject as any);
     vi.mocked(secretsStore.getSecret).mockResolvedValue(null);
     vi.mocked(encryptSecret).mockRejectedValue(new Error('KMS error'));
 

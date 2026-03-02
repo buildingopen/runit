@@ -92,7 +92,7 @@ describe('quota', () => {
 
       const result = checkQuota('u1', 'cpu');
       expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('CPU quota exceeded');
+      expect(result.reason).toContain('100 runs per hour');
       expect(result.runsRemaining).toBe(0);
     });
 
@@ -104,7 +104,7 @@ describe('quota', () => {
 
       const result = checkQuota('u1', 'gpu');
       expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('GPU quota exceeded');
+      expect(result.reason).toContain('10 runs per hour');
     });
 
     it('blocks when concurrent CPU limit reached', () => {
@@ -113,7 +113,7 @@ describe('quota', () => {
 
       const result = checkQuota('u1', 'cpu');
       expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('concurrent limit reached');
+      expect(result.reason).toContain('same time');
       expect(result.concurrentRemaining).toBe(0);
     });
 
@@ -122,7 +122,7 @@ describe('quota', () => {
 
       const result = checkQuota('u1', 'gpu');
       expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('concurrent limit reached');
+      expect(result.reason).toContain('same time');
     });
 
     it('allows after concurrent run completes', () => {
@@ -208,7 +208,7 @@ describe('quota', () => {
       expect(c.json).toHaveBeenCalled();
       const callArgs = (c.json as any).mock.calls[0];
       expect(callArgs[1]).toBe(401);
-      expect(callArgs[0].error).toBe('Authentication required for run execution');
+      expect(callArgs[0].error).toBe('Please sign in to run apps');
     });
 
     it('returns 400 for invalid lane', async () => {
@@ -285,7 +285,7 @@ describe('quota', () => {
       expect(next.wasCalled()).toBe(false);
       const callArgs = (c.json as any).mock.calls[0];
       expect(callArgs[1]).toBe(429);
-      expect(callArgs[0].error).toBe('Quota exceeded');
+      expect(callArgs[0].error).toBe('Usage limit reached');
 
       resetQuota('quota-user');
     });
@@ -308,7 +308,7 @@ describe('quota', () => {
       expect(typeof tracking.trackComplete).toBe('function');
     });
 
-    it('handles body parse failure gracefully', async () => {
+    it('returns 400 on body parse failure', async () => {
       const c = createAuthenticatedContext('u1', {
         method: 'POST',
         path: '/projects/p1/runs',
@@ -319,8 +319,8 @@ describe('quota', () => {
 
       await quotaMiddleware(asHonoContext(c), asHonoNext(next));
 
-      // Defaults to 'cpu' lane, should pass
-      expect(next.wasCalled()).toBe(true);
+      // Should reject, not silently continue
+      expect(next.wasCalled()).toBe(false);
     });
 
     it('falls back to in-memory when Supabase DB check throws', async () => {

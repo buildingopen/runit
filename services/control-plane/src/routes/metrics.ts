@@ -26,8 +26,12 @@ const metrics = new Hono();
 
 /**
  * GET /metrics - Prometheus metrics endpoint
+ * Restricted: requires METRICS_TOKEN bearer auth or localhost origin in production.
  */
 metrics.get('/', async (c) => {
+  const authErr = requireMetricsAuth(c);
+  if (authErr) return authErr;
+
   // Update circuit breaker metrics before serving
   updateCircuitBreakerMetrics();
 
@@ -36,9 +40,26 @@ metrics.get('/', async (c) => {
 });
 
 /**
+ * Verify METRICS_TOKEN for metrics sub-routes
+ */
+function requireMetricsAuth(c: any): Response | null {
+  if (process.env.NODE_ENV === 'production') {
+    const metricsToken = process.env.METRICS_TOKEN;
+    if (!metricsToken) return c.json({ error: 'Metrics disabled' }, 503);
+    if (c.req.header('authorization') !== `Bearer ${metricsToken}`) return c.json({ error: 'Unauthorized' }, 401);
+  } else if (process.env.METRICS_TOKEN) {
+    if (c.req.header('authorization') !== `Bearer ${process.env.METRICS_TOKEN}`) return c.json({ error: 'Unauthorized' }, 401);
+  }
+  return null;
+}
+
+/**
  * GET /metrics/health - Quick health check based on metrics
  */
 metrics.get('/health', (c) => {
+  const authErr = requireMetricsAuth(c);
+  if (authErr) return authErr;
+
   const circuitOpen = hasOpenCircuit();
 
   return c.json({

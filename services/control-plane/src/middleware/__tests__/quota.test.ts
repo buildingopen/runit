@@ -51,7 +51,7 @@ describe('Quota Enforcement', () => {
       // Try one more
       const { allowed, reason } = checkQuota(userId, 'cpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('CPU quota exceeded');
+      expect(reason).toContain('100 runs per hour');
     });
 
     it('should enforce concurrent run limit (2)', () => {
@@ -62,7 +62,7 @@ describe('Quota Enforcement', () => {
       // Try to start a 3rd
       const { allowed, reason } = checkQuota(userId, 'cpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('concurrent limit');
+      expect(reason).toContain('same time');
     });
 
     it('should allow new runs after completing concurrent runs', () => {
@@ -103,7 +103,7 @@ describe('Quota Enforcement', () => {
       // Try one more
       const { allowed, reason } = checkQuota(userId, 'gpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('GPU quota exceeded');
+      expect(reason).toContain('10 runs per hour');
     });
 
     it('should enforce concurrent run limit (1)', () => {
@@ -113,7 +113,7 @@ describe('Quota Enforcement', () => {
       // Try to start a 2nd
       const { allowed, reason } = checkQuota(userId, 'gpu');
       expect(allowed).toBe(false);
-      expect(reason).toContain('concurrent limit');
+      expect(reason).toContain('same time');
     });
   });
 
@@ -160,7 +160,7 @@ describe('Quota Enforcement', () => {
       expect(next).not.toHaveBeenCalled();
       expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Quota exceeded',
+          error: 'Usage limit reached',
         }),
         429
       );

@@ -19,7 +19,6 @@ import {
 } from '@/lib/hooks/useProject';
 import { apiClient } from '@/lib/api/client';
 import { getProjectEmoji } from '@/lib/utils';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { trackRunExecuted, trackShareLinkCreated } from '@/lib/analytics';
 
 type RunPageState = 'pre-run' | 'running' | 'post-run';
@@ -94,18 +93,16 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
     try {
       await apiClient.redeploy(projectId);
 
-      // Connect to SSE stream for progress updates (pass token via query param)
+      // Get scoped stream token and connect to SSE
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-      let streamUrl = `${API_BASE_URL}/v1/projects/${projectId}/deploy/stream`;
+      let es: EventSource;
       try {
-        const supabase = getSupabaseBrowserClient();
-        const sessionResult = await supabase?.auth.getSession();
-        const token = sessionResult?.data?.session?.access_token;
-        if (token) {
-          streamUrl += `?token=${encodeURIComponent(token)}`;
-        }
-      } catch { /* proceed without token */ }
-      const es = new EventSource(streamUrl);
+        const { token } = await apiClient.getDeployStreamToken(projectId);
+        const streamUrl = `${API_BASE_URL}/v1/projects/${projectId}/deploy/stream?token=${encodeURIComponent(token)}`;
+        es = new EventSource(streamUrl);
+      } catch {
+        return; // Can't get stream token, skip SSE
+      }
       eventSourceRef.current = es;
 
       es.addEventListener('status', (e) => {
