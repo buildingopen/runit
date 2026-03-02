@@ -123,8 +123,8 @@ export default function MarketingPage() {
 
       {/* ═══════════ SECTION 2: PRODUCT MOCKUP ═══════════ */}
       <section className="fade-in-section section-glow-top py-20 px-6">
-        <div className="max-w-[960px] mx-auto">
-          <div className="text-center mb-12">
+        <div className="max-w-[1040px] mx-auto">
+          <div className="text-center mb-14">
             <h2 className="text-[30px] md:text-[36px] font-bold text-[var(--text-primary)] mb-3">Your code gets a UI. <span className="gradient-text">Automatically.</span></h2>
             <p className="text-[var(--text-secondary)] text-[16px]">Upload a Python script. We generate a web interface. Anyone can use it.</p>
           </div>
@@ -147,7 +147,7 @@ export default function MarketingPage() {
               </div>
               {/* Split panel */}
               <div className="grid md:grid-cols-2 divide-x divide-white/[0.06]">
-                <div className="p-6">
+                <div className="p-7 md:p-8">
                   <div className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-5">Inputs</div>
                   <div className="space-y-4">
                     <div>
@@ -170,7 +170,7 @@ export default function MarketingPage() {
                     </div>
                   </div>
                 </div>
-                <div className="p-6 bg-white/[0.01]">
+                <div className="p-7 md:p-8 bg-white/[0.01]">
                   <div className="flex items-center justify-between mb-5">
                     <div className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">Output</div>
                     <div className="flex items-center gap-2">
@@ -196,7 +196,7 @@ export default function MarketingPage() {
       </section>
 
       {/* ═══════════ SECTION 3: HOW IT WORKS ═══════════ */}
-      <section className="fade-in-section section-glow-top py-20 px-6">
+      <section className="fade-in-section section-glow-top pt-20 pb-12 px-6">
         <div className="max-w-[900px] mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-[30px] md:text-[36px] font-bold text-[var(--text-primary)] mb-3">Three steps. <span className="gradient-text">Sixty seconds.</span></h2>
@@ -238,7 +238,7 @@ export default function MarketingPage() {
       </section>
 
       {/* ═══════════ SECTION 4: SOCIAL PROOF ═══════════ */}
-      <section className="fade-in-section section-glow-top py-20 px-6">
+      <section className="fade-in-section section-glow-top pt-14 pb-20 px-6">
         <div className="max-w-[900px] mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-[30px] md:text-[36px] font-bold text-[var(--text-primary)] mb-3">Built for people who <span className="gradient-text">create with AI</span></h2>
@@ -248,17 +248,17 @@ export default function MarketingPage() {
           {/* Audience cards */}
           <div className="grid md:grid-cols-3 gap-4 mb-16">
             <AudienceCard
-              emoji="⚡"
+              icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" /></svg>}
               title="Cursor users"
               description="You wrote a Python script with Cursor. Now what? Upload it here and get a live app with a URL in under a minute."
             />
             <AudienceCard
-              emoji="🔗"
+              icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>}
               title="n8n & Make users"
               description="Need custom logic your automation tool can't handle? Deploy a Python function and call it as a webhook from your flow."
             />
             <AudienceCard
-              emoji="💬"
+              icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>}
               title="ChatGPT users"
               description="ChatGPT gave you working code. Runtime turns it into a real app anyone can use, with a UI and a shareable link."
             />
@@ -305,7 +305,7 @@ export default function MarketingPage() {
 
         <div className="relative max-w-[580px] mx-auto text-center">
           <h2 className="text-[36px] md:text-[44px] font-extrabold text-[var(--text-primary)] mb-5 leading-tight">
-            Your code deserves<br />to be <span className="gradient-text">live.</span>
+            Your code deserves to be <span className="gradient-text">live.</span>
           </h2>
           <p className="text-[var(--text-secondary)] text-[17px] mb-9 leading-relaxed">
             Stop sharing screenshots of terminal output. Go live in 60 seconds and send a link.
@@ -396,7 +396,7 @@ function WaitlistForm({ source }: { source: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="waitlist-form flex items-center gap-1.5 max-w-[400px] mx-auto">
+    <form onSubmit={handleSubmit} className="waitlist-form flex items-center gap-2 max-w-[440px] mx-auto">
       <input
         type="email"
         placeholder="you@email.com"
@@ -434,10 +434,10 @@ function StepCard({ number, title, description, icon }: { number: string; title:
   );
 }
 
-function AudienceCard({ emoji, title, description }: { emoji: string; title: string; description: string }) {
+function AudienceCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
     <div className="glass-card p-6 rounded-2xl">
-      <div className="text-[28px] mb-3">{emoji}</div>
+      <div className="w-10 h-10 bg-[var(--accent)]/[0.08] rounded-xl flex items-center justify-center text-[var(--accent)] mb-4">{icon}</div>
       <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
       <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{description}</p>
     </div>
@@ -447,14 +447,9 @@ function AudienceCard({ emoji, title, description }: { emoji: string; title: str
 function TestimonialCard({ quote, name, role, initials, color }: { quote: string; name: string; role: string; initials: string; color: string }) {
   return (
     <div className="testimonial-card p-6 rounded-2xl">
-      {/* Stars */}
-      <div className="flex gap-0.5 mb-4">
-        {[1,2,3,4,5].map((i) => (
-          <svg key={i} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-        ))}
-      </div>
+      <svg className="w-5 h-5 text-[var(--accent)]/30 mb-4" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zM0 21v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z" />
+      </svg>
       <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed mb-5">&ldquo;{quote}&rdquo;</p>
       <div className="flex items-center gap-3">
         <div className={`avatar-circle ${color}`}>{initials}</div>
