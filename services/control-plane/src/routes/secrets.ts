@@ -6,13 +6,13 @@
 
 import { Hono } from 'hono';
 import { encryptSecret, decryptSecret } from '../encryption/kms.js';
-import { getProjectSecrets, storeSecret, deleteSecret, getSecret } from '../db/secrets-store';
-import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../config/constants';
-import { getAuthContext } from '../middleware/auth';
-import * as projectsStore from '../db/projects-store';
-import { logger } from '../lib/logger';
-import { captureMessage } from '../lib/sentry';
-import { recordSecretsOperation } from '../lib/metrics';
+import { getProjectSecrets, storeSecret, deleteSecret, getSecret } from '../db/secrets-store.js';
+import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../config/constants.js';
+import { getAuthContext } from '../middleware/auth.js';
+import * as projectsStore from '../db/projects-store.js';
+import { logger } from '../lib/logger.js';
+import { captureMessage } from '../lib/sentry.js';
+import { recordSecretsOperation } from '../lib/metrics.js';
 
 /**
  * Verify project ownership. Returns owner_id or null response.

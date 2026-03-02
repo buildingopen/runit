@@ -13,8 +13,8 @@
  */
 
 import CircuitBreaker from 'opossum';
-import { logger } from './logger';
-import { captureMessage } from './sentry';
+import { logger } from './logger.js';
+import { captureMessage } from './sentry.js';
 
 // Circuit breaker configuration options type
 interface CircuitBreakerOptions {

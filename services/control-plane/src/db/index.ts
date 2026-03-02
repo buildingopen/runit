@@ -5,9 +5,9 @@
  * Central export point for all database stores
  */
 
-export * from './supabase';
-export * from './projects-store';
-export * from './runs-store';
-export * from './contexts-store';
-export * from './share-links-store';
-export * from './secrets-store';
+export * from './supabase.js';
+export * from './projects-store.js';
+export * from './runs-store.js';
+export * from './contexts-store.js';
+export * from './share-links-store.js';
+export * from './secrets-store.js';

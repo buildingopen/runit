@@ -5,13 +5,13 @@
  * ABOUTME: Handles extraction errors and classifies them using error taxonomy
  */
 
-import { classifyError } from '../errors/classifier';
-import type { ClassifiedError } from '../errors/taxonomy';
+import { classifyError } from '../errors/classifier.js';
+import type { ClassifiedError } from '../errors/taxonomy.js';
 import {
   detectEntrypoint,
   validateEntrypoint,
   type EntrypointResult
-} from './entrypoint-detector';
+} from './entrypoint-detector.js';
 
 /**
  * Endpoint metadata extracted from OpenAPI schema
