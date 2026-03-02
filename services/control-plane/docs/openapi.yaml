@@ -29,12 +29,22 @@ servers:
 tags:
   - name: Projects
     description: Project management operations
+  - name: Endpoints
+    description: Project endpoint listing and schema retrieval
   - name: Runs
     description: Endpoint execution and run status
   - name: Secrets
     description: Encrypted secrets management
+  - name: Context
+    description: Project context data management
   - name: Deploy
     description: Deployment operations
+  - name: Share
+    description: Share link management
+  - name: Billing
+    description: Subscription and billing management
+  - name: Templates
+    description: Project templates
   - name: Health
     description: Health checks and metrics
 
@@ -249,6 +259,19 @@ components:
           items:
             $ref: '#/components/schemas/Endpoint'
           description: Extracted API endpoints
+
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: New project display name
+        slug:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$"
+          description: New URL-friendly project slug (3-60 chars, lowercase alphanumeric + hyphens)
 
     ListProjectsResponse:
       type: object
@@ -544,6 +567,55 @@ components:
             $ref: '#/components/schemas/Secret'
           description: List of secrets (values never returned)
 
+    # ==================== Context ====================
+    Context:
+      type: object
+      required:
+        - id
+        - name
+        - url
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Context ID
+        name:
+          type: string
+          description: Context name (alphanumeric, hyphens, underscores)
+          example: "my-api-docs"
+        url:
+          type: string
+          format: uri
+          description: Source URL the context was fetched from
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        fetched_at:
+          type: string
+          format: date-time
+        size:
+          type: integer
+          description: Size in bytes
+
+    FetchContextRequest:
+      type: object
+      required:
+        - url
+        - name
+      properties:
+        url:
+          type: string
+          format: uri
+          description: URL to fetch context data from
+        name:
+          type: string
+          pattern: "^[a-zA-Z0-9_-]+$"
+          description: Context name (letters, numbers, hyphens, underscores)
+
     # ==================== Deploy ====================
     DeployRequest:
       type: object
@@ -599,6 +671,218 @@ components:
           type: string
           description: Error details
 
+    StreamTokenResponse:
+      type: object
+      required:
+        - token
+        - expires_in
+      properties:
+        token:
+          type: string
+          description: Short-lived HMAC-signed token for SSE stream authentication
+        expires_in:
+          type: integer
+          description: Token TTL in seconds
+          example: 60
+
+    # ==================== Share ====================
+    ShareLink:
+      type: object
+      required:
+        - share_id
+        - share_url
+        - target_type
+        - target_ref
+        - created_at
+      properties:
+        share_id:
+          type: string
+          format: uuid
+          description: Share link ID
+        share_url:
+          type: string
+          description: Relative share URL
+          example: "/s/abc123"
+        target_type:
+          type: string
+          enum: [endpoint_template, run_result]
+          description: Type of shared resource
+        target_ref:
+          type: string
+          description: Reference to the shared resource
+        enabled:
+          type: boolean
+          description: Whether the share link is active
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        stats:
+          type: object
+          properties:
+            run_count:
+              type: integer
+            success_count:
+              type: integer
+            last_run_at:
+              type: string
+              format: date-time
+              nullable: true
+
+    CreateShareLinkRequest:
+      type: object
+      required:
+        - target_type
+        - target_ref
+      properties:
+        target_type:
+          type: string
+          enum: [endpoint_template, run_result]
+          description: Type of resource to share
+        target_ref:
+          type: string
+          description: Reference to the resource
+
+    # ==================== Billing ====================
+    SubscriptionResponse:
+      type: object
+      required:
+        - tier
+        - status
+        - usage
+        - limits
+      properties:
+        tier:
+          type: string
+          enum: [free, pro, team]
+          description: Current subscription tier
+        status:
+          type: string
+          enum: [active, past_due, canceled]
+          description: Subscription status
+        current_period_end:
+          type: string
+          format: date-time
+          nullable: true
+        usage:
+          type: object
+          properties:
+            cpu_runs:
+              type: integer
+            gpu_runs:
+              type: integer
+            projects_count:
+              type: integer
+        limits:
+          type: object
+          description: Tier-specific resource limits
+
+    CheckoutRequest:
+      type: object
+      required:
+        - tier
+      properties:
+        tier:
+          type: string
+          enum: [pro, team]
+          description: Target subscription tier
+
+    CheckoutResponse:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Stripe Checkout session URL
+
+    PortalResponse:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Stripe Customer Portal session URL
+
+    # ==================== Templates ====================
+    Template:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - category
+      properties:
+        id:
+          type: string
+          description: Template identifier
+        name:
+          type: string
+          description: Template display name
+        description:
+          type: string
+          description: Template description
+        category:
+          type: string
+          description: Template category
+        requiredSecrets:
+          type: array
+          items:
+            type: string
+          description: Secret keys required by this template
+
+    TemplateDetail:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - category
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        requiredSecrets:
+          type: array
+          items:
+            type: string
+        files:
+          type: object
+          additionalProperties:
+            type: string
+          description: Template source files (filename to content)
+
+    CreateFromTemplateResponse:
+      type: object
+      required:
+        - template_id
+        - name
+        - zip_data
+      properties:
+        template_id:
+          type: string
+        name:
+          type: string
+        zip_data:
+          type: string
+          format: byte
+          description: Base64-encoded ZIP of template files
+        detected_env_vars:
+          type: array
+          items:
+            type: string
+
     # ==================== Health ====================
     HealthResponse:
       type: object
@@ -649,7 +933,7 @@ components:
                 type: integer
               error:
                 type: string
-        circuitBreakers:
+        serviceHealth:
           type: object
           additionalProperties:
             type: object
@@ -659,6 +943,20 @@ components:
                 enum: [closed, open, half-open]
               failures:
                 type: integer
+
+    MetricsHealthResponse:
+      type: object
+      required:
+        - status
+        - serviceHealth
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded]
+        serviceHealth:
+          type: object
+          additionalProperties:
+            type: object
 
     # ==================== Errors ====================
     Error:
@@ -813,6 +1111,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Project limit reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -870,6 +1174,61 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+    patch:
+      tags: [Projects]
+      summary: Update a project
+      description: Update project name and/or slug
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  project_id:
+                    type: string
+                    format: uuid
+                  project_slug:
+                    type: string
+                  name:
+                    type: string
+                  owner_id:
+                    type: string
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Slug already in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
     delete:
       tags: [Projects]
       summary: Delete a project
@@ -903,6 +1262,265 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # ==================== Project Endpoints ====================
+  /v1/projects/{id}/endpoints:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    get:
+      tags: [Endpoints]
+      summary: List endpoints for a project
+      description: Returns all API endpoints detected in the project version
+      operationId: listProjectEndpoints
+      parameters:
+        - name: version_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Version ID (defaults to latest)
+      responses:
+        '200':
+          description: List of endpoints
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - endpoints
+                  - total
+                properties:
+                  endpoints:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Endpoint'
+                  total:
+                    type: integer
+        '400':
+          description: No actions detected yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{project_id}/versions/{version_id}/endpoints/{endpoint_id}/schema:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+      - name: version_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Version ID
+      - name: endpoint_id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Endpoint ID
+
+    get:
+      tags: [Endpoints]
+      summary: Get endpoint schema
+      description: Returns the full request/response schema for an endpoint, with $ref references resolved
+      operationId: getEndpointSchema
+      responses:
+        '200':
+          description: Endpoint schema
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - endpoint_id
+                  - method
+                  - path
+                properties:
+                  endpoint_id:
+                    type: string
+                  method:
+                    type: string
+                  path:
+                    type: string
+                  summary:
+                    type: string
+                  description:
+                    type: string
+                  request_schema:
+                    type: object
+                    description: JSON Schema for request body
+                  response_schema:
+                    type: object
+                    description: JSON Schema for response body
+                  parameters:
+                    type: array
+                    items:
+                      type: object
+                    description: OpenAPI parameter objects
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{project_id}/versions/{version_id}/extract-openapi:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+      - name: version_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Version ID
+
+    post:
+      tags: [Endpoints]
+      summary: Extract OpenAPI from project code
+      description: Triggers OpenAPI extraction from a project version's code bundle
+      operationId: extractOpenAPI
+      responses:
+        '200':
+          description: Extraction successful
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - endpoints_count
+                  - endpoints
+                properties:
+                  success:
+                    type: boolean
+                  endpoints_count:
+                    type: integer
+                  endpoints:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        method:
+                          type: string
+                        path:
+                          type: string
+                        summary:
+                          type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== Project Runs ====================
+  /v1/projects/{id}/runs:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    get:
+      tags: [Runs]
+      summary: List runs for a project
+      description: Returns recent runs for a project, ordered by creation time
+      operationId: listProjectRuns
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Maximum number of runs to return
+      responses:
+        '200':
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - runs
+                  - total
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        run_id:
+                          type: string
+                          format: uuid
+                        endpoint_id:
+                          type: string
+                        status:
+                          type: string
+                          enum: [queued, running, success, error, timeout]
+                        created_at:
+                          type: string
+                          format: date-time
+                        duration_ms:
+                          type: integer
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== Deploy ====================
   /v1/projects/{id}/deploy:
     parameters:
       - name: id
@@ -949,6 +1567,568 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 error: "Deployment already in progress"
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{id}/redeploy:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    post:
+      tags: [Deploy]
+      summary: Redeploy a project
+      description: Redeploys the project with the latest code version
+      operationId: redeployProject
+      responses:
+        '200':
+          description: Redeployment started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+        '400':
+          description: No version available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Deployment already in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{id}/deploy/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    get:
+      tags: [Deploy]
+      summary: Get deployment status
+      description: Returns current deployment status (polling alternative to SSE stream)
+      operationId: getDeployStatus
+      responses:
+        '200':
+          description: Deployment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{id}/deploy/stream-token:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    post:
+      tags: [Deploy]
+      summary: Get deploy stream token
+      description: |
+        Creates a short-lived, scoped token for authenticating the SSE deploy stream.
+        Avoids sending the full session JWT in the EventSource URL.
+      operationId: getDeployStreamToken
+      responses:
+        '200':
+          description: Stream token created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{id}/deploy/stream:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    get:
+      tags: [Deploy]
+      summary: Deploy progress SSE stream
+      description: |
+        Server-Sent Events stream for real-time deployment progress.
+        Requires a scoped stream token from POST .../stream-token.
+      operationId: getDeployStream
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Scoped stream token from POST .../stream-token
+      responses:
+        '200':
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-Sent Events stream with deployment progress
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== Context ====================
+  /v1/projects/{id}/context:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    post:
+      tags: [Context]
+      summary: Add context from URL
+      description: Fetches context data from a URL and stores it for the project
+      operationId: createContext
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FetchContextRequest'
+      responses:
+        '201':
+          description: Context created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  data:
+                    type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    get:
+      tags: [Context]
+      summary: List project contexts
+      description: Returns all context entries for a project (metadata only, no data)
+      operationId: listContexts
+      responses:
+        '200':
+          description: List of contexts
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - contexts
+                properties:
+                  contexts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Context'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{id}/context/{cid}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+      - name: cid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Context ID
+
+    get:
+      tags: [Context]
+      summary: Get context data
+      description: Returns the full context data for a specific context entry
+      operationId: getContext
+      responses:
+        '200':
+          description: Context data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  project_id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  url:
+                    type: string
+                  data:
+                    type: object
+                  created_at:
+                    type: string
+                    format: date-time
+                  updated_at:
+                    type: string
+                    format: date-time
+                  fetched_at:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Context]
+      summary: Refresh context from URL
+      description: Re-fetches context data from the original URL
+      operationId: refreshContext
+      responses:
+        '200':
+          description: Context refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  data:
+                    type: object
+                  updated_at:
+                    type: string
+                    format: date-time
+                  fetched_at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Cannot refresh context without URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Context]
+      summary: Delete context
+      description: Permanently deletes a context entry
+      operationId: deleteContext
+      responses:
+        '200':
+          description: Context deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==================== Share ====================
+  /v1/projects/{id}/share:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    post:
+      tags: [Share]
+      summary: Create share link
+      description: Creates a share link for an endpoint template or run result
+      operationId: createShareLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShareLinkRequest'
+      responses:
+        '201':
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{id}/share/{share_id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+      - name: share_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Share link ID
+
+    delete:
+      tags: [Share]
+      summary: Disable share link
+      description: Disables a share link (does not delete it)
+      operationId: disableShareLink
+      responses:
+        '200':
+          description: Share link disabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  share_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [disabled]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/projects/{id}/shares:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Project ID
+
+    get:
+      tags: [Share]
+      summary: List share links for a project
+      description: Returns all share links for a project (owner-only)
+      operationId: listShareLinks
+      responses:
+        '200':
+          description: List of share links
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - shares
+                  - total
+                properties:
+                  shares:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShareLink'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/share/{share_id}:
+    parameters:
+      - name: share_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Share link ID
+
+    get:
+      tags: [Share]
+      summary: Get shared resource
+      description: Public endpoint to access a shared resource by its share link ID
+      operationId: getShareLink
+      security: []
+      responses:
+        '200':
+          description: Shared resource data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  share_id:
+                    type: string
+                  project:
+                    type: object
+                    properties:
+                      project_id:
+                        type: string
+                      name:
+                        type: string
+                  target_type:
+                    type: string
+                    enum: [endpoint_template, run_result]
+                  target_ref:
+                    type: string
+                  stats:
+                    type: object
+                    properties:
+                      run_count:
+                        type: integer
+                      success_count:
+                        type: integer
+                      last_run_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '403':
+          description: Share link disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Share link expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -1181,6 +2361,224 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  # ==================== Billing ====================
+  /v1/billing/subscription:
+    get:
+      tags: [Billing]
+      summary: Get subscription and usage
+      description: Returns current subscription tier, status, usage counters, and tier limits
+      operationId: getSubscription
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/billing/checkout:
+    post:
+      tags: [Billing]
+      summary: Create checkout session
+      description: Creates a Stripe Checkout session for upgrading to a paid tier
+      operationId: createCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Checkout session URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          description: Billing not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/billing/portal:
+    post:
+      tags: [Billing]
+      summary: Create portal session
+      description: Creates a Stripe Customer Portal session for managing subscription
+      operationId: createPortalSession
+      responses:
+        '200':
+          description: Portal session URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No billing account found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          description: Billing not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/billing/webhook:
+    post:
+      tags: [Billing]
+      summary: Stripe webhook handler
+      description: |
+        Handles Stripe webhook events for subscription lifecycle management.
+        Excluded from auth middleware; verified by Stripe signature.
+      operationId: stripeWebhook
+      security: []
+      parameters:
+        - name: stripe-signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Stripe webhook signature
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+        '400':
+          description: Invalid signature or missing header
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Billing or webhook not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ==================== Templates ====================
+  /v1/templates:
+    get:
+      tags: [Templates]
+      summary: List templates
+      description: Returns all available project templates
+      operationId: listTemplates
+      security: []
+      responses:
+        '200':
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - templates
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/templates/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Template ID
+
+    get:
+      tags: [Templates]
+      summary: Get template details
+      description: Returns template metadata and code file contents
+      operationId: getTemplate
+      security: []
+      responses:
+        '200':
+          description: Template details with code preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetail'
+        '400':
+          description: Invalid template ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /v1/templates/{id}/create:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Template ID
+
+    post:
+      tags: [Templates]
+      summary: Create project from template
+      description: Builds a ZIP from template files for use with the create project endpoint
+      operationId: createFromTemplate
+      responses:
+        '200':
+          description: Template ZIP data ready for project creation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateFromTemplateResponse'
+        '400':
+          description: Invalid template ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   # ==================== Health ====================
   /health:
     get:
@@ -1188,7 +2586,7 @@ paths:
       summary: Health check
       description: Simple health check endpoint
       operationId: healthCheck
-      security: []  # No auth required
+      security: []
       responses:
         '200':
           description: Service is healthy
@@ -1207,7 +2605,7 @@ paths:
       summary: Deep health check
       description: Health check including external dependencies (Supabase, Modal, Sentry)
       operationId: deepHealthCheck
-      security: []  # No auth required
+      security: []
       responses:
         '200':
           description: All systems healthy
@@ -1238,9 +2636,9 @@ paths:
     get:
       tags: [Health]
       summary: Prometheus metrics
-      description: Returns Prometheus-formatted metrics for monitoring
+      description: Returns Prometheus-formatted metrics for monitoring. Requires METRICS_TOKEN in production.
       operationId: getMetrics
-      security: []  # No auth required
+      security: []
       responses:
         '200':
           description: Prometheus metrics
@@ -1256,6 +2654,37 @@ paths:
                 # HELP http_request_duration_seconds HTTP request duration
                 # TYPE http_request_duration_seconds histogram
                 http_request_duration_seconds_bucket{method="GET",path="/health",status="200",le="0.1"} 40
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Metrics disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /metrics/health:
+    get:
+      tags: [Health]
+      summary: Metrics health check
+      description: Quick health check based on circuit breaker status. Requires METRICS_TOKEN in production.
+      operationId: getMetricsHealth
+      security: []
+      responses:
+        '200':
+          description: Metrics health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsHealthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Metrics disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /v1/openapi.json:
     get:
@@ -1263,7 +2692,7 @@ paths:
       summary: OpenAPI specification
       description: Returns the OpenAPI 3.0 specification for this API
       operationId: getOpenAPISpec
-      security: []  # No auth required
+      security: []
       responses:
         '200':
           description: OpenAPI specification
