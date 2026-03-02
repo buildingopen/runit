@@ -5,33 +5,54 @@
  */
 
 import { Hono } from 'hono';
+import { createHmac } from 'crypto';
 import { streamSSE } from 'hono/streaming';
 import { getAuthContext, type AuthContext } from '../middleware/auth.js';
-import { getSupabaseClient, isSupabaseConfigured } from '../db/supabase.js';
 import * as projectsStore from '../db/projects-store.js';
 import * as deployState from '../lib/deploy-state.js';
 import { runDeployment } from '../lib/deploy-bridge.js';
 
-/**
- * Validate a token from query param for SSE endpoints.
- * EventSource API cannot send Authorization headers, so we accept ?token= instead.
- */
-async function getAuthFromToken(token: string): Promise<AuthContext> {
-  if (!isSupabaseConfigured()) {
-    return { user: null, isAuthenticated: false };
-  }
+// ---------------------------------------------------------------------------
+// Scoped stream tokens — short-lived HMAC-signed tokens for SSE endpoints.
+// Avoids sending the full session JWT in the URL (which leaks in logs/history).
+// ---------------------------------------------------------------------------
+
+const STREAM_TOKEN_TTL_SECONDS = 60;
+
+function getSigningKey(): string {
+  // Use dedicated signing key; fall back to derived key from master (never share raw master key)
+  return process.env.STREAM_TOKEN_SECRET
+    || (process.env.MASTER_ENCRYPTION_KEY ? `stream:${process.env.MASTER_ENCRYPTION_KEY}` : 'dev-stream-token-key');
+}
+
+/** Create a scoped, short-lived stream token for a specific project + user. */
+export function createStreamToken(projectId: string, userId: string): string {
+  const exp = Math.floor(Date.now() / 1000) + STREAM_TOKEN_TTL_SECONDS;
+  const payload = JSON.stringify({ pid: projectId, uid: userId, exp });
+  const sig = createHmac('sha256', getSigningKey()).update(payload).digest('base64url');
+  return Buffer.from(payload).toString('base64url') + '.' + sig;
+}
+
+/** Verify a scoped stream token. Returns project/user IDs or null. */
+function verifyStreamToken(token: string): { projectId: string; userId: string } | null {
+  const dotIdx = token.indexOf('.');
+  if (dotIdx < 0) return null;
+
+  const payloadB64 = token.substring(0, dotIdx);
+  const sig = token.substring(dotIdx + 1);
+
   try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase.auth.getUser(token);
-    if (error || !data.user) {
-      return { user: null, isAuthenticated: false };
-    }
-    return {
-      user: { id: data.user.id, email: data.user.email, role: data.user.role },
-      isAuthenticated: true,
-    };
+    const payloadStr = Buffer.from(payloadB64, 'base64url').toString();
+    const expectedSig = createHmac('sha256', getSigningKey()).update(payloadStr).digest('base64url');
+    if (sig !== expectedSig) return null;
+
+    const payload = JSON.parse(payloadStr);
+    if (!payload.pid || !payload.uid || !payload.exp) return null;
+    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+
+    return { projectId: payload.pid, userId: payload.uid };
   } catch {
-    return { user: null, isAuthenticated: false };
+    return null;
   }
 }
 
@@ -87,25 +108,18 @@ deploy.post('/:id/deploy', async (c) => {
 
   return c.json({
     status: 'deploying',
-    streamUrl: `/projects/${projectId}/deploy/stream`,
+    streamUrl: `${c.req.path.startsWith('/v1/') ? '/v1' : ''}/projects/${projectId}/deploy/stream`,
   });
 });
 
 /**
- * GET /projects/:id/deploy/stream - SSE stream for deployment progress
+ * POST /projects/:id/deploy/stream-token - Get a short-lived scoped token for the SSE stream.
+ * This avoids sending the full session JWT in the EventSource URL.
  */
-deploy.get('/:id/deploy/stream', async (c) => {
+deploy.post('/:id/deploy/stream-token', async (c) => {
   const projectId = c.req.param('id');
 
-  // Support auth via ?token= query param (EventSource cannot send headers)
-  const queryToken = c.req.query('token');
-  let authContext: AuthContext;
-  if (queryToken) {
-    authContext = await getAuthFromToken(queryToken);
-  } else {
-    authContext = getAuthContext(c);
-  }
-
+  const authContext = getAuthContext(c);
   if (!authContext.isAuthenticated || !authContext.user) {
     return c.json({ error: 'Authentication required' }, 401);
   }
@@ -114,9 +128,35 @@ deploy.get('/:id/deploy/stream', async (c) => {
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
   }
-
   if (project.owner_id !== authContext.user.id) {
     return c.json({ error: 'Not authorized' }, 403);
+  }
+
+  const token = createStreamToken(projectId, authContext.user.id);
+  return c.json({ token, expires_in: STREAM_TOKEN_TTL_SECONDS });
+});
+
+/**
+ * GET /projects/:id/deploy/stream - SSE stream for deployment progress.
+ * Accepts ?token= with a scoped stream token (from POST .../stream-token).
+ */
+deploy.get('/:id/deploy/stream', async (c) => {
+  const projectId = c.req.param('id');
+
+  // Verify scoped stream token from query param
+  const queryToken = c.req.query('token');
+  if (!queryToken) {
+    return c.json({ error: 'Stream token required. Call POST .../stream-token first.' }, 401);
+  }
+
+  const tokenData = verifyStreamToken(queryToken);
+  if (!tokenData) {
+    return c.json({ error: 'Invalid or expired stream token' }, 401);
+  }
+
+  // Verify token is scoped to this project
+  if (tokenData.projectId !== projectId) {
+    return c.json({ error: 'Token not valid for this project' }, 403);
   }
 
   // Set up SSE stream
@@ -226,7 +266,7 @@ deploy.post('/:id/redeploy', async (c) => {
 
   return c.json({
     status: 'deploying',
-    streamUrl: `/projects/${projectId}/deploy/stream`,
+    streamUrl: `${c.req.path.startsWith('/v1/') ? '/v1' : ''}/projects/${projectId}/deploy/stream`,
   });
 });
 
@@ -236,38 +276,39 @@ deploy.post('/:id/redeploy', async (c) => {
 deploy.get('/:id/deploy/status', async (c) => {
   const projectId = c.req.param('id');
 
-  // Require authenticated user and verify ownership
+  // Require authenticated user
   const authContext = getAuthContext(c);
   if (!authContext.isAuthenticated || !authContext.user) {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
+  // Always verify ownership via DB (before returning any state)
+  const project = await projectsStore.getProject(projectId);
+  if (!project) {
+    return c.json({ error: 'Project not found' }, 404);
+  }
+  if (project.owner_id !== authContext.user.id) {
+    return c.json({ error: 'Not authorized' }, 403);
+  }
+
+  // Check in-memory deploy state first (active deployments)
   const state = deployState.getDeployState(projectId);
-  if (!state) {
-    // Check database for status
-    const project = await projectsStore.getProject(projectId);
-    if (!project) {
-      return c.json({ error: 'Project not found' }, 404);
-    }
-
-    if (project.owner_id !== authContext.user.id) {
-      return c.json({ error: 'Not authorized' }, 403);
-    }
-
+  if (state) {
     return c.json({
-      status: project.status,
-      deployed_at: project.deployed_at,
-      deploy_error: project.deploy_error,
-      runtime_url: project.runtime_url,
+      status: state.step === 'complete' ? 'live' : state.step === 'failed' ? 'failed' : 'deploying',
+      step: state.step,
+      progress: state.progress,
+      message: state.message,
+      error: state.error,
     });
   }
 
+  // Fall back to DB status
   return c.json({
-    status: state.step === 'complete' ? 'live' : state.step === 'failed' ? 'failed' : 'deploying',
-    step: state.step,
-    progress: state.progress,
-    message: state.message,
-    error: state.error,
+    status: project.status,
+    deployed_at: project.deployed_at,
+    deploy_error: project.deploy_error,
+    runtime_url: project.runtime_url,
   });
 });
 

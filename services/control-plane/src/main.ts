@@ -29,6 +29,7 @@ dotenv.config({ path: join(__dirname, '..', '.env') });
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
+import { bodyLimit } from 'hono/body-limit';
 import projects from './routes/projects.js';
 import endpoints from './routes/endpoints.js';
 import runs from './routes/runs.js';
@@ -44,6 +45,7 @@ import { rateLimitMiddleware, shutdownRateLimit } from './middleware/rate-limit'
 import { quotaMiddleware } from './middleware/quota';
 import { cloudIPFilterMiddleware } from './middleware/ip-filter';
 import { bodySizeLimitMiddleware, contentTypeMiddleware } from './middleware/request-validation';
+import { VALIDATION_LIMITS } from './config/validation';
 import { authMiddleware } from './middleware/auth';
 import { loggerMiddleware, devLoggerMiddleware } from './middleware/logger';
 import { securityHeadersMiddleware } from './middleware/security-headers';
@@ -124,7 +126,7 @@ app.onError((err, c) => {
   if (err instanceof SyntaxError && err.message.includes('JSON')) {
     return c.json({
       error: 'Invalid JSON in request body',
-      details: err.message,
+      ...(isProduction ? {} : { details: err.message }),
     }, 400);
   }
 
@@ -180,19 +182,27 @@ app.use('/*', isProduction ? loggerMiddleware : devLoggerMiddleware);
 // Request metrics tracking (records duration, count, and active connections)
 app.use('/*', metricsMiddleware);
 
-// Body size limit (5MB default) - prevents large payload attacks
+// Body size limit — header check (fast reject) + stream-level enforcement (prevents spoofed Content-Length)
 app.use('/*', bodySizeLimitMiddleware);
+app.use('/*', bodyLimit({
+  maxSize: VALIDATION_LIMITS.MAX_BODY_SIZE_BYTES,
+  onError: (c) => c.json({ error: 'Request body exceeds maximum allowed size' }, 413),
+}));
 
 // Content-Type validation for POST/PUT/PATCH requests
 app.use('/*', contentTypeMiddleware);
 
 // Authentication middleware - validates JWT and attaches user to context
 // Excluded: /metrics (Prometheus scraping), /health (load balancer probes), /openapi.json (docs)
-const AUTH_EXCLUDED_PATHS = ['/metrics', '/health', '/openapi.json', '/v1/openapi.json', '/v1/billing/webhook', '/billing/webhook', '/v1/templates', '/templates'];
+// Exact-match paths excluded from auth (no prefix matching — /health does NOT exclude /health/deep)
+const AUTH_EXCLUDED_EXACT = ['/health', '/openapi.json', '/v1/openapi.json', '/v1/billing/webhook', '/billing/webhook'];
+// Prefix-match paths excluded from auth (path + '/' prefix matching)
+const AUTH_EXCLUDED_PREFIXES = ['/metrics'];
 app.use('/*', async (c, next) => {
-  if (AUTH_EXCLUDED_PATHS.some(path => c.req.path === path || c.req.path.startsWith(path + '/'))) {
-    return next();
-  }
+  if (AUTH_EXCLUDED_EXACT.includes(c.req.path)) return next();
+  if (AUTH_EXCLUDED_PREFIXES.some(prefix => c.req.path === prefix || c.req.path.startsWith(prefix + '/'))) return next();
+  // Templates: only GET is public (list + detail), POST /create requires auth
+  if (c.req.method === 'GET' && (c.req.path.startsWith('/templates') || c.req.path.startsWith('/v1/templates'))) return next();
   return authMiddleware(c, next);
 });
 
@@ -402,7 +412,11 @@ const server = serve({
 });
 
 // Graceful shutdown handler
+let isShuttingDown = false;
 async function shutdown(signal: string) {
+  if (isShuttingDown) return; // Prevent double-shutdown from multiple signals
+  isShuttingDown = true;
+
   console.log(`\n[${signal}] Shutting down gracefully...`);
 
   // Signal draining so health endpoint returns 503 (load balancer stops sending traffic)
@@ -414,10 +428,17 @@ async function shutdown(signal: string) {
   // Shutdown OpenTelemetry (flush remaining spans)
   await shutdownTracing();
 
+  let exited = false;
+  function exitOnce(code: number, reason: string) {
+    if (exited) return;
+    exited = true;
+    console.log(reason);
+    process.exit(code);
+  }
+
   // Stop accepting new connections
   server.close(() => {
-    console.log('Server closed. Exiting.');
-    process.exit(0);
+    exitOnce(0, 'Server closed. Exiting.');
   });
 
   // Poll active connections, exit early when drained
@@ -425,16 +446,14 @@ async function shutdown(signal: string) {
     const current = (activeConnections as any).hashMap?.get('')?.value ?? 0;
     if (current <= 0) {
       clearInterval(drainInterval);
-      console.log('All connections drained. Exiting.');
-      process.exit(0);
+      exitOnce(0, 'All connections drained. Exiting.');
     }
   }, 1000);
 
   // Force exit after 10s if connections don't drain
   setTimeout(() => {
     clearInterval(drainInterval);
-    console.error('Forced shutdown after timeout');
-    process.exit(1);
+    exitOnce(1, 'Forced shutdown after timeout');
   }, 10000);
 }
 

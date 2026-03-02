@@ -18,8 +18,10 @@ function generateRequestId(): string {
 }
 
 function getClientIp(c: Context): string {
+  // Use LAST X-Forwarded-For entry (appended by trusted proxy, not spoofable)
+  const xff = c.req.header('x-forwarded-for');
   return (
-    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
+    (xff ? xff.split(',').pop()!.trim() : undefined) ||
     c.req.header('x-real-ip') ||
     'unknown'
   );

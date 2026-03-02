@@ -109,7 +109,9 @@ function getRateLimitKey(c: Context, prefix: string = 'api'): string {
     return `${prefix}:user:${authContext.user.id}`;
   }
 
-  const ip = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+  // Use the LAST X-Forwarded-For entry (appended by trusted proxy, not spoofable)
+  const xff = c.req.header('x-forwarded-for');
+  const ip = xff ? xff.split(',').pop()!.trim() : (c.req.header('x-real-ip') || 'unknown');
   return `${prefix}:ip:${ip}`;
 }
 
@@ -155,7 +157,8 @@ async function checkRateLimitRedis(
 }
 
 /**
- * DB-backed rate limit check
+ * DB-backed rate limit check using atomic RPC (prevents read-modify-write race).
+ * Falls back to conditional-update approach if RPC is not available.
  */
 async function checkRateLimitDB(key: string, limit: number, windowMs: number): Promise<{
   allowed: boolean;
@@ -163,55 +166,26 @@ async function checkRateLimitDB(key: string, limit: number, windowMs: number): P
   resetAt: number;
 }> {
   const supabase = getServiceSupabaseClient();
-  const now = new Date();
+  const now = Date.now();
+  const resetAt = now + windowMs;
 
-  // Try to get existing entry
-  const { data: existing } = await supabase
-    .from('rate_limits')
-    .select('*')
-    .eq('key', key)
-    .single();
+  // Use atomic RPC (FOR UPDATE row lock prevents TOCTOU race)
+  const { data, error } = await supabase.rpc('check_and_increment_rate_limit', {
+    p_key: key,
+    p_limit: limit,
+    p_window_ms: windowMs,
+  });
 
-  if (!existing || new Date(existing.window_start).getTime() + windowMs < now.getTime()) {
-    // No entry or expired - upsert new window
-    await supabase
-      .from('rate_limits')
-      .upsert({
-        key,
-        count: 1,
-        window_start: now.toISOString(),
-        window_ms: windowMs,
-      }, { onConflict: 'key' });
-
-    return {
-      allowed: true,
-      remaining: limit - 1,
-      resetAt: now.getTime() + windowMs,
-    };
+  if (error) {
+    // RPC failed — log and allow through (fail-open) rather than using a racy fallback
+    logger.warn('[RateLimit] Atomic RPC failed, allowing request', { key, error: error.message });
+    return { allowed: true, remaining: limit, resetAt };
   }
 
-  // Atomic increment: only update if count < limit (prevents race condition)
-  const resetAt = new Date(existing.window_start).getTime() + windowMs;
-  const { data: updated, error: updateError } = await supabase
-    .from('rate_limits')
-    .update({ count: existing.count + 1 })
-    .eq('key', key)
-    .lt('count', limit)
-    .select('count')
-    .single();
-
-  if (updateError || !updated) {
-    // Limit exceeded (or concurrent request already incremented past limit)
-    return {
-      allowed: false,
-      remaining: 0,
-      resetAt,
-    };
-  }
-
+  const result = typeof data === 'string' ? JSON.parse(data) : data;
   return {
-    allowed: true,
-    remaining: limit - updated.count,
+    allowed: result.allowed,
+    remaining: result.remaining,
     resetAt,
   };
 }

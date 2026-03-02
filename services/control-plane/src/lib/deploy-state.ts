@@ -4,8 +4,15 @@
  * Deploy State Management
  *
  * In-memory state for tracking deployment progress and SSE subscriptions.
- * In production, this could be backed by Redis for multi-instance support.
+ * IMPORTANT: This module is process-local. The control plane MUST run as a
+ * single instance (no horizontal scaling) or deploy streams will silently
+ * break. For multi-instance support, replace with Redis pub/sub.
  */
+
+// Guard: warn at startup if hints suggest multi-instance deployment
+if (process.env.INSTANCE_COUNT && parseInt(process.env.INSTANCE_COUNT) > 1) {
+  console.error('[FATAL] deploy-state is in-memory only — INSTANCE_COUNT > 1 will break SSE deploy streams. Use Redis-backed state or run a single instance.');
+}
 
 export type DeployStep =
   | 'queued'

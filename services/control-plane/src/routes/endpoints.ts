@@ -10,6 +10,7 @@ import type {
   GetEndpointSchemaResponse
 } from '@runtime-ai/shared';
 import { getProject } from './projects.js';
+import { getAuthContext } from '../middleware/auth.js';
 import { resolveSchemaRefs, type OpenAPISpec } from '../utils/schema-resolver.js';
 
 const endpoints = new Hono();
@@ -21,9 +22,18 @@ endpoints.get('/:project_id/endpoints', async (c) => {
   const project_id = c.req.param('project_id');
   const version_id = c.req.query('version_id');  // Optional
 
+  // Auth + ownership check
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
   const project = await getProject(project_id);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
+  }
+  if (project.owner_id !== authContext.user.id) {
+    return c.json({ error: 'Not authorized' }, 403);
   }
 
   // Get version (latest if not specified)
@@ -63,9 +73,18 @@ endpoints.get('/:project_id/endpoints', async (c) => {
 endpoints.get('/:project_id/versions/:version_id/endpoints/:endpoint_id/schema', async (c) => {
   const { project_id, version_id, endpoint_id } = c.req.param();
 
+  // Auth + ownership check
+  const authContext = getAuthContext(c);
+  if (!authContext.isAuthenticated || !authContext.user) {
+    return c.json({ error: 'Authentication required' }, 401);
+  }
+
   const project = await getProject(project_id);
   if (!project) {
     return c.json({ error: 'Project not found' }, 404);
+  }
+  if (project.owner_id !== authContext.user.id) {
+    return c.json({ error: 'Not authorized' }, 403);
   }
 
   const version = project.versions.find((v: { version_id: string }) => v.version_id === version_id);

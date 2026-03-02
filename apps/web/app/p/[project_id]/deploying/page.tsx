@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiClient } from '../../../../lib/api/client';
-import { getSupabaseBrowserClient } from '../../../../lib/supabase/client';
+
 import { trackDeploySuccess } from '../../../../lib/analytics';
 
 interface DeployEvent {
@@ -69,18 +69,16 @@ export default function DeployingPage({ params }: PageProps) {
           return;
         }
 
-        // Connect to SSE stream (pass token via query param since EventSource can't send headers)
+        // Get scoped stream token and connect to SSE
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-        let streamUrl = `${API_BASE_URL}/v1/projects/${projectId}/deploy/stream`;
         try {
-          const supabase = getSupabaseBrowserClient();
-          const sessionResult = await supabase?.auth.getSession();
-          const token = sessionResult?.data?.session?.access_token;
-          if (token) {
-            streamUrl += `?token=${encodeURIComponent(token)}`;
-          }
-        } catch { /* proceed without token */ }
-        eventSource = new EventSource(streamUrl);
+          const { token } = await apiClient.getDeployStreamToken(projectId);
+          const streamUrl = `${API_BASE_URL}/v1/projects/${projectId}/deploy/stream?token=${encodeURIComponent(token)}`;
+          eventSource = new EventSource(streamUrl);
+        } catch {
+          setError('Failed to connect to deploy stream');
+          return;
+        }
 
         eventSource.addEventListener('status', (e) => {
           if (!mounted) return;

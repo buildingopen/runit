@@ -94,7 +94,7 @@ describe('routes/runs', () => {
       isAuthenticated: true,
     });
 
-    vi.mocked(projectsStore.getProject).mockResolvedValue({ id: 'proj-1' } as any);
+    vi.mocked(projectsStore.getProject).mockResolvedValue({ id: 'proj-1', owner_id: 'user-1' } as any);
     vi.mocked(projectsStore.getVersion).mockResolvedValue(baseVersion as any);
 
     vi.mocked(runsStore.createRun).mockResolvedValue(baseRun as any);

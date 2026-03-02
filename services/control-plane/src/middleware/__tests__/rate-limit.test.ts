@@ -35,7 +35,7 @@ describe('Rate Limiting', () => {
 
         expect(next).toHaveBeenCalled();
         expect(c.json).not.toHaveBeenCalledWith(
-          expect.objectContaining({ error: 'Rate limit exceeded' }),
+          expect.objectContaining({ error: 'Too many requests' }),
           429
         );
       }
@@ -64,7 +64,7 @@ describe('Rate Limiting', () => {
       expect(next).not.toHaveBeenCalled();
       expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Rate limit exceeded',
+          error: 'Too many requests',
         }),
         429
       );
@@ -103,7 +103,7 @@ describe('Rate Limiting', () => {
 
         expect(next).toHaveBeenCalled();
         expect(c.json).not.toHaveBeenCalledWith(
-          expect.objectContaining({ error: 'Rate limit exceeded' }),
+          expect.objectContaining({ error: 'Too many requests' }),
           429
         );
       }
@@ -132,7 +132,7 @@ describe('Rate Limiting', () => {
       expect(next).not.toHaveBeenCalled();
       expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Rate limit exceeded',
+          error: 'Too many requests',
         }),
         429
       );
@@ -158,7 +158,7 @@ describe('Rate Limiting', () => {
 
         expect(next).toHaveBeenCalled();
         expect(c.json).not.toHaveBeenCalledWith(
-          expect.objectContaining({ error: 'Share link rate limit exceeded' }),
+          expect.objectContaining({ error: 'Too many requests on this share link' }),
           429
         );
       }
@@ -189,7 +189,7 @@ describe('Rate Limiting', () => {
       expect(next).not.toHaveBeenCalled();
       expect(c.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Share link rate limit exceeded',
+          error: 'Too many requests on this share link',
         }),
         429
       );

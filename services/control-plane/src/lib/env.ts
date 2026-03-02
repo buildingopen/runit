@@ -77,7 +77,13 @@ const ENV_VARS: EnvVar[] = [
   },
   { name: 'MODAL_TOKEN_ID', required: 'optional', description: 'Modal API token ID (required for deployments)' },
   { name: 'MODAL_TOKEN_SECRET', required: 'optional', description: 'Modal API token secret (required for deployments)' },
+  { name: 'STREAM_TOKEN_SECRET', required: 'production', description: 'Signing key for SSE stream tokens (key separation from MASTER_ENCRYPTION_KEY)' },
+  { name: 'METRICS_TOKEN', required: 'production', description: 'Bearer token for /metrics endpoint (required in production)' },
   { name: 'REDIS_URL', required: 'optional', description: 'Redis URL for distributed rate limiting (optional)' },
+  { name: 'STRIPE_SECRET_KEY', required: 'production', description: 'Stripe API secret key (required for billing)' },
+  { name: 'STRIPE_WEBHOOK_SECRET', required: 'production', description: 'Stripe webhook signing secret' },
+  { name: 'STRIPE_PRO_PRICE_ID', required: 'production', description: 'Stripe price ID for Pro tier' },
+  { name: 'STRIPE_TEAM_PRICE_ID', required: 'production', description: 'Stripe price ID for Team tier' },
 ];
 
 /**

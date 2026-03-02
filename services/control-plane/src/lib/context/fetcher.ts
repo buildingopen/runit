@@ -105,11 +105,13 @@ export async function fetchContextFromURL(url: string, name: string): Promise<Fe
   }
 
   // Resolve hostname and block private/internal IPs (SSRF protection)
+  let resolvedAddress: string;
   try {
     const resolved = await lookup(parsedUrl.hostname);
     if (isBlockedIP(resolved.address)) {
       throw new Error('Fetching from private or internal addresses is not allowed');
     }
+    resolvedAddress = resolved.address;
   } catch (error) {
     if (error instanceof Error && error.message.includes('not allowed')) {
       throw error;
@@ -117,17 +119,23 @@ export async function fetchContextFromURL(url: string, name: string): Promise<Fe
     throw new Error(`Failed to resolve hostname: ${parsedUrl.hostname}`);
   }
 
+  // Build URL with resolved IP to prevent DNS rebinding (TOCTOU between lookup and fetch)
+  const fetchUrl = new URL(url);
+  const originalHostname = fetchUrl.hostname;
+  fetchUrl.hostname = resolvedAddress;
+
   // Fetch HTML with timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(fetchUrl.toString(), {
       signal: controller.signal,
       headers: {
         'User-Agent': 'ExecutionLayer/1.0 (+https://executionlayer.com/bot)',
+        'Host': originalHostname,
       },
-      redirect: 'follow',
+      redirect: 'error',  // Block redirects to prevent SSRF via DNS rebinding
     });
 
     clearTimeout(timeoutId);

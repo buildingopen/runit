@@ -481,15 +481,22 @@ class APIClient {
     });
   }
 
-  // Create EventSource for deploy streaming (passes token via query param since EventSource can't send headers)
+  // Get a short-lived scoped token for deploy SSE stream
+  async getDeployStreamToken(projectId: string) {
+    return this.request<{ token: string; expires_in: number }>(
+      `/projects/${projectId}/deploy/stream-token`,
+      { method: 'POST' }
+    );
+  }
+
+  // Create EventSource for deploy streaming using scoped stream token
   async createDeployStream(projectId: string): Promise<EventSource> {
     if (!this.baseURL) {
       throw new Error('Unable to connect — the service is not configured yet.');
     }
-    const token = await getAccessToken();
-    const url = token
-      ? `${this.baseURL}/v1/projects/${projectId}/deploy/stream?token=${encodeURIComponent(token)}`
-      : `${this.baseURL}/v1/projects/${projectId}/deploy/stream`;
+    // Get scoped stream token (short-lived, project-specific — not the full session JWT)
+    const { token } = await this.getDeployStreamToken(projectId);
+    const url = `${this.baseURL}/v1/projects/${projectId}/deploy/stream?token=${encodeURIComponent(token)}`;
     return new EventSource(url);
   }
 }
