@@ -5,13 +5,13 @@
  * Central export point for all middleware
  */
 
-export * from './auth';
-export * from './authorize';
-export * from './rate-limit';
-export * from './quota';
-export * from './cost-monitor';
-export * from './logger';
-export * from './security-headers';
-export * from './request-timeout';
-export * from './https-redirect';
-export * from './metrics';
+export * from './auth.js';
+export * from './authorize.js';
+export * from './rate-limit.js';
+export * from './quota.js';
+export * from './cost-monitor.js';
+export * from './logger.js';
+export * from './security-headers.js';
+export * from './request-timeout.js';
+export * from './https-redirect.js';
+export * from './metrics.js';

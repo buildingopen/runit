@@ -4,7 +4,7 @@
  * ABOUTME: Example demonstrating how to use the OpenAPI extraction system
  */
 
-import { createExtractor } from './extractor';
+import { createExtractor } from './extractor.js';
 
 async function main() {
   // Create extractor instance

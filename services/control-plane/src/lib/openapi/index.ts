@@ -11,7 +11,7 @@ export {
   type ExtractOpenAPIResponse,
   type EndpointMeta,
   type ExtractorConfig
-} from './extractor';
+} from './extractor.js';
 
 export {
   detectEntrypoint,
@@ -19,4 +19,4 @@ export {
   parseEntrypoint,
   COMMON_ENTRYPOINTS,
   type EntrypointResult
-} from './entrypoint-detector';
+} from './entrypoint-detector.js';

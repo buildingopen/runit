@@ -8,8 +8,8 @@
  */
 
 import { Hono } from 'hono';
-import { metricsRegistry, recordCircuitBreakerState } from '../lib/metrics';
-import { getCircuitBreakerStats, hasOpenCircuit } from '../lib/circuit-breaker';
+import { metricsRegistry, recordCircuitBreakerState } from '../lib/metrics.js';
+import { getCircuitBreakerStats, hasOpenCircuit } from '../lib/circuit-breaker.js';
 
 /**
  * Update circuit breaker metrics
