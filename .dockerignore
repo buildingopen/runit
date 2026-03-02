@@ -1,0 +1,13 @@
+node_modules
+.git
+.next
+dist
+*.tsbuildinfo
+.turbo
+.env
+.env.*
+!.env.example
+infra/
+apps/
+.queen/
+.claude/
