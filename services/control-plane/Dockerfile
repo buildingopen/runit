@@ -9,8 +9,9 @@ WORKDIR /app
 # Install dependencies for native modules
 RUN apk add --no-cache python3 make g++
 
-# Copy workspace files
+# Copy workspace config files
 COPY package*.json ./
+COPY .npmrc ./
 COPY turbo.json ./
 COPY packages/shared/package*.json ./packages/shared/
 COPY services/control-plane/package*.json ./services/control-plane/
@@ -42,6 +43,7 @@ RUN addgroup --system --gid 1001 nodejs && \
 
 # Copy package files
 COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/.npmrc ./
 COPY --from=builder /app/packages/shared/package*.json ./packages/shared/
 COPY --from=builder /app/services/control-plane/package*.json ./services/control-plane/
 

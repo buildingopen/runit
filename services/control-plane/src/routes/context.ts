@@ -5,9 +5,7 @@
 
 import { Hono } from 'hono';
 import { fetchContextFromURL } from '../lib/context/fetcher';
-import type {
-  FetchContextRequest,
-} from '../../../../packages/shared/src/contracts/control-plane';
+import type { FetchContextRequest } from '@runtime-ai/shared';
 import { CONTEXT_MAX_SIZE_BYTES, PROJECT_CONTEXT_MAX_TOTAL_BYTES } from '../config/constants';
 import * as contextsStore from '../db/contexts-store.js';
 import * as projectsStore from '../db/projects-store.js';
