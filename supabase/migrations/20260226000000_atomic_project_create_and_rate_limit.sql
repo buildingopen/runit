@@ -1,7 +1,9 @@
 -- Atomic project creation with limit check (prevents TOCTOU race)
+-- Parameters are TEXT because Supabase PostgREST passes RPC args as text.
+-- owner_id is TEXT in the projects table; id is UUID so we cast p_id.
 CREATE OR REPLACE FUNCTION create_project_atomic(
-  p_id UUID,
-  p_owner_id UUID,
+  p_id TEXT,
+  p_owner_id TEXT,
   p_name TEXT,
   p_slug TEXT,
   p_max_projects INT
@@ -12,7 +14,7 @@ DECLARE
   current_count INT;
 BEGIN
   -- Advisory lock on user to serialize concurrent creates
-  PERFORM pg_advisory_xact_lock(hashtext(p_owner_id::text));
+  PERFORM pg_advisory_xact_lock(hashtext(p_owner_id));
 
   SELECT COUNT(*) INTO current_count FROM projects WHERE owner_id = p_owner_id;
 
@@ -21,7 +23,7 @@ BEGIN
   END IF;
 
   INSERT INTO projects (id, owner_id, name, slug, status, created_at, updated_at)
-  VALUES (p_id, p_owner_id, p_name, p_slug, 'draft', NOW(), NOW());
+  VALUES (p_id::uuid, p_owner_id, p_name, p_slug, 'draft', NOW(), NOW());
 
   RETURN TRUE;
 END;
