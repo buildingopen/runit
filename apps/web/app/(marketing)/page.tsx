@@ -122,9 +122,9 @@ export default function MarketingPage() {
       </section>
 
       {/* ═══════════ SECTION 2: PRODUCT MOCKUP ═══════════ */}
-      <section className="fade-in-section section-glow-top py-20 px-6">
+      <section className="fade-in-section section-glow-top pt-16 pb-10 px-6">
         <div className="max-w-[1040px] mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-12">
             <h2 className="text-[30px] md:text-[36px] font-bold text-[var(--text-primary)] mb-3">Your code gets a UI. <span className="gradient-text">Automatically.</span></h2>
             <p className="text-[var(--text-secondary)] text-[16px]">Upload a Python script. We generate a web interface. Anyone can use it.</p>
           </div>
@@ -181,12 +181,13 @@ export default function MarketingPage() {
                       <span className="text-[11px] text-[var(--text-tertiary)]">247ms</span>
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0 pt-0.5">Invoice ID</span><span className="text-[13px] text-[var(--accent)] font-mono">INV-2024-0847</span></div>
-                    <div className="flex items-start gap-3"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0 pt-0.5">Client</span><span className="text-[13px] text-[var(--text-primary)]">Acme Corp</span></div>
-                    <div className="flex items-start gap-3"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0 pt-0.5">Total</span><span className="text-[13px] text-[var(--text-primary)] font-semibold">$2,500.00</span></div>
-                    <div className="flex items-start gap-3"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0 pt-0.5">Status</span><span className="px-2 py-0.5 bg-[var(--accent)]/[0.1] rounded text-[11px] font-medium text-[var(--accent)]">Sent</span></div>
-                    <div className="flex items-start gap-3"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0 pt-0.5">PDF</span><span className="text-[13px] text-[var(--accent)] underline underline-offset-2 decoration-[var(--accent)]/30">invoice-acme-0847.pdf</span></div>
+                  <div className="divide-y divide-white/[0.04]">
+                    <div className="flex items-center gap-3 py-2.5"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0">Invoice ID</span><span className="text-[13px] text-[var(--accent)] font-mono">INV-2024-0847</span></div>
+                    <div className="flex items-center gap-3 py-2.5"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0">Client</span><span className="text-[13px] text-[var(--text-primary)]">Acme Corp</span></div>
+                    <div className="flex items-center gap-3 py-2.5"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0">Total</span><span className="text-[13px] text-[var(--text-primary)] font-semibold">$2,500.00</span></div>
+                    <div className="flex items-center gap-3 py-2.5"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0">Status</span><span className="px-2 py-0.5 bg-[var(--accent)]/[0.1] rounded text-[11px] font-medium text-[var(--accent)]">Sent</span></div>
+                    <div className="flex items-center gap-3 py-2.5"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0">PDF</span><span className="text-[13px] text-[var(--accent)] underline underline-offset-2 decoration-[var(--accent)]/30">invoice-acme-0847.pdf</span></div>
+                    <div className="flex items-center gap-3 py-2.5"><span className="text-[12px] text-[var(--text-tertiary)] w-20 flex-shrink-0">Due</span><span className="text-[13px] text-[var(--text-primary)]">March 15, 2026</span></div>
                   </div>
                 </div>
               </div>
@@ -196,9 +197,9 @@ export default function MarketingPage() {
       </section>
 
       {/* ═══════════ SECTION 3: HOW IT WORKS ═══════════ */}
-      <section className="fade-in-section section-glow-top pt-20 pb-12 px-6">
+      <section className="fade-in-section section-glow-top pt-16 pb-10 px-6">
         <div className="max-w-[900px] mx-auto">
-          <div className="text-center mb-14">
+          <div className="text-center mb-12">
             <h2 className="text-[30px] md:text-[36px] font-bold text-[var(--text-primary)] mb-3">Three steps. <span className="gradient-text">Sixty seconds.</span></h2>
             <p className="text-[var(--text-secondary)] text-[16px]">From code on your laptop to a live app anyone can use.</p>
           </div>
@@ -238,7 +239,7 @@ export default function MarketingPage() {
       </section>
 
       {/* ═══════════ SECTION 4: SOCIAL PROOF ═══════════ */}
-      <section className="fade-in-section section-glow-top pt-14 pb-20 px-6">
+      <section className="fade-in-section section-glow-top pt-14 pb-16 px-6">
         <div className="max-w-[900px] mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-[30px] md:text-[36px] font-bold text-[var(--text-primary)] mb-3">Built for people who <span className="gradient-text">create with AI</span></h2>
@@ -246,7 +247,7 @@ export default function MarketingPage() {
           </div>
 
           {/* Audience cards */}
-          <div className="grid md:grid-cols-3 gap-4 mb-16">
+          <div className="grid md:grid-cols-3 gap-4 mb-12">
             <AudienceCard
               icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" /></svg>}
               title="Cursor users"
@@ -303,12 +304,12 @@ export default function MarketingPage() {
           <div className="absolute top-1/3 left-1/3 w-[300px] h-[300px] bg-cyan-500/[0.03] rounded-full blur-[100px]" />
         </div>
 
-        <div className="relative max-w-[580px] mx-auto text-center">
-          <h2 className="text-[36px] md:text-[44px] font-extrabold text-[var(--text-primary)] mb-5 leading-tight">
+        <div className="relative max-w-[680px] mx-auto text-center">
+          <h2 className="text-[36px] md:text-[44px] font-extrabold text-[var(--text-primary)] mb-5 leading-tight md:whitespace-nowrap">
             Your code deserves to be <span className="gradient-text">live.</span>
           </h2>
           <p className="text-[var(--text-secondary)] text-[17px] mb-9 leading-relaxed">
-            Stop sharing screenshots of terminal output. Go live in 60 seconds and send a link.
+            Stop sharing terminal screenshots. Ship a link in 60 seconds.
           </p>
           <Link href="/signup" className="cta-primary inline-flex px-10 py-4 text-[16px] font-semibold text-white rounded-xl transition-all">
             Go live for free
@@ -422,11 +423,9 @@ function WaitlistForm({ source }: { source: string }) {
 function StepCard({ number, title, description, icon }: { number: string; title: string; description: string; icon: React.ReactNode }) {
   return (
     <div className="glass-card relative p-7 rounded-2xl">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="step-badge w-10 h-10 rounded-xl flex items-center justify-center">
-          <span className="text-[15px] font-bold text-white">{number}</span>
-        </div>
-        <div className="w-10 h-10 bg-[var(--accent)]/[0.08] rounded-xl flex items-center justify-center text-[var(--accent)]">{icon}</div>
+      <div className="step-badge w-11 h-11 rounded-xl flex items-center justify-center mb-5 relative">
+        <span className="text-[var(--accent)]">{icon}</span>
+        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[var(--accent)] flex items-center justify-center text-[10px] font-bold text-white shadow-[0_0_8px_rgba(16,185,129,0.4)]">{number}</span>
       </div>
       <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
       <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed">{description}</p>
@@ -447,7 +446,7 @@ function AudienceCard({ icon, title, description }: { icon: React.ReactNode; tit
 function TestimonialCard({ quote, name, role, initials, color }: { quote: string; name: string; role: string; initials: string; color: string }) {
   return (
     <div className="testimonial-card p-6 rounded-2xl">
-      <svg className="w-5 h-5 text-[var(--accent)]/30 mb-4" fill="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4 text-[var(--accent)] opacity-25 mb-3" fill="currentColor" viewBox="0 0 24 24">
         <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10H14.017zM0 21v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151C7.563 6.068 6 8.789 6 11h4v10H0z" />
       </svg>
       <p className="text-[14px] text-[var(--text-secondary)] leading-relaxed mb-5">&ldquo;{quote}&rdquo;</p>
