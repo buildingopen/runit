@@ -21,8 +21,12 @@ const STREAM_TOKEN_TTL_SECONDS = 60;
 
 function getSigningKey(): string {
   // Use dedicated signing key; fall back to derived key from master (never share raw master key)
-  return process.env.STREAM_TOKEN_SECRET
-    || (process.env.MASTER_ENCRYPTION_KEY ? `stream:${process.env.MASTER_ENCRYPTION_KEY}` : 'dev-stream-token-key');
+  if (process.env.STREAM_TOKEN_SECRET) return process.env.STREAM_TOKEN_SECRET;
+  if (process.env.MASTER_ENCRYPTION_KEY) return `stream:${process.env.MASTER_ENCRYPTION_KEY}`;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('STREAM_TOKEN_SECRET or MASTER_ENCRYPTION_KEY must be set in production');
+  }
+  return 'dev-stream-token-key';
 }
 
 /** Create a scoped, short-lived stream token for a specific project + user. */
