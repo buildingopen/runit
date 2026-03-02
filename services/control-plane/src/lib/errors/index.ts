@@ -9,10 +9,10 @@ export {
   type ClassifiedError,
   ERROR_FIXES,
   ERROR_MESSAGES
-} from './taxonomy';
+} from './taxonomy.js';
 
 export {
   classifyError,
   extractMissingPackage,
   extractSyntaxErrorLocation
-} from './classifier';
+} from './classifier.js';

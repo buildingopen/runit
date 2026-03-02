@@ -3,5 +3,5 @@
  * Configuration exports
  */
 
-export * from './constants';
-export * from './validation';
+export * from './constants.js';
+export * from './validation.js';

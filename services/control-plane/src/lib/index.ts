@@ -4,18 +4,18 @@
  */
 
 // Core utilities
-export * from './logger';
-export * from './env';
-export * from './sentry';
-export * from './metrics';
-export * from './tracing';
+export * from './logger.js';
+export * from './env.js';
+export * from './sentry.js';
+export * from './metrics.js';
+export * from './tracing.js';
 
 // Patterns
-export * from './circuit-breaker';
+export * from './circuit-breaker.js';
 
 // Validation
-export * from './validation-utils';
+export * from './validation-utils.js';
 
 // Deployment
-export * from './deploy-bridge';
-export * from './deploy-state';
+export * from './deploy-bridge.js';
+export * from './deploy-state.js';

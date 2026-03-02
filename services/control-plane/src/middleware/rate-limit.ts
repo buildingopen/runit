@@ -12,8 +12,8 @@
 import type { Context, Next } from 'hono';
 import { getAuthContext } from './auth.js';
 import { isSupabaseConfigured, getServiceSupabaseClient } from '../db/supabase.js';
-import { rateLimitHitsTotal } from '../lib/metrics';
-import { logger } from '../lib/logger';
+import { rateLimitHitsTotal } from '../lib/metrics.js';
+import { logger } from '../lib/logger.js';
 
 // Redis client (lazy initialized)
 let redisClient: RedisClient | null = null;
