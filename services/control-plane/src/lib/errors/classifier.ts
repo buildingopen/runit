@@ -10,7 +10,7 @@ import {
   ClassifiedError,
   ERROR_FIXES,
   ERROR_MESSAGES
-} from './taxonomy';
+} from './taxonomy.js';
 
 /**
  * Error patterns for classification

@@ -4,9 +4,11 @@
  */
 
 import { Hono } from 'hono';
-import { fetchContextFromURL } from '../lib/context/fetcher';
-import type { FetchContextRequest } from '@runtime-ai/shared';
-import { CONTEXT_MAX_SIZE_BYTES, PROJECT_CONTEXT_MAX_TOTAL_BYTES } from '../config/constants';
+import { fetchContextFromURL } from '../lib/context/fetcher.js';
+import type {
+  FetchContextRequest,
+} from '@runtime-ai/shared/contracts';
+import { CONTEXT_MAX_SIZE_BYTES, PROJECT_CONTEXT_MAX_TOTAL_BYTES } from '../config/constants.js';
 import * as contextsStore from '../db/contexts-store.js';
 import * as projectsStore from '../db/projects-store.js';
 import { getAuthContext } from '../middleware/auth.js';

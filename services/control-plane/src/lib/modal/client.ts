@@ -13,11 +13,11 @@ import { writeFileSync, unlinkSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { logger } from '../logger';
-import { captureException } from '../sentry';
-import { getModalCircuitBreaker, withCircuitBreaker } from '../circuit-breaker';
-import { runsTotal, runDuration, errorsTotal } from '../metrics';
-import { withModalExecutionSpan, recordModalResult } from '../tracing';
+import { logger } from '../logger.js';
+import { captureException } from '../sentry.js';
+import { getModalCircuitBreaker, withCircuitBreaker } from '../circuit-breaker.js';
+import { runsTotal, runDuration, errorsTotal } from '../metrics.js';
+import { withModalExecutionSpan, recordModalResult } from '../tracing.js';
 
 // Find Python with Modal installed (prefer venv)
 function findPython(): string {

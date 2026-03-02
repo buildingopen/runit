@@ -5,12 +5,12 @@ services:
     build:
       context: ..
       dockerfile: services/control-plane/Dockerfile
+    image: runtime-api:latest
     container_name: runtime-api
     restart: unless-stopped
-    ports:
-      - "3001:3001"
+    network_mode: host
     env_file:
-      - .env
+      - ../.env
     environment:
       - NODE_ENV=production
       - PORT=3001

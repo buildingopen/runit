@@ -3,4 +3,4 @@
  * Context fetcher exports
  */
 
-export * from './fetcher';
+export * from './fetcher.js';

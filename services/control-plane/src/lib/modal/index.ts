@@ -3,4 +3,4 @@
  * Modal client exports
  */
 
-export * from './client';
+export * from './client.js';
