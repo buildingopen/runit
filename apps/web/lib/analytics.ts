@@ -1,6 +1,6 @@
 import posthog from 'posthog-js';
 
-export function trackProjectCreated(projectId: string, sourceType: 'zip' | 'github' | 'template') {
+export function trackProjectCreated(projectId: string, sourceType: 'zip' | 'github' | 'template' | 'paste') {
   posthog.capture('project_created', { project_id: projectId, source_type: sourceType });
 }
 
