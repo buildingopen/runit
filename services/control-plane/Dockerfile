@@ -55,6 +55,9 @@ RUN npm ci --omit=dev --workspace=packages/shared --workspace=services/control-p
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/services/control-plane/dist ./services/control-plane/dist
 
+# Copy OpenAPI spec (loaded at runtime)
+COPY --from=builder /app/services/control-plane/docs ./services/control-plane/docs
+
 # Set ownership
 RUN chown -R controlplane:nodejs /app
 
