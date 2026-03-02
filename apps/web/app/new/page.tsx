@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { zipSync, strToU8 } from 'fflate';
 import { apiClient } from '../../lib/api/client';
 import { trackProjectCreated } from '../../lib/analytics';
 
@@ -25,6 +26,9 @@ export default function NewProjectPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Paste code state
+  const [pastedCode, setPastedCode] = useState('');
 
   const handleFileSelect = async (file: File) => {
     if (!file.name.endsWith('.zip')) {
@@ -174,6 +178,63 @@ export default function NewProjectPage() {
       } else {
         setError(message);
       }
+      setIsSubmitting(false);
+      setSubmittingStep('');
+    }
+  };
+
+  const handlePasteSubmit = async () => {
+    const code = pastedCode.trim();
+    if (!code) {
+      setError('Please paste some Python code');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    setSubmittingStep('Packaging your code...');
+
+    try {
+      // Wrap in a function if the code has no function definitions
+      const hasFunctions = /^def\s+\w+/m.test(code);
+      let mainPy: string;
+      if (hasFunctions) {
+        mainPy = code;
+      } else {
+        const indented = code
+          .split('\n')
+          .map((line) => (line.trim() === '' ? '' : `    ${line}`))
+          .join('\n');
+        mainPy = `def run():\n${indented}\n`;
+      }
+
+      // Create ZIP in-memory
+      const zipped = zipSync({ 'main.py': strToU8(mainPy) });
+      const base64 = btoa(String.fromCharCode(...zipped));
+
+      setSubmittingStep('Analyzing your code...');
+
+      const response = await apiClient.createProject({
+        name: 'pasted-app',
+        source_type: 'zip',
+        zip_data: base64,
+      });
+
+      if (response.endpoints.length === 0) {
+        setError(
+          'No actions found in your code. Make sure it contains at least one function definition (def my_function():).'
+        );
+        setIsSubmitting(false);
+        setSubmittingStep('');
+        return;
+      }
+
+      trackProjectCreated(response.project_id, 'paste');
+      setSubmittingStep('Redirecting...');
+      router.push(`/create/configure?project=${response.project_id}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create app';
+      setError(message);
       setIsSubmitting(false);
       setSubmittingStep('');
     }
@@ -336,6 +397,37 @@ export default function NewProjectPage() {
                 <span className="text-[13px] text-[var(--text-secondary)]">Drop project folder or .zip</span>
               </div>
             )}
+            {/* Or Divider */}
+            <div className="text-center text-[12px] text-[var(--text-tertiary)] my-4">or</div>
+
+            {/* Paste Code Section */}
+            <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-6">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-10 h-10 bg-[var(--bg-tertiary)] rounded-[10px] flex items-center justify-center text-[var(--text-primary)]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-[15px] font-semibold text-[var(--text-primary)]">Paste your code</div>
+                  <div className="text-[13px] text-[var(--text-secondary)]">Paste a Python script, we&apos;ll wrap it as an app</div>
+                </div>
+              </div>
+              <textarea
+                value={pastedCode}
+                onChange={(e) => setPastedCode(e.target.value)}
+                placeholder={'def generate_invoice(client: str, amount: float):\n    return {"invoice_id": "INV-001", "client": client, "total": amount}'}
+                rows={6}
+                className="w-full py-3 px-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text-primary)] font-mono placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] transition-colors resize-none"
+              />
+              <button
+                onClick={handlePasteSubmit}
+                disabled={!pastedCode.trim()}
+                className="mt-3 w-full py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[14px] font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                Create app
+              </button>
+            </div>
           </>
         )}
 
