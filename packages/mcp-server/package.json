@@ -1,0 +1,37 @@
+{
+  "name": "@runit/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for RunIt - deploy and run Python code via AI agents",
+  "type": "module",
+  "bin": {
+    "runit-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@runit/client": "*",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "mcp",
+    "runit",
+    "deploy",
+    "python",
+    "ai-agent"
+  ],
+  "license": "MIT"
+}

@@ -1,13 +1,8 @@
 // ABOUTME: CRUD and lifecycle operations for execution runs: create, update status (running/success/error/timeout), list, expire.
-// ABOUTME: Uses Supabase when configured, falls back to in-memory Map; 30-day TTL on runs for automatic cleanup.
-/**
- * Runs Store
- *
- * Database operations for runs and their results
- * Falls back to in-memory store if Supabase is not configured
- */
+// ABOUTME: Uses Supabase when configured, falls back to SQLite for OSS persistence; 30-day TTL on runs for automatic cleanup.
 
 import { getServiceSupabaseClient, isSupabaseConfigured } from './supabase.js';
+import { getSQLiteDB, parseJSON, toJSON } from './sqlite.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export type RunStatus = 'queued' | 'running' | 'success' | 'error' | 'timeout';
@@ -78,129 +73,127 @@ export interface UpdateRunInput {
   completed_at?: string;
 }
 
-// In-memory store for v0 / dev mode
-const inMemoryRuns = new Map<string, Run>();
+function rowToRun(row: Record<string, unknown>): Run {
+  return {
+    id: row.id as string,
+    project_id: row.project_id as string,
+    version_id: row.version_id as string,
+    endpoint_id: row.endpoint_id as string,
+    owner_id: row.owner_id as string,
+    request_params: parseJSON<Record<string, unknown>>(row.request_params as string),
+    request_body: parseJSON<Record<string, unknown>>(row.request_body as string),
+    request_headers: parseJSON<Record<string, unknown>>(row.request_headers as string),
+    request_files: parseJSON<Record<string, unknown>>(row.request_files as string),
+    response_status: (row.response_status as number) || null,
+    response_body: parseJSON<Record<string, unknown>>(row.response_body as string),
+    response_content_type: (row.response_content_type as string) || null,
+    status: row.status as RunStatus,
+    duration_ms: (row.duration_ms as number) || null,
+    resource_lane: (row.resource_lane as string) || null,
+    base_image_version: (row.base_image_version as string) || null,
+    error_class: (row.error_class as string) || null,
+    error_message: (row.error_message as string) || null,
+    suggested_fix: (row.suggested_fix as string) || null,
+    logs: (row.logs as string) || null,
+    artifacts: parseJSON<Artifact[]>(row.artifacts as string),
+    warnings: parseJSON<string[]>(row.warnings as string),
+    redactions_applied: !!(row.redactions_applied),
+    created_at: row.created_at as string,
+    started_at: (row.started_at as string) || null,
+    completed_at: (row.completed_at as string) || null,
+    expires_at: row.expires_at as string,
+  };
+}
 
-/**
- * Create a new run
- */
 export async function createRun(input: CreateRunInput): Promise<Run> {
   const id = uuidv4();
   const now = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
-
-  const run: Run = {
-    id,
-    project_id: input.project_id,
-    version_id: input.version_id,
-    endpoint_id: input.endpoint_id,
-    owner_id: input.owner_id,
-    request_params: input.request_params || null,
-    request_body: input.request_body || null,
-    request_headers: input.request_headers || null,
-    request_files: input.request_files || null,
-    response_status: null,
-    response_body: null,
-    response_content_type: null,
-    status: 'queued',
-    duration_ms: null,
-    resource_lane: input.resource_lane || 'cpu',
-    base_image_version: null,
-    error_class: null,
-    error_message: null,
-    suggested_fix: null,
-    logs: null,
-    artifacts: null,
-    warnings: null,
-    redactions_applied: false,
-    created_at: now,
-    started_at: null,
-    completed_at: null,
-    expires_at: expiresAt,
-  };
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
   if (!isSupabaseConfigured()) {
-    inMemoryRuns.set(id, run);
-    return run;
+    const db = getSQLiteDB();
+    db.prepare(
+      `INSERT INTO runs (id, project_id, version_id, endpoint_id, owner_id, request_params, request_body, request_headers, request_files, status, resource_lane, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?)`
+    ).run(
+      id, input.project_id, input.version_id, input.endpoint_id, input.owner_id,
+      toJSON(input.request_params || null), toJSON(input.request_body || null),
+      toJSON(input.request_headers || null), toJSON(input.request_files || null),
+      input.resource_lane || 'cpu', now, expiresAt
+    );
+
+    return {
+      id, project_id: input.project_id, version_id: input.version_id,
+      endpoint_id: input.endpoint_id, owner_id: input.owner_id,
+      request_params: input.request_params || null, request_body: input.request_body || null,
+      request_headers: input.request_headers || null, request_files: input.request_files || null,
+      response_status: null, response_body: null, response_content_type: null,
+      status: 'queued', duration_ms: null, resource_lane: input.resource_lane || 'cpu',
+      base_image_version: null, error_class: null, error_message: null, suggested_fix: null,
+      logs: null, artifacts: null, warnings: null, redactions_applied: false,
+      created_at: now, started_at: null, completed_at: null, expires_at: expiresAt,
+    };
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('runs')
-    .insert({
-      id: run.id,
-      project_id: run.project_id,
-      version_id: run.version_id,
-      endpoint_id: run.endpoint_id,
-      owner_id: run.owner_id,
-      request_params: run.request_params,
-      request_body: run.request_body,
-      request_headers: run.request_headers,
-      request_files: run.request_files,
-      status: run.status,
-      resource_lane: run.resource_lane,
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.from('runs').insert({
+    id, project_id: input.project_id, version_id: input.version_id,
+    endpoint_id: input.endpoint_id, owner_id: input.owner_id,
+    request_params: input.request_params, request_body: input.request_body,
+    request_headers: input.request_headers, request_files: input.request_files,
+    status: 'queued', resource_lane: input.resource_lane,
+  }).select().single();
 
-  if (error) {
-    throw new Error(`Failed to create run: ${error.message}`);
-  }
-
+  if (error) throw new Error(`Failed to create run: ${error.message}`);
   return data as Run;
 }
 
-/**
- * Get a run by ID
- */
 export async function getRun(runId: string): Promise<Run | null> {
   if (!isSupabaseConfigured()) {
-    return inMemoryRuns.get(runId) || null;
+    const db = getSQLiteDB();
+    const row = db.prepare('SELECT * FROM runs WHERE id = ?').get(runId) as Record<string, unknown> | undefined;
+    return row ? rowToRun(row) : null;
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('runs')
-    .select('*')
-    .eq('id', runId)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('runs').select('*').eq('id', runId).single();
+  if (error || !data) return null;
   return data as Run;
 }
 
-/**
- * Update a run
- */
 export async function updateRun(runId: string, updates: UpdateRunInput): Promise<Run | null> {
   if (!isSupabaseConfigured()) {
-    const run = inMemoryRuns.get(runId);
-    if (!run) return null;
-    Object.assign(run, updates);
-    return run;
+    const db = getSQLiteDB();
+    const sets: string[] = [];
+    const values: unknown[] = [];
+
+    if (updates.status !== undefined) { sets.push('status = ?'); values.push(updates.status); }
+    if (updates.response_status !== undefined) { sets.push('response_status = ?'); values.push(updates.response_status); }
+    if (updates.response_body !== undefined) { sets.push('response_body = ?'); values.push(toJSON(updates.response_body)); }
+    if (updates.response_content_type !== undefined) { sets.push('response_content_type = ?'); values.push(updates.response_content_type); }
+    if (updates.duration_ms !== undefined) { sets.push('duration_ms = ?'); values.push(updates.duration_ms); }
+    if (updates.error_class !== undefined) { sets.push('error_class = ?'); values.push(updates.error_class); }
+    if (updates.error_message !== undefined) { sets.push('error_message = ?'); values.push(updates.error_message); }
+    if (updates.suggested_fix !== undefined) { sets.push('suggested_fix = ?'); values.push(updates.suggested_fix); }
+    if (updates.logs !== undefined) { sets.push('logs = ?'); values.push(updates.logs); }
+    if (updates.artifacts !== undefined) { sets.push('artifacts = ?'); values.push(toJSON(updates.artifacts)); }
+    if (updates.warnings !== undefined) { sets.push('warnings = ?'); values.push(toJSON(updates.warnings)); }
+    if (updates.redactions_applied !== undefined) { sets.push('redactions_applied = ?'); values.push(updates.redactions_applied ? 1 : 0); }
+    if (updates.started_at !== undefined) { sets.push('started_at = ?'); values.push(updates.started_at); }
+    if (updates.completed_at !== undefined) { sets.push('completed_at = ?'); values.push(updates.completed_at); }
+
+    if (sets.length === 0) return getRun(runId);
+    values.push(runId);
+    db.prepare(`UPDATE runs SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    return getRun(runId);
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('runs')
-    .update(updates)
-    .eq('id', runId)
-    .select()
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('runs').update(updates).eq('id', runId).select().single();
+  if (error || !data) return null;
   return data as Run;
 }
 
-/**
- * List runs for a project
- */
 export async function listProjectRuns(
   projectId: string,
   options?: { limit?: number; offset?: number }
@@ -209,30 +202,17 @@ export async function listProjectRuns(
   const offset = options?.offset || 0;
 
   if (!isSupabaseConfigured()) {
-    const runs = Array.from(inMemoryRuns.values())
-      .filter((r) => r.project_id === projectId)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return runs.slice(offset, offset + limit);
+    const db = getSQLiteDB();
+    const rows = db.prepare('SELECT * FROM runs WHERE project_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(projectId, limit, offset) as Record<string, unknown>[];
+    return rows.map(rowToRun);
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('runs')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (error) {
-    throw new Error(`Failed to list runs: ${error.message}`);
-  }
-
+  const { data, error } = await supabase.from('runs').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+  if (error) throw new Error(`Failed to list runs: ${error.message}`);
   return (data || []) as Run[];
 }
 
-/**
- * List runs for a user
- */
 export async function listUserRuns(
   ownerId: string,
   options?: { limit?: number; offset?: number }
@@ -241,40 +221,21 @@ export async function listUserRuns(
   const offset = options?.offset || 0;
 
   if (!isSupabaseConfigured()) {
-    const runs = Array.from(inMemoryRuns.values())
-      .filter((r) => r.owner_id === ownerId)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return runs.slice(offset, offset + limit);
+    const db = getSQLiteDB();
+    const rows = db.prepare('SELECT * FROM runs WHERE owner_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(ownerId, limit, offset) as Record<string, unknown>[];
+    return rows.map(rowToRun);
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('runs')
-    .select('*')
-    .eq('owner_id', ownerId)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (error) {
-    throw new Error(`Failed to list runs: ${error.message}`);
-  }
-
+  const { data, error } = await supabase.from('runs').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+  if (error) throw new Error(`Failed to list runs: ${error.message}`);
   return (data || []) as Run[];
 }
 
-/**
- * Mark a run as started
- */
 export async function markRunStarted(runId: string): Promise<Run | null> {
-  return updateRun(runId, {
-    status: 'running',
-    started_at: new Date().toISOString(),
-  });
+  return updateRun(runId, { status: 'running', started_at: new Date().toISOString() });
 }
 
-/**
- * Mark a run as completed with success
- */
 export async function markRunSuccess(
   runId: string,
   result: {
@@ -289,22 +250,14 @@ export async function markRunSuccess(
   }
 ): Promise<Run | null> {
   return updateRun(runId, {
-    status: 'success',
-    response_status: result.response_status,
-    response_body: result.response_body,
-    response_content_type: result.response_content_type,
-    duration_ms: result.duration_ms,
-    artifacts: result.artifacts,
-    warnings: result.warnings,
-    logs: result.logs,
-    redactions_applied: result.redactions_applied,
+    status: 'success', response_status: result.response_status,
+    response_body: result.response_body, response_content_type: result.response_content_type,
+    duration_ms: result.duration_ms, artifacts: result.artifacts, warnings: result.warnings,
+    logs: result.logs, redactions_applied: result.redactions_applied,
     completed_at: new Date().toISOString(),
   });
 }
 
-/**
- * Mark a run as failed
- */
 export async function markRunError(
   runId: string,
   error: {
@@ -316,82 +269,48 @@ export async function markRunError(
   }
 ): Promise<Run | null> {
   return updateRun(runId, {
-    status: 'error',
-    error_class: error.error_class,
-    error_message: error.error_message,
-    suggested_fix: error.suggested_fix,
-    duration_ms: error.duration_ms,
-    logs: error.logs,
+    status: 'error', error_class: error.error_class, error_message: error.error_message,
+    suggested_fix: error.suggested_fix, duration_ms: error.duration_ms, logs: error.logs,
     completed_at: new Date().toISOString(),
   });
 }
 
-/**
- * Mark a run as timed out
- */
 export async function markRunTimeout(
   runId: string,
   options?: { duration_ms?: number; logs?: string }
 ): Promise<Run | null> {
   return updateRun(runId, {
-    status: 'timeout',
-    error_class: 'TimeoutError',
+    status: 'timeout', error_class: 'TimeoutError',
     error_message: 'Run exceeded the maximum allowed execution time',
-    duration_ms: options?.duration_ms,
-    logs: options?.logs,
+    duration_ms: options?.duration_ms, logs: options?.logs,
     completed_at: new Date().toISOString(),
   });
 }
 
-/**
- * Delete old runs (for retention cleanup)
- */
 export async function deleteExpiredRuns(): Promise<number> {
+  const now = new Date().toISOString();
+
   if (!isSupabaseConfigured()) {
-    const now = Date.now();
-    let deleted = 0;
-    for (const [id, run] of inMemoryRuns.entries()) {
-      if (new Date(run.expires_at).getTime() < now) {
-        inMemoryRuns.delete(id);
-        deleted++;
-      }
-    }
-    return deleted;
+    const db = getSQLiteDB();
+    const result = db.prepare('DELETE FROM runs WHERE expires_at < ?').run(now);
+    return result.changes;
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('runs')
-    .delete()
-    .lt('expires_at', new Date().toISOString())
-    .select('id');
-
-  if (error) {
-    throw new Error(`Failed to delete expired runs: ${error.message}`);
-  }
-
+  const { data, error } = await supabase.from('runs').delete().lt('expires_at', now).select('id');
+  if (error) throw new Error(`Failed to delete expired runs: ${error.message}`);
   return data?.length || 0;
 }
 
-/**
- * Get run count for a project
- */
 export async function getProjectRunCount(projectId: string): Promise<number> {
   if (!isSupabaseConfigured()) {
-    return Array.from(inMemoryRuns.values()).filter(
-      (r) => r.project_id === projectId
-    ).length;
+    const db = getSQLiteDB();
+    const row = db.prepare('SELECT COUNT(*) as cnt FROM runs WHERE project_id = ?').get(projectId) as { cnt: number };
+    return row.cnt;
   }
 
   const supabase = getServiceSupabaseClient();
-  const { count, error } = await supabase
-    .from('runs')
-    .select('*', { count: 'exact', head: true })
-    .eq('project_id', projectId);
-
-  if (error) {
-    throw new Error(`Failed to count runs: ${error.message}`);
-  }
-
+  const { count, error } = await supabase.from('runs').select('*', { count: 'exact', head: true }).eq('project_id', projectId);
+  if (error) throw new Error(`Failed to count runs: ${error.message}`);
   return count || 0;
 }

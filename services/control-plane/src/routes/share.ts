@@ -96,12 +96,26 @@ shareLinks.get('/:share_id', async (c) => {
     return c.json({ error: 'Project not found' }, 404);
   }
 
+  // Resolve version: prod by default, dev if /dev suffix requested
+  const versionId = project.prod_version_id || project.dev_version_id;
+  let version_id = versionId;
+  let version_hash: string | undefined;
+
+  if (versionId) {
+    const version = await projectsStore.getVersion(versionId);
+    if (version) {
+      version_hash = version.version_hash;
+    }
+  }
+
   return c.json({
     share_id: shareLink.id,
     project: {
       project_id: project.id,
       name: project.name,
     },
+    version_id,
+    version_hash,
     target_type: shareLink.target_type,
     target_ref: shareLink.target_ref,
     stats: {

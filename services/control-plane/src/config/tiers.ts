@@ -1,7 +1,7 @@
 // ABOUTME: Tier-based limits for Free/Pro/Team billing plans.
 // ABOUTME: Used by quota middleware and billing routes to enforce usage limits.
 
-export type Tier = 'free' | 'pro' | 'team';
+export type Tier = 'free' | 'pro' | 'team' | 'unlimited';
 
 export interface TierLimits {
   cpuRunsPerHour: number;
@@ -40,6 +40,15 @@ export const TIER_LIMITS: Record<Tier, TierLimits> = {
     maxProjects: 100,
     maxSecretsPerProject: 50,
     maxFileSizeMB: 100,
+  },
+  unlimited: {
+    cpuRunsPerHour: 999999,
+    gpuRunsPerHour: 999999,
+    maxConcurrentCpu: 100,
+    maxConcurrentGpu: 100,
+    maxProjects: 999999,
+    maxSecretsPerProject: 999999,
+    maxFileSizeMB: 1000,
   },
 };
 

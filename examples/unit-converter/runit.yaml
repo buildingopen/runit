@@ -1,0 +1,39 @@
+name: unit-converter
+version: 1
+
+endpoints:
+  convert_temperature:
+    summary: Convert temperature
+    description: Convert between Celsius, Fahrenheit, and Kelvin.
+    inputs:
+      type: object
+      required: [value, from_unit, to_unit]
+      properties:
+        value:
+          type: number
+          description: Temperature value to convert
+        from_unit:
+          type: string
+          enum: [C, F, K]
+          description: Source unit
+        to_unit:
+          type: string
+          enum: [C, F, K]
+          description: Target unit
+
+  convert_distance:
+    summary: Convert distance
+    description: Convert between meters, kilometers, miles, feet, inches, and yards.
+    inputs:
+      type: object
+      required: [value, from_unit, to_unit]
+      properties:
+        value:
+          type: number
+          description: Distance value to convert
+        from_unit:
+          type: string
+          enum: [m, km, mi, ft, in, yd]
+        to_unit:
+          type: string
+          enum: [m, km, mi, ft, in, yd]

@@ -197,6 +197,80 @@ def _inject_env_vars(payload: dict, log: Any) -> Tuple[Dict[str, str], List[str]
     return env_vars, injected_keys
 
 
+def _read_runit_yaml(workspace: Path, log: Any) -> Optional[dict]:
+    """Read and parse runit.yaml from the workspace if present."""
+    for name in ("runit.yaml", "runit.yml"):
+        yaml_path = workspace / name
+        if yaml_path.exists():
+            try:
+                import yaml as yaml_lib
+            except ImportError:
+                # PyYAML not installed, try simple parsing
+                try:
+                    content = yaml_path.read_text(encoding="utf-8")
+                    # Fallback: JSON is valid YAML, try that
+                    return json.loads(content)
+                except Exception:
+                    log(f"runit.yaml found but cannot parse (PyYAML not installed)")
+                    return None
+
+            try:
+                content = yaml_path.read_text(encoding="utf-8")
+                config = yaml_lib.safe_load(content)
+                if isinstance(config, dict):
+                    log(f"Loaded runit.yaml: {list(config.keys())}")
+                    return config
+            except Exception as e:
+                log(f"Failed to parse runit.yaml: {e}")
+    return None
+
+
+def _get_endpoint_overrides(config: dict, method: str, path: str) -> Dict[str, Any]:
+    """Get per-endpoint resource overrides from runit.yaml."""
+    endpoints = config.get("endpoints", {})
+    if not endpoints:
+        return {}
+
+    for key, value in endpoints.items():
+        if not isinstance(value, dict):
+            continue
+        # Normalize key: "POST /foo", "/foo", "foo"
+        key = key.strip()
+        # "POST /foo" - match method + path
+        parts = key.split(None, 1)
+        if len(parts) == 2:
+            k_method, k_path = parts
+            if k_method.upper() == method.upper() and k_path == path:
+                return value
+        elif key.startswith("/"):
+            if key == path:
+                return value
+        else:
+            if f"/{key}" == path:
+                return value
+    return {}
+
+
+def _validate_runit_secrets(config: dict, injected_keys: List[str], log: Any) -> None:
+    """Validate that required secrets from runit.yaml are present."""
+    secrets = config.get("secrets")
+    if not secrets:
+        return
+
+    required: List[str] = []
+    if isinstance(secrets, list):
+        required = secrets
+    elif isinstance(secrets, dict):
+        for key, val in secrets.items():
+            if isinstance(val, dict) and val.get("required") is False:
+                continue
+            required.append(key)
+
+    missing = [k for k in required if k not in injected_keys and k not in os.environ]
+    if missing:
+        log(f"WARNING: Missing required secrets from runit.yaml: {', '.join(missing)}")
+
+
 def _import_app(workspace: Path, entrypoint: str, run_id: str, log: Any) -> Any:
     """Import the FastAPI app from the workspace."""
     log("Importing FastAPI app...")
@@ -345,6 +419,7 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
     run_id = payload["run_id"]
     logs: list[str] = []
     injected_env_keys: list[str] = []
+    baseline_env = dict(os.environ)  # Save before injection
     temp_dir_to_cleanup: Optional[Path] = None
 
     def log(msg: str):
@@ -375,10 +450,17 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
         else:
             log("No requirements.txt found, using base image only")
 
-        # 4. Inject secrets
+        # 4. Read runit.yaml if present
+        runit_config = _read_runit_yaml(workspace, log)
+
+        # 5. Inject secrets
         env_vars, injected_env_keys = _inject_env_vars(payload, log)
 
-        # 5. Write context files
+        # 6. Validate required secrets from runit.yaml
+        if runit_config:
+            _validate_runit_secrets(runit_config, injected_env_keys, log)
+
+        # 7. Write context files
         context_data = payload.get("context", {})
         if context_data:
             log(f"Writing {len(context_data)} context files")
@@ -386,7 +468,7 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
                 context_file = context_dir / f"{filename}.json"
                 context_file.write_text(json.dumps(content, indent=2))
 
-        # 6. Set platform environment variables
+        # 8. Set platform environment variables
         os.environ.update(
             {
                 "EL_CONTEXT_DIR": str(context_dir),
@@ -416,16 +498,29 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
             except ImportError:
                 pass
 
-        # 7. Import FastAPI app
+        # 9. Import FastAPI app (runit.yaml entrypoint takes precedence)
         entrypoint = payload.get("entrypoint", "main:app")
+        if runit_config and runit_config.get("entrypoint"):
+            entrypoint = runit_config["entrypoint"]
         app = _import_app(workspace, entrypoint, run_id, log)
 
-        # 8. Parse endpoint
+        # 10. Parse endpoint
         endpoint_str = payload["endpoint"]  # e.g., "POST /extract_company"
         method, path = endpoint_str.split(" ", 1)
         method = method.upper()
 
-        # 9. Prepare request data
+        # 10b. Apply per-endpoint resource overrides from runit.yaml
+        if runit_config:
+            ep_overrides = _get_endpoint_overrides(runit_config, method, path)
+            if ep_overrides.get("timeout_seconds"):
+                override_timeout = int(ep_overrides["timeout_seconds"])
+                if override_timeout < max_timeout:
+                    log(f"runit.yaml: timeout override {max_timeout}s -> {override_timeout}s for {method} {path}")
+                    max_timeout = override_timeout
+            if ep_overrides.get("lane") and ep_overrides["lane"] != lane:
+                log(f"runit.yaml: lane preference is '{ep_overrides['lane']}' (current: {lane})")
+
+        # 11. Prepare request data
         request_data = payload.get("request_data", {})
         params = request_data.get("params", {})
         json_data = request_data.get("json")
@@ -445,7 +540,7 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
                     )
                 )
 
-        # 10. Execute endpoint in-process using httpx.AsyncClient
+        # 12. Execute endpoint in-process using httpx.AsyncClient
         log(f"Executing {method} {path}")
 
         async def execute_request():
@@ -469,17 +564,17 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
         duration_ms = int((time.time() - start_time) * 1000)
         log(f"Endpoint completed: {response.status_code} in {duration_ms}ms")
 
-        # 11. Collect artifacts
+        # 13. Collect artifacts
         from artifacts.collector import collect_artifacts
 
         artifacts = collect_artifacts(artifacts_dir, logs)
 
-        # 12. Redact secrets from logs
+        # 14. Redact secrets from logs
         from security.redaction import redact_secrets
 
         redacted_logs = redact_secrets("\n".join(logs), env_vars)
 
-        # 13. Parse response body
+        # 15. Parse response body
         response_body: Any = None
         content_type = response.headers.get("content-type", "")
         if "application/json" in content_type:
@@ -490,14 +585,14 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
         else:
             response_body = response.text
 
-        # 14. Redact secrets from output
+        # 16. Redact secrets from output
         from security.redaction import redact_output
 
         redacted_response_body, output_was_redacted = redact_output(response_body, env_vars)
         if output_was_redacted:
             log("WARNING: Sensitive values were redacted from output")
 
-        # 15. Return success response
+        # 17. Return success response
         return _build_response(
             run_id=run_id,
             status="success",
@@ -559,8 +654,9 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
         )
 
     finally:
-        for key in injected_env_keys:
-            os.environ.pop(key, None)
+        # Restore baseline environment (removes any leaked secrets)
+        os.environ.clear()
+        os.environ.update(baseline_env)
         if temp_dir_to_cleanup and temp_dir_to_cleanup.exists():
             import shutil
 

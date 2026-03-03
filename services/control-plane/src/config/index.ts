@@ -5,3 +5,5 @@
 
 export * from './constants.js';
 export * from './validation.js';
+export * from './features.js';
+export * from './tiers.js';

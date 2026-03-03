@@ -1,0 +1,74 @@
+version: "3.8"
+
+# RunIt - Self-hosted Python API platform
+#
+# Quick start:
+#   1. Generate a key:  export MASTER_ENCRYPTION_KEY=$(openssl rand -base64 32)
+#   2. Build & start:   docker-compose up --build -d
+#   3. Check health:    curl http://localhost:3001/health
+#
+# Public URL (optional):
+#   docker-compose --profile tunnel up --build -d
+#
+# Metadata persists in runit-data volume. Storage + workspaces use bind mounts
+# at /tmp/runit-storage and /tmp/runit-workspaces (shared with runner containers).
+# Docker socket permissions are handled automatically by the entrypoint.
+
+services:
+  runner:
+    build:
+      context: services/runner
+      dockerfile: Dockerfile
+    image: runtime-runner:latest
+    entrypoint: ["echo", "Runner image ready"]
+
+  server:
+    build:
+      context: .
+      dockerfile: services/control-plane/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - RUNIT_MODE=oss
+      - COMPUTE_BACKEND=docker
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY}
+      - API_KEY=${API_KEY:-}
+      - RUNNER_IMAGE=${RUNNER_IMAGE:-runtime-runner:latest}
+      - RUNNER_MEMORY=${RUNNER_MEMORY:-512m}
+      - RUNNER_CPUS=${RUNNER_CPUS:-1}
+      - RUNNER_NETWORK=${RUNNER_NETWORK:-none}
+      - RUNIT_DATA_DIR=/data
+      - RUNNER_WORKSPACE_DIR=/tmp/runit-workspaces
+      - RUNNER_STORAGE_BASE_DIR=/tmp/runit-storage
+      - TUNNEL_URL=${TUNNEL_URL:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runit-data:/data
+      - /tmp/runit-workspaces:/tmp/runit-workspaces
+      - /tmp/runit-storage:/tmp/runit-storage
+    depends_on:
+      - runner
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --url http://server:3001
+    depends_on:
+      - server
+    profiles:
+      - tunnel
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
+
+volumes:
+  runit-data:
+    driver: local

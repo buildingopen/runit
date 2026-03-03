@@ -16,6 +16,8 @@ export interface ExecutionRequest {
   lane: 'cpu' | 'gpu';
   timeout_seconds: number;
   request_id?: string;
+  project_id?: string;
+  deps_hash?: string;
 }
 
 export interface Artifact {

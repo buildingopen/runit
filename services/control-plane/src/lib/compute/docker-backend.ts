@@ -2,22 +2,28 @@
 // ABOUTME: Runs the runtime-runner image with payload JSON, captures stdout as result.
 
 import { spawn } from 'child_process';
-import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, rmSync, existsSync, chmodSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { logger } from '../logger.js';
 import type { ComputeBackend, ExecutionRequest, ExecutionResult } from './types.js';
 
-const RUNNER_IMAGE = 'runtime-runner:latest';
-const DEFAULT_MEMORY = '4g';
-const DEFAULT_CPUS = '4';
+const RUNNER_IMAGE = process.env.RUNNER_IMAGE || 'runtime-runner:latest';
+const DEFAULT_MEMORY = process.env.RUNNER_MEMORY || '512m';
+const DEFAULT_CPUS = process.env.RUNNER_CPUS || '1';
+// Workspace directory for run payloads. Must be a path visible to the Docker daemon (host path)
+// when running inside a container via Docker socket. Set RUNNER_WORKSPACE_DIR to a host-mounted directory.
+const WORKSPACE_DIR = process.env.RUNNER_WORKSPACE_DIR || tmpdir();
+// Storage base directory for persistent project data. Must be a host-visible path
+// (same concern as RUNNER_WORKSPACE_DIR when control plane runs in Docker).
+const STORAGE_BASE_DIR = process.env.RUNNER_STORAGE_BASE_DIR || join(process.env.RUNIT_DATA_DIR || '/data', 'storage');
 
 export class DockerBackend implements ComputeBackend {
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
     const startTime = Date.now();
     const execId = request.run_id.replace(/[^a-zA-Z0-9_-]/g, '') || randomUUID();
-    const workDir = join(tmpdir(), `docker-run-${execId}`);
+    const workDir = join(WORKSPACE_DIR, `docker-run-${execId}`);
 
     try {
       // GPU not supported on Docker backend
@@ -37,6 +43,9 @@ export class DockerBackend implements ComputeBackend {
       // Create workspace and write payload
       mkdirSync(workDir, { recursive: true });
 
+      const projectId = request.project_id || 'local';
+      const depsHash = request.deps_hash || 'no-deps';
+
       const payload = {
         run_id: request.run_id,
         code_bundle: request.code_bundle,
@@ -46,8 +55,8 @@ export class DockerBackend implements ComputeBackend {
         env: {},
         secrets_ref: request.secrets_ref || null,
         context: {},
-        deps_hash: 'no-deps',
-        project_id: 'local',
+        deps_hash: depsHash,
+        project_id: projectId,
         deterministic: false,
         timeout_seconds: request.timeout_seconds,
         lane: request.lane,
@@ -56,9 +65,19 @@ export class DockerBackend implements ComputeBackend {
 
       writeFileSync(join(workDir, 'payload.json'), JSON.stringify(payload));
 
+      // Ensure storage + dep cache directories exist on host.
+      // chmod 777: runner containers drop ALL capabilities (including DAC_OVERRIDE),
+      // so the process inside can't write to dirs it doesn't own even as root.
+      const storageDir = join(STORAGE_BASE_DIR, projectId);
+      const depsCacheDir = join(STORAGE_BASE_DIR, '..', 'deps-cache', depsHash);
+      mkdirSync(storageDir, { recursive: true });
+      chmodSync(storageDir, 0o777);
+      mkdirSync(depsCacheDir, { recursive: true });
+      chmodSync(depsCacheDir, 0o777);
+
       // Run Docker container
       const timeoutSeconds = Math.min(request.timeout_seconds + 30, 330); // buffer + cap at 5.5min
-      const stdout = await this.runContainer(workDir, timeoutSeconds);
+      const stdout = await this.runContainer(workDir, timeoutSeconds, projectId, depsHash);
 
       // Parse result
       const result = JSON.parse(stdout);
@@ -112,20 +131,41 @@ export class DockerBackend implements ComputeBackend {
     }
   }
 
-  private runContainer(workDir: string, timeoutSeconds: number): Promise<string> {
+  private runContainer(workDir: string, timeoutSeconds: number, projectId?: string, depsHash?: string): Promise<string> {
     return new Promise((resolve, reject) => {
+      // Network mode: default to 'none' for security, opt-in via RUNNER_NETWORK env
+      const networkMode = process.env.RUNNER_NETWORK || 'none';
+
       const args = [
         'run', '--rm',
         '-v', `${workDir}:/workspace:rw`,
         '--memory', DEFAULT_MEMORY,
         '--cpus', DEFAULT_CPUS,
-        '--network', 'bridge', // Allow network for user code (requests, httpx, API calls)
+        '--network', networkMode,
         '--pids-limit', '256',
         '--read-only',
         '--tmpfs', '/tmp:rw,size=512m',
-        '--tmpfs', '/app/workspace:rw,size=1g', // writable workspace inside container
-        RUNNER_IMAGE,
+        '--tmpfs', '/app/workspace:rw,size=1g',
+        '--cap-drop', 'ALL',
+        '--security-opt', 'no-new-privileges:true',
+        '--stop-timeout', '30',
       ];
+
+      // Mount persistent storage volume
+      if (projectId && projectId !== 'local') {
+        const storageDir = join(STORAGE_BASE_DIR, projectId);
+        args.push('-v', `${storageDir}:/storage:rw`);
+        args.push('-e', 'RUNIT_STORAGE_DIR=/storage');
+        args.push('-e', `EL_PROJECT_ID=${projectId}`);
+      }
+
+      // Mount pip dep cache volume
+      if (depsHash && depsHash !== 'no-deps') {
+        const depsCacheDir = join(STORAGE_BASE_DIR, '..', 'deps-cache', depsHash);
+        args.push('-v', `${depsCacheDir}:/root/.cache/pip:rw`);
+      }
+
+      args.push(RUNNER_IMAGE);
 
       const proc = spawn('docker', args, {
         stdio: ['ignore', 'pipe', 'pipe'],

@@ -5,6 +5,7 @@
  */
 
 import { Hono } from 'hono';
+import { createHash } from 'crypto';
 import type {
   CreateRunRequest,
   CreateRunResponse,
@@ -133,6 +134,20 @@ runs.post('/', async (c) => {
     return c.json({ error: 'Failed to prepare run: secrets decryption error' }, 500);
   }
 
+  // Compute deps_hash from version's code bundle for pip cache keying
+  let depsHash = 'no-deps';
+  try {
+    // The code_bundle_ref is base64-encoded ZIP; hash a stable identifier
+    // For simplicity, use the version's deps_hash if stored, otherwise hash the version_hash
+    if (version.deps_hash) {
+      depsHash = version.deps_hash;
+    } else {
+      depsHash = createHash('sha256').update(version.version_hash).digest('hex').substring(0, 12);
+    }
+  } catch {
+    // Non-fatal, use default
+  }
+
   // Execute on compute backend asynchronously (in background)
   const requestId = c.get('requestId');
   const computeBackend = getComputeBackend();
@@ -142,6 +157,8 @@ runs.post('/', async (c) => {
     code_bundle: version.code_bundle_ref,
     endpoint: `${endpoint.method} ${endpoint.path}`,
     entrypoint: version.entrypoint || 'main:app',
+    project_id: body.project_id,
+    deps_hash: depsHash,
     request_data: {
       params: body.params,
       json: body.json,

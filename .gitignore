@@ -82,3 +82,5 @@ supabase/.temp/
 repro-bundles/
 screenshots/
 .queen/
+WORKPLAN-*.md
+ISSUES.md

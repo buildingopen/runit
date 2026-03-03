@@ -58,7 +58,11 @@ COPY src/build /app/build
 COPY src/artifacts /app/artifacts
 COPY src/errors /app/errors
 COPY src/security /app/security
+COPY src/runit /app/runit
 COPY docker_entrypoint.py /app/docker_entrypoint.py
+
+# Install runit SDK into Python path
+ENV PYTHONPATH="/app:${PYTHONPATH}"
 
 WORKDIR /app
 

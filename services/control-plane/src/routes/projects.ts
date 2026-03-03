@@ -27,6 +27,7 @@ import {
 import { getAuthContext, getAuthUser } from '../middleware/auth.js';
 import * as projectsStore from '../db/projects-store.js';
 import * as runsStore from '../db/runs-store.js';
+import { deleteProjectStorage } from '../db/storage-store.js';
 import { incrementProjectsCount, getUserTier } from '../db/billing-store.js';
 import { getTierLimits } from '../config/tiers.js';
 import { logger } from '../lib/logger.js';
@@ -245,7 +246,13 @@ projects.post('/', async (c) => {
       endpoints = extracted.endpoints;
       entrypoint = extracted.entrypoint;
       detected_env_vars = extracted.detected_env_vars || [];
-      console.log(`✅ Extracted ${endpoints.length} endpoints from ${project.name} (entrypoint: ${entrypoint}, env vars: ${detected_env_vars.join(', ') || 'none'})`);
+      // If auto-wrapped, use the updated bundle that includes _runit_wrapper.py
+      if (extracted.auto_wrapped && extracted.updated_code_bundle) {
+        code_bundle = extracted.updated_code_bundle;
+        console.log(`✅ Auto-wrapped ${endpoints.length} functions from ${project.name} (entrypoint: ${entrypoint})`);
+      } else {
+        console.log(`✅ Extracted ${endpoints.length} endpoints from ${project.name} (entrypoint: ${entrypoint}, env vars: ${detected_env_vars.join(', ') || 'none'})`);
+      }
     } catch (error) {
       console.warn('⚠️  OpenAPI extraction failed (non-fatal):', error);
     }
@@ -433,17 +440,13 @@ projects.get('/:id', async (c) => {
   // Get versions
   const versions = await projectsStore.listVersions(project_id);
 
-  // Get latest version for detected_env_vars
-  const latestVersion = versions[0];
+  // Use prod version for endpoint display (fall back to latest)
+  const prodVersion = project.prod_version_id
+    ? versions.find(v => v.id === project.prod_version_id) || versions[0]
+    : versions[0];
+  const latestVersion = prodVersion;
 
-  const response: GetProjectResponse & {
-    status: string;
-    deployed_at: string | null;
-    deploy_error: string | null;
-    runtime_url: string | null;
-    detected_env_vars: string[];
-    endpoints: Array<{ id: string; method: string; path: string; summary?: string }>;
-  } = {
+  return c.json({
     project_id: project.id,
     project_slug: project.slug,
     name: project.name,
@@ -454,17 +457,19 @@ projects.get('/:id', async (c) => {
     runtime_url: project.runtime_url,
     detected_env_vars: latestVersion?.detected_env_vars || [],
     endpoints: latestVersion?.endpoints || [],
+    dev_version_id: project.dev_version_id,
+    prod_version_id: project.prod_version_id,
     versions: versions.map(v => ({
       version_id: v.id,
       version_hash: v.version_hash,
       created_at: v.created_at,
       status: v.status as 'building' | 'ready' | 'failed',
+      is_dev: v.id === project.dev_version_id,
+      is_prod: v.id === project.prod_version_id,
     })),
     created_at: project.created_at,
     updated_at: project.updated_at,
-  };
-
-  return c.json(response);
+  });
 });
 
 /**
@@ -588,6 +593,11 @@ projects.delete('/:id', async (c) => {
   if (project.owner_id !== userId) {
     return c.json({ error: 'Not authorized' }, 403);
   }
+
+  // Delete project storage files and metadata
+  await deleteProjectStorage(project_id).catch((err) => {
+    logger.warn('Failed to clean up project storage', { project_id, error: String(err) });
+  });
 
   // Delete project (cascades to versions, secrets, contexts, share links via DB)
   await projectsStore.deleteProject(project_id);
