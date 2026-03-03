@@ -54,13 +54,24 @@ function validateCorsOrigins(value: string): { valid: boolean; error?: string } 
   return { valid: true };
 }
 
+/**
+ * Determine requirement level based on RUNIT_MODE.
+ * In OSS mode, Supabase/Stripe/cloud-only vars are optional.
+ * In cloud mode (production), they remain required.
+ */
+function cloudOnly(): 'production' | 'optional' {
+  return (process.env.RUNIT_MODE || 'oss') === 'oss' ? 'optional' : 'production';
+}
+
 const ENV_VARS: EnvVar[] = [
-  { name: 'SUPABASE_URL', required: 'production', description: 'Supabase project URL' },
-  { name: 'SUPABASE_ANON_KEY', required: 'production', description: 'Supabase anonymous key' },
-  { name: 'SUPABASE_SERVICE_ROLE_KEY', required: 'production', description: 'Supabase service role key' },
+  { name: 'RUNIT_MODE', required: 'optional', description: 'Deployment mode: oss (default) or cloud' },
+  { name: 'API_KEY', required: 'optional', description: 'API key for OSS mode authentication (omit for single-user auto-auth)' },
+  { name: 'SUPABASE_URL', required: cloudOnly(), description: 'Supabase project URL (cloud mode only)' },
+  { name: 'SUPABASE_ANON_KEY', required: cloudOnly(), description: 'Supabase anonymous key (cloud mode only)' },
+  { name: 'SUPABASE_SERVICE_ROLE_KEY', required: cloudOnly(), description: 'Supabase service role key (cloud mode only)' },
   {
     name: 'MASTER_ENCRYPTION_KEY',
-    required: 'production',
+    required: 'always',
     description: 'Master encryption key (base64, 32 bytes)',
     validate: validateEncryptionKey
   },
@@ -71,20 +82,20 @@ const ENV_VARS: EnvVar[] = [
   },
   {
     name: 'CORS_ORIGINS',
-    required: 'production',
+    required: cloudOnly(),
     description: 'Comma-separated list of allowed CORS origins',
     validate: validateCorsOrigins
   },
   { name: 'MODAL_TOKEN_ID', required: 'optional', description: 'Modal API token ID (required for deployments)' },
   { name: 'MODAL_TOKEN_SECRET', required: 'optional', description: 'Modal API token secret (required for deployments)' },
-  { name: 'STREAM_TOKEN_SECRET', required: 'production', description: 'Signing key for SSE stream tokens (key separation from MASTER_ENCRYPTION_KEY)' },
-  { name: 'METRICS_TOKEN', required: 'production', description: 'Bearer token for /metrics endpoint (required in production)' },
+  { name: 'STREAM_TOKEN_SECRET', required: cloudOnly(), description: 'Signing key for SSE stream tokens (cloud mode only)' },
+  { name: 'METRICS_TOKEN', required: cloudOnly(), description: 'Bearer token for /metrics endpoint (cloud mode only)' },
   { name: 'REDIS_URL', required: 'optional', description: 'Redis URL for distributed rate limiting (optional)' },
-  { name: 'FRONTEND_URL', required: 'production', description: 'Frontend URL for Stripe checkout redirects (e.g. https://your-app.com)' },
-  { name: 'STRIPE_SECRET_KEY', required: 'production', description: 'Stripe API secret key (required for billing)' },
-  { name: 'STRIPE_WEBHOOK_SECRET', required: 'production', description: 'Stripe webhook signing secret' },
-  { name: 'STRIPE_PRO_PRICE_ID', required: 'production', description: 'Stripe price ID for Pro tier' },
-  { name: 'STRIPE_TEAM_PRICE_ID', required: 'production', description: 'Stripe price ID for Team tier' },
+  { name: 'FRONTEND_URL', required: 'optional', description: 'Frontend URL for Stripe checkout redirects (e.g. https://your-app.com)' },
+  { name: 'STRIPE_SECRET_KEY', required: 'optional', description: 'Stripe API secret key (required for billing)' },
+  { name: 'STRIPE_WEBHOOK_SECRET', required: 'optional', description: 'Stripe webhook signing secret' },
+  { name: 'STRIPE_PRO_PRICE_ID', required: 'optional', description: 'Stripe price ID for Pro tier' },
+  { name: 'STRIPE_TEAM_PRICE_ID', required: 'optional', description: 'Stripe price ID for Team tier' },
 ];
 
 /**

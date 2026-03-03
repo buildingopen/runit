@@ -9,6 +9,20 @@ vi.mock('../src/db/supabase', () => ({
   getSupabaseClient: (...args: unknown[]) => mockGetSupabaseClient(...args),
 }));
 
+// Force Supabase auth mode for these tests (they test Supabase JWT behavior)
+vi.mock('../src/config/features', () => ({
+  features: {
+    mode: 'cloud',
+    isOSS: false,
+    isCloud: true,
+    authMode: 'supabase',
+    billing: true,
+    quotas: true,
+    rateLimiting: true,
+    ipFiltering: true,
+  },
+}));
+
 describe('auth middleware', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalDevMode = process.env.DEV_MODE;

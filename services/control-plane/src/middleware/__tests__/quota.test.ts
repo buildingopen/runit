@@ -3,6 +3,21 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Force cloud mode so quotas are enforced with default limits
+vi.mock('../../config/features', () => ({
+  features: {
+    mode: 'cloud',
+    isOSS: false,
+    isCloud: true,
+    authMode: 'supabase',
+    billing: true,
+    quotas: true,
+    rateLimiting: true,
+    ipFiltering: true,
+  },
+}));
+
 import {
   checkQuota,
   trackRunStart,

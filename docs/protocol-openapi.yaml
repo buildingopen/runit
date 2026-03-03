@@ -1,0 +1,1138 @@
+openapi: 3.0.3
+info:
+  title: RunIt Protocol API
+  description: |
+    The RunIt Protocol API defines the control plane endpoints for deploying and
+    running Python code as services. This spec covers the OSS protocol endpoints
+    that any compatible RunIt server must implement.
+
+    ## Authentication
+    - If `API_KEY` is configured: Bearer token required in the Authorization header
+    - If no `API_KEY`: single-user mode, no authentication needed
+
+    ## Quick Start
+    ```bash
+    # Deploy code in one call
+    curl -X POST http://localhost:3001/v1/deploy \
+      -H "Content-Type: application/json" \
+      -d '{"code": "def greet(name: str) -> dict:\n    return {\"message\": f\"Hello {name}!\"}", "name": "my-api"}'
+
+    # Execute an endpoint
+    curl -X POST http://localhost:3001/v1/runs \
+      -H "Content-Type: application/json" \
+      -d '{"project_id": "...", "version_id": "...", "endpoint_id": "post--greet", "json": {"name": "world"}}'
+    ```
+
+    ## runit.yaml
+    Projects can include a `runit.yaml` file to declare endpoint schemas, required
+    secrets, and resource requirements. See the runit.yaml spec for details.
+  version: 0.1.0
+  contact:
+    name: RunIt
+    url: https://runit.dev
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Local development (default)
+
+tags:
+  - name: Deploy
+    description: One-call deployment
+  - name: Projects
+    description: Project management
+  - name: Runs
+    description: Code execution
+  - name: Secrets
+    description: Encrypted secrets management
+  - name: Storage
+    description: Persistent key-value storage
+  - name: Share
+    description: Share link management
+  - name: Versions
+    description: Version management, promotion, and rollback
+  - name: Health
+    description: Health checks
+
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      description: Returns server health status. No authentication required.
+      tags: [Health]
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  uptime:
+                    type: number
+                    description: Server uptime in seconds
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /v1/deploy:
+    post:
+      operationId: deploy
+      summary: Deploy code in one call
+      description: |
+        Combines project creation, code upload, OpenAPI extraction, deployment,
+        and share link creation into a single request. Returns a usable URL.
+
+        The `code` field accepts either raw Python source code or a base64-encoded ZIP bundle.
+        Raw Python is automatically wrapped into a ZIP with `main.py`.
+
+        Plain functions with type hints are auto-wrapped into FastAPI endpoints:
+        `def greet(name: str) -> dict:` becomes `POST /greet`.
+
+        Optionally include a `config` field with runit.yaml configuration to declare
+        endpoint schemas, required secrets, and resource requirements.
+      tags: [Deploy]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, name]
+              properties:
+                code:
+                  type: string
+                  description: Python source code or base64-encoded ZIP bundle
+                name:
+                  type: string
+                  description: Project name (lowercase, hyphens allowed)
+                  pattern: '^[a-z][a-z0-9-]{0,62}$'
+                requirements:
+                  type: array
+                  items:
+                    type: string
+                  description: Python package requirements
+                  example: ["requests==2.31.0", "pandas"]
+                entrypoint:
+                  type: string
+                  description: Override entrypoint (default auto-detected)
+                  example: "main:app"
+                config:
+                  $ref: '#/components/schemas/RunitConfig'
+      responses:
+        '201':
+          description: Deployment successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeployResponse'
+        '400':
+          description: Invalid request (missing code or name)
+        '401':
+          description: Authentication required
+        '403':
+          description: Project limit reached
+
+  /v1/projects:
+    get:
+      operationId: listProjects
+      summary: List all projects
+      tags: [Projects]
+      responses:
+        '200':
+          description: Projects list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProjectSummary'
+                  total:
+                    type: integer
+
+  /v1/projects/{projectId}:
+    get:
+      operationId: getProject
+      summary: Get project details
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+
+    delete:
+      operationId: deleteProject
+      summary: Delete a project
+      tags: [Projects]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project deleted
+        '404':
+          description: Project not found
+
+  /v1/projects/{projectId}/secrets:
+    get:
+      operationId: listSecrets
+      summary: List secret keys for a project
+      description: Returns secret keys and metadata. Values are never returned.
+      tags: [Secrets]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Secrets list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secrets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SecretEntry'
+
+    post:
+      operationId: setSecret
+      summary: Set a secret
+      description: Creates or updates an encrypted secret for a project.
+      tags: [Secrets]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key, value]
+              properties:
+                key:
+                  type: string
+                  description: Secret key name
+                value:
+                  type: string
+                  description: Secret value (encrypted at rest)
+      responses:
+        '201':
+          description: Secret created/updated
+
+  /v1/projects/{projectId}/secrets/{key}:
+    delete:
+      operationId: deleteSecret
+      summary: Delete a secret
+      tags: [Secrets]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Secret deleted
+
+  /v1/runs:
+    post:
+      operationId: createRun
+      summary: Execute an endpoint
+      description: |
+        Creates and starts a new run for a project endpoint. Returns immediately
+        with a run ID. Poll GET /v1/runs/{runId} for results.
+      tags: [Runs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, version_id, endpoint_id]
+              properties:
+                project_id:
+                  type: string
+                  format: uuid
+                version_id:
+                  type: string
+                  format: uuid
+                endpoint_id:
+                  type: string
+                  description: Endpoint ID (e.g. "post--greet")
+                json:
+                  type: object
+                  description: JSON body to send to the endpoint
+                params:
+                  type: object
+                  description: Query parameters
+                lane:
+                  type: string
+                  enum: [cpu, gpu]
+                  default: cpu
+      responses:
+        '202':
+          description: Run started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  run_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: running
+
+  /v1/runs/{runId}:
+    get:
+      operationId: getRunStatus
+      summary: Get run status and result
+      description: Poll this endpoint to get the result of a run.
+      tags: [Runs]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Run status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStatus'
+
+  /v1/projects/{projectId}/runs:
+    get:
+      operationId: listProjectRuns
+      summary: List recent runs for a project
+      tags: [Runs]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Runs list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  runs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RunSummary'
+                  total:
+                    type: integer
+
+  /v1/projects/{projectId}/storage:
+    get:
+      operationId: listStorageKeys
+      summary: List all storage keys for a project
+      description: Returns storage key metadata and usage info. Values are not included.
+      tags: [Storage]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Storage entries list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StorageEntry'
+                  total:
+                    type: integer
+                  usage_bytes:
+                    type: integer
+                    description: Total storage used by this project
+                  quota_bytes:
+                    type: integer
+                    description: Maximum storage allowed (100MB)
+
+  /v1/projects/{projectId}/storage/{key}:
+    put:
+      operationId: putStorage
+      summary: Store a value
+      description: Creates or updates a persistent key-value pair. Max 10MB per value, 100MB per project.
+      tags: [Storage]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+            description: Storage key (alphanumeric, dots, underscores, hyphens; max 256 chars)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  description: Value to store (any JSON-serializable data)
+                value_type:
+                  type: string
+                  enum: [json, binary]
+                  default: json
+      responses:
+        '200':
+          description: Value stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StorageEntry'
+        '400':
+          description: Invalid key format
+        '413':
+          description: Value or project quota exceeded
+
+    get:
+      operationId: getStorage
+      summary: Get a stored value
+      tags: [Storage]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Storage value
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StorageEntry'
+                  - type: object
+                    properties:
+                      value:
+                        description: The stored value
+        '404':
+          description: Key not found
+
+    delete:
+      operationId: deleteStorage
+      summary: Delete a stored value
+      tags: [Storage]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Value deleted
+
+  /v1/projects/{projectId}/share:
+    post:
+      operationId: createShareLink
+      summary: Create a share link
+      description: Creates a public share link for a project endpoint.
+      tags: [Share]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_type, target_ref]
+              properties:
+                target_type:
+                  type: string
+                  enum: [endpoint_template]
+                target_ref:
+                  type: string
+                  description: Endpoint ID
+      responses:
+        '201':
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+
+  /v1/projects/{projectId}/shares:
+    get:
+      operationId: listShareLinks
+      summary: List share links for a project
+      description: Returns all share links (active and disabled) for a project.
+      tags: [Share]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Share links list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shares:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShareLink'
+                  total:
+                    type: integer
+        '404':
+          description: Project not found
+
+  /v1/projects/{projectId}/share/{shareId}:
+    delete:
+      operationId: disableShareLink
+      summary: Disable a share link
+      description: Disables a share link so it can no longer be accessed publicly. The link is not deleted, just marked as disabled.
+      tags: [Share]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: shareId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Share link disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLink'
+        '404':
+          description: Share link not found
+
+  /v1/projects/{projectId}/versions:
+    get:
+      operationId: listVersions
+      summary: List all versions for a project
+      description: Returns all versions with metadata, including which is dev and which is prod.
+      tags: [Versions]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Version list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VersionSummary'
+                  total:
+                    type: integer
+                  dev_version_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                  prod_version_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+        '404':
+          description: Project not found
+
+  /v1/projects/{projectId}/promote:
+    post:
+      operationId: promote
+      summary: Promote a version to production
+      description: |
+        Promotes a version to production. Defaults to the current dev version.
+        Runs a health check (verifies version status is 'ready' and has endpoints).
+        If the check fails, auto-rolls back to the previous prod version.
+      tags: [Versions]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                version_id:
+                  type: string
+                  format: uuid
+                  description: Version to promote (defaults to current dev version)
+      responses:
+        '200':
+          description: Promotion result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoteResponse'
+        '400':
+          description: No version to promote
+        '404':
+          description: Project or version not found
+
+  /v1/projects/{projectId}/rollback:
+    post:
+      operationId: rollback
+      summary: Rollback production to a previous version
+      tags: [Versions]
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version_id]
+              properties:
+                version_id:
+                  type: string
+                  format: uuid
+                  description: Version ID to rollback to
+      responses:
+        '200':
+          description: Rollback result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackResponse'
+        '400':
+          description: Missing version_id
+        '404':
+          description: Project or version not found
+
+  /share/{shareId}:
+    get:
+      operationId: getShareLink
+      summary: Get share link details
+      description: Returns share link metadata and endpoint schema for auto-UI rendering. No auth required.
+      tags: [Share]
+      parameters:
+        - name: shareId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Share link details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  share_id:
+                    type: string
+                    format: uuid
+                  project:
+                    type: object
+                    properties:
+                      project_id:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                  target_type:
+                    type: string
+                  target_ref:
+                    type: string
+                  stats:
+                    type: object
+                    properties:
+                      run_count:
+                        type: integer
+                      success_count:
+                        type: integer
+                      last_run_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+
+components:
+  schemas:
+    RunitConfig:
+      type: object
+      description: runit.yaml configuration
+      properties:
+        name:
+          type: string
+        version:
+          oneOf:
+            - type: number
+            - type: string
+        runtime:
+          type: string
+          example: python3.11
+        entrypoint:
+          type: string
+          example: "main:app"
+        endpoints:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/EndpointConfig'
+        secrets:
+          oneOf:
+            - type: array
+              items:
+                type: string
+            - type: object
+              additionalProperties:
+                type: object
+                properties:
+                  description:
+                    type: string
+                  required:
+                    type: boolean
+        network:
+          type: boolean
+          default: false
+        dependencies:
+          type: array
+          items:
+            type: string
+
+    EndpointConfig:
+      type: object
+      properties:
+        description:
+          type: string
+        summary:
+          type: string
+        inputs:
+          type: object
+          description: JSON Schema for request body
+        outputs:
+          type: object
+          description: JSON Schema for response body
+        lane:
+          type: string
+          enum: [cpu, gpu]
+        timeout_seconds:
+          type: integer
+
+    DeployResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          nullable: true
+          description: Share link path (e.g. "/s/abc123")
+        project_id:
+          type: string
+          format: uuid
+        project_slug:
+          type: string
+        version_id:
+          type: string
+          format: uuid
+        version_hash:
+          type: string
+          description: First 12 chars of SHA-256 hash
+        status:
+          type: string
+          enum: [live, draft, failed]
+        environment:
+          type: string
+          enum: [dev, dev+prod]
+          description: "'dev+prod' on first deploy (auto-promoted), 'dev' on subsequent deploys"
+        share_id:
+          type: string
+          format: uuid
+          nullable: true
+        endpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/EndpointSummary'
+        detected_env_vars:
+          type: array
+          items:
+            type: string
+        runit_config:
+          $ref: '#/components/schemas/RunitConfig'
+
+    EndpointSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE, PATCH]
+        path:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        requestBody:
+          type: object
+          description: OpenAPI-style request body schema (present when runit.yaml declares inputs)
+        responses:
+          type: object
+          description: OpenAPI-style response schemas (present when runit.yaml declares outputs)
+
+    ProjectSummary:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        project_slug:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        latest_version:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Project:
+      allOf:
+        - $ref: '#/components/schemas/ProjectSummary'
+        - type: object
+          properties:
+            dev_version_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: Current dev version (latest deploy)
+            prod_version_id:
+              type: string
+              format: uuid
+              nullable: true
+              description: Current prod version (promoted)
+            endpoints:
+              type: array
+              items:
+                $ref: '#/components/schemas/EndpointSummary'
+            versions:
+              type: array
+              items:
+                type: object
+                properties:
+                  version_id:
+                    type: string
+                    format: uuid
+                  version_hash:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+            detected_env_vars:
+              type: array
+              items:
+                type: string
+
+    VersionSummary:
+      type: object
+      properties:
+        version_id:
+          type: string
+          format: uuid
+        version_hash:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+        is_dev:
+          type: boolean
+          description: Whether this is the current dev version
+        is_prod:
+          type: boolean
+          description: Whether this is the current prod version
+        endpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/EndpointSummary'
+
+    PromoteResponse:
+      type: object
+      properties:
+        promoted:
+          type: boolean
+        rolled_back:
+          type: boolean
+          description: True if promotion failed and auto-rolled back
+        reason:
+          type: string
+          description: Reason for rollback (only when rolled_back is true)
+        version_id:
+          type: string
+          format: uuid
+        version_hash:
+          type: string
+        previous_version_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    RollbackResponse:
+      type: object
+      properties:
+        rolled_back:
+          type: boolean
+        version_id:
+          type: string
+          format: uuid
+        version_hash:
+          type: string
+        previous_version_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    SecretEntry:
+      type: object
+      properties:
+        key:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    StorageEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Storage key
+        value_type:
+          type: string
+          enum: [json, binary]
+        size_bytes:
+          type: integer
+          description: Size of the stored value in bytes
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ShareLink:
+      type: object
+      properties:
+        share_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        share_url:
+          type: string
+          description: Relative path (e.g. "/s/abc123")
+        target_type:
+          type: string
+          enum: [endpoint_template]
+        target_ref:
+          type: string
+          description: Endpoint ID
+        enabled:
+          type: boolean
+          description: Whether the share link is active
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    RunStatus:
+      type: object
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        version_id:
+          type: string
+          format: uuid
+        endpoint_id:
+          type: string
+        status:
+          type: string
+          enum: [running, success, error, timeout]
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        result:
+          type: object
+          properties:
+            http_status:
+              type: integer
+            content_type:
+              type: string
+            json:
+              description: Response body (when JSON)
+            logs:
+              type: string
+              description: Execution logs (owner only)
+            error_class:
+              type: string
+            error_message:
+              type: string
+            suggested_fix:
+              type: string
+
+    RunSummary:
+      type: object
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        endpoint_id:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key (set via API_KEY env var on server)
+
+security:
+  - bearerAuth: []
+  - {}  # Some endpoints (health, share) don't require auth

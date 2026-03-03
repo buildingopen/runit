@@ -1,13 +1,8 @@
 // ABOUTME: CRUD for projects (create, get, list, delete, update status) and versioned code bundles with OpenAPI metadata.
-// ABOUTME: Uses Supabase when configured, falls back to in-memory Maps; generates slugs from project names.
-/**
- * Projects Store
- *
- * Database operations for projects and versions
- * Falls back to in-memory store if Supabase is not configured
- */
+// ABOUTME: Uses Supabase when configured, falls back to SQLite for OSS persistence; generates slugs from project names.
 
 import { getServiceSupabaseClient, isSupabaseConfigured } from './supabase.js';
+import { getSQLiteDB, parseJSON, toJSON } from './sqlite.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ProjectStatus = 'draft' | 'deploying' | 'live' | 'failed';
@@ -21,6 +16,8 @@ export interface Project {
   deployed_at: string | null;
   deploy_error: string | null;
   runtime_url: string | null;
+  dev_version_id: string | null;
+  prod_version_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,13 +66,6 @@ export interface CreateVersionInput {
   status?: string;
 }
 
-// In-memory store for v0 / dev mode
-const inMemoryProjects = new Map<string, Project>();
-const inMemoryVersions = new Map<string, ProjectVersion>();
-
-/**
- * Generate a slug from name
- */
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -84,57 +74,73 @@ function generateSlug(name: string): string {
     .substring(0, 50);
 }
 
-/**
- * Create a new project
- */
+// --- SQLite row mappers ---
+
+function rowToProject(row: Record<string, unknown>): Project {
+  return {
+    id: row.id as string,
+    owner_id: row.owner_id as string,
+    slug: row.slug as string,
+    name: row.name as string,
+    status: (row.status as ProjectStatus) || 'draft',
+    deployed_at: (row.deployed_at as string) || null,
+    deploy_error: (row.deploy_error as string) || null,
+    runtime_url: (row.runtime_url as string) || null,
+    dev_version_id: (row.dev_version_id as string) || null,
+    prod_version_id: (row.prod_version_id as string) || null,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  };
+}
+
+function rowToVersion(row: Record<string, unknown>): ProjectVersion {
+  return {
+    id: row.id as string,
+    project_id: row.project_id as string,
+    version_hash: row.version_hash as string,
+    code_bundle_ref: row.code_bundle_ref as string,
+    openapi: parseJSON<Record<string, unknown>>(row.openapi as string),
+    endpoints: parseJSON<Endpoint[]>(row.endpoints as string),
+    deps_hash: (row.deps_hash as string) || null,
+    base_image_version: (row.base_image_version as string) || null,
+    entrypoint: (row.entrypoint as string) || null,
+    installed_packages: parseJSON<Record<string, unknown>>(row.installed_packages as string),
+    detected_env_vars: parseJSON<string[]>(row.detected_env_vars as string) || [],
+    status: row.status as string,
+    created_at: row.created_at as string,
+  };
+}
+
+// =====================
+// Project Operations
+// =====================
+
 export async function createProject(input: CreateProjectInput): Promise<Project> {
   const id = uuidv4();
   const slug = input.slug || generateSlug(input.name) + '-' + id.substring(0, 8);
   const now = new Date().toISOString();
 
-  const project: Project = {
-    id,
-    owner_id: input.owner_id,
-    slug,
-    name: input.name,
-    status: 'draft',
-    deployed_at: null,
-    deploy_error: null,
-    runtime_url: null,
-    created_at: now,
-    updated_at: now,
-  };
-
   if (!isSupabaseConfigured()) {
-    inMemoryProjects.set(id, project);
-    return project;
+    const db = getSQLiteDB();
+    db.prepare(
+      `INSERT INTO projects (id, owner_id, slug, name, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'draft', ?, ?)`
+    ).run(id, input.owner_id, slug, input.name, now, now);
+
+    return { id, owner_id: input.owner_id, slug, name: input.name, status: 'draft', deployed_at: null, deploy_error: null, runtime_url: null, dev_version_id: null, prod_version_id: null, created_at: now, updated_at: now };
   }
 
   const supabase = getServiceSupabaseClient();
   const { data, error } = await supabase
     .from('projects')
-    .insert({
-      id: project.id,
-      owner_id: project.owner_id,
-      slug: project.slug,
-      name: project.name,
-      status: project.status,
-    })
+    .insert({ id, owner_id: input.owner_id, slug, name: input.name, status: 'draft' })
     .select()
     .single();
 
-  if (error) {
-    throw new Error(`Failed to create project: ${error.message}`);
-  }
-
+  if (error) throw new Error(`Failed to create project: ${error.message}`);
   return data as Project;
 }
 
-/**
- * Atomically create a project with limit check (prevents TOCTOU race).
- * Uses pg_advisory_xact_lock to serialize concurrent creates per user.
- * Returns null if the user has reached their project limit.
- */
 export async function createProjectAtomic(
   input: CreateProjectInput,
   maxProjects: number
@@ -143,372 +149,269 @@ export async function createProjectAtomic(
   const slug = input.slug || generateSlug(input.name) + '-' + id.substring(0, 8);
 
   if (!isSupabaseConfigured()) {
-    // In-memory: simple count check (single-process, no race)
-    const existing = Array.from(inMemoryProjects.values()).filter(
-      (p) => p.owner_id === input.owner_id
-    );
-    if (existing.length >= maxProjects) return null;
+    const db = getSQLiteDB();
+    const count = db.prepare('SELECT COUNT(*) as cnt FROM projects WHERE owner_id = ?').get(input.owner_id) as { cnt: number };
+    if (count.cnt >= maxProjects) return null;
 
     const now = new Date().toISOString();
-    const project: Project = {
-      id, owner_id: input.owner_id, slug, name: input.name, status: 'draft',
-      deployed_at: null, deploy_error: null, runtime_url: null,
-      created_at: now, updated_at: now,
-    };
-    inMemoryProjects.set(id, project);
-    return project;
+    db.prepare(
+      `INSERT INTO projects (id, owner_id, slug, name, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'draft', ?, ?)`
+    ).run(id, input.owner_id, slug, input.name, now, now);
+
+    return { id, owner_id: input.owner_id, slug, name: input.name, status: 'draft', deployed_at: null, deploy_error: null, runtime_url: null, dev_version_id: null, prod_version_id: null, created_at: now, updated_at: now };
   }
 
   const supabase = getServiceSupabaseClient();
   const { data, error } = await supabase.rpc('create_project_atomic', {
-    p_id: id,
-    p_owner_id: input.owner_id,
-    p_name: input.name,
-    p_slug: slug,
-    p_max_projects: maxProjects,
+    p_id: id, p_owner_id: input.owner_id, p_name: input.name, p_slug: slug, p_max_projects: maxProjects,
   });
 
-  if (error) {
-    throw new Error(`Failed to create project: ${error.message}`);
-  }
-
-  // RPC returns false if limit reached
+  if (error) throw new Error(`Failed to create project: ${error.message}`);
   if (data === false) return null;
-
-  // Fetch the created project
   return getProject(id);
 }
 
-/**
- * Get a project by ID
- */
 export async function getProject(projectId: string): Promise<Project | null> {
   if (!isSupabaseConfigured()) {
-    return inMemoryProjects.get(projectId) || null;
+    const db = getSQLiteDB();
+    const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) as Record<string, unknown> | undefined;
+    return row ? rowToProject(row) : null;
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('id', projectId)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
+  if (error || !data) return null;
   return data as Project;
 }
 
-/**
- * Get a project by slug
- */
 export async function getProjectBySlug(slug: string): Promise<Project | null> {
   if (!isSupabaseConfigured()) {
-    for (const project of inMemoryProjects.values()) {
-      if (project.slug === slug) {
-        return project;
-      }
-    }
-    return null;
+    const db = getSQLiteDB();
+    const row = db.prepare('SELECT * FROM projects WHERE slug = ?').get(slug) as Record<string, unknown> | undefined;
+    return row ? rowToProject(row) : null;
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('slug', slug)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('projects').select('*').eq('slug', slug).single();
+  if (error || !data) return null;
   return data as Project;
 }
 
-/**
- * List projects for an owner
- */
 export async function listProjects(ownerId: string): Promise<Project[]> {
   if (!isSupabaseConfigured()) {
-    return Array.from(inMemoryProjects.values()).filter(
-      (p) => p.owner_id === ownerId
-    );
+    const db = getSQLiteDB();
+    const rows = db.prepare('SELECT * FROM projects WHERE owner_id = ? ORDER BY created_at DESC').all(ownerId) as Record<string, unknown>[];
+    return rows.map(rowToProject);
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('projects')
-    .select('*')
-    .eq('owner_id', ownerId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Failed to list projects: ${error.message}`);
-  }
-
+  const { data, error } = await supabase.from('projects').select('*').eq('owner_id', ownerId).order('created_at', { ascending: false });
+  if (error) throw new Error(`Failed to list projects: ${error.message}`);
   return (data || []) as Project[];
 }
 
-/**
- * Delete a project
- */
 export async function deleteProject(projectId: string): Promise<boolean> {
   if (!isSupabaseConfigured()) {
-    return inMemoryProjects.delete(projectId);
+    const db = getSQLiteDB();
+    const result = db.prepare('DELETE FROM projects WHERE id = ?').run(projectId);
+    return result.changes > 0;
   }
 
   const supabase = getServiceSupabaseClient();
   const { error } = await supabase.from('projects').delete().eq('id', projectId);
-
-  if (error) {
-    throw new Error(`Failed to delete project: ${error.message}`);
-  }
-
+  if (error) throw new Error(`Failed to delete project: ${error.message}`);
   return true;
 }
 
-/**
- * Update a project
- */
 export async function updateProject(
   projectId: string,
   updates: Partial<Pick<Project, 'name' | 'slug'>>
 ): Promise<Project | null> {
+  const now = new Date().toISOString();
+
   if (!isSupabaseConfigured()) {
-    const project = inMemoryProjects.get(projectId);
-    if (!project) return null;
-    Object.assign(project, updates, { updated_at: new Date().toISOString() });
-    return project;
+    const db = getSQLiteDB();
+    const sets: string[] = ['updated_at = ?'];
+    const values: unknown[] = [now];
+    if (updates.name !== undefined) { sets.push('name = ?'); values.push(updates.name); }
+    if (updates.slug !== undefined) { sets.push('slug = ?'); values.push(updates.slug); }
+    values.push(projectId);
+    db.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    return getProject(projectId);
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('projects')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', projectId)
-    .select()
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('projects').update({ ...updates, updated_at: now }).eq('id', projectId).select().single();
+  if (error || !data) return null;
   return data as Project;
 }
 
-/**
- * Update project deployment status
- */
 export async function updateProjectStatus(
   projectId: string,
   status: ProjectStatus,
-  options?: {
-    deployed_at?: string;
-    deploy_error?: string | null;
-    runtime_url?: string | null;
-  }
+  options?: { deployed_at?: string; deploy_error?: string | null; runtime_url?: string | null }
 ): Promise<Project | null> {
-  const updates: Record<string, unknown> = {
-    status,
-    updated_at: new Date().toISOString(),
-  };
+  const now = new Date().toISOString();
 
+  if (!isSupabaseConfigured()) {
+    const db = getSQLiteDB();
+    const sets: string[] = ['status = ?', 'updated_at = ?'];
+    const values: unknown[] = [status, now];
+    if (options?.deployed_at) { sets.push('deployed_at = ?'); values.push(options.deployed_at); }
+    if (options?.deploy_error !== undefined) { sets.push('deploy_error = ?'); values.push(options.deploy_error); }
+    if (options?.runtime_url !== undefined) { sets.push('runtime_url = ?'); values.push(options.runtime_url); }
+    values.push(projectId);
+    db.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    return getProject(projectId);
+  }
+
+  const updates: Record<string, unknown> = { status, updated_at: now };
   if (options?.deployed_at) updates.deployed_at = options.deployed_at;
   if (options?.deploy_error !== undefined) updates.deploy_error = options.deploy_error;
   if (options?.runtime_url !== undefined) updates.runtime_url = options.runtime_url;
 
-  if (!isSupabaseConfigured()) {
-    const project = inMemoryProjects.get(projectId);
-    if (!project) return null;
-    Object.assign(project, updates);
-    return project;
-  }
-
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('projects')
-    .update(updates)
-    .eq('id', projectId)
-    .select()
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('projects').update(updates).eq('id', projectId).select().single();
+  if (error || !data) return null;
   return data as Project;
+}
+
+export async function setDevVersion(projectId: string, versionId: string): Promise<void> {
+  const now = new Date().toISOString();
+  if (!isSupabaseConfigured()) {
+    const db = getSQLiteDB();
+    db.prepare('UPDATE projects SET dev_version_id = ?, updated_at = ? WHERE id = ?').run(versionId, now, projectId);
+    return;
+  }
+  const supabase = getServiceSupabaseClient();
+  await supabase.from('projects').update({ dev_version_id: versionId, updated_at: now }).eq('id', projectId);
+}
+
+export async function setProdVersion(projectId: string, versionId: string): Promise<void> {
+  const now = new Date().toISOString();
+  if (!isSupabaseConfigured()) {
+    const db = getSQLiteDB();
+    db.prepare('UPDATE projects SET prod_version_id = ?, updated_at = ? WHERE id = ?').run(versionId, now, projectId);
+    return;
+  }
+  const supabase = getServiceSupabaseClient();
+  await supabase.from('projects').update({ prod_version_id: versionId, updated_at: now }).eq('id', projectId);
 }
 
 // =====================
 // Version Operations
 // =====================
 
-/**
- * Create a new version
- */
 export async function createVersion(input: CreateVersionInput): Promise<ProjectVersion> {
   const id = uuidv4();
   const now = new Date().toISOString();
 
-  const version: ProjectVersion = {
-    id,
-    project_id: input.project_id,
-    version_hash: input.version_hash,
-    code_bundle_ref: input.code_bundle_ref,
-    openapi: input.openapi || null,
-    endpoints: input.endpoints || null,
-    deps_hash: null,
-    base_image_version: null,
-    entrypoint: input.entrypoint || null,
-    installed_packages: null,
-    detected_env_vars: input.detected_env_vars || [],
-    status: input.status || 'pending',
-    created_at: now,
-  };
-
   if (!isSupabaseConfigured()) {
-    inMemoryVersions.set(id, version);
-    return version;
+    const db = getSQLiteDB();
+    db.prepare(
+      `INSERT INTO project_versions (id, project_id, version_hash, code_bundle_ref, openapi, endpoints, entrypoint, detected_env_vars, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      id, input.project_id, input.version_hash, input.code_bundle_ref,
+      toJSON(input.openapi || null), toJSON(input.endpoints || null),
+      input.entrypoint || null, toJSON(input.detected_env_vars || []),
+      input.status || 'pending', now
+    );
+
+    return {
+      id, project_id: input.project_id, version_hash: input.version_hash,
+      code_bundle_ref: input.code_bundle_ref, openapi: input.openapi || null,
+      endpoints: input.endpoints || null, deps_hash: null, base_image_version: null,
+      entrypoint: input.entrypoint || null, installed_packages: null,
+      detected_env_vars: input.detected_env_vars || [],
+      status: input.status || 'pending', created_at: now,
+    };
   }
 
   const supabase = getServiceSupabaseClient();
   const { data, error } = await supabase
     .from('project_versions')
     .insert({
-      id: version.id,
-      project_id: version.project_id,
-      version_hash: version.version_hash,
-      code_bundle_ref: version.code_bundle_ref,
-      openapi: version.openapi,
-      endpoints: version.endpoints,
-      entrypoint: version.entrypoint,
-      detected_env_vars: version.detected_env_vars,
-      status: version.status,
+      id, project_id: input.project_id, version_hash: input.version_hash,
+      code_bundle_ref: input.code_bundle_ref, openapi: input.openapi,
+      endpoints: input.endpoints, entrypoint: input.entrypoint,
+      detected_env_vars: input.detected_env_vars, status: input.status || 'pending',
     })
     .select()
     .single();
 
-  if (error) {
-    throw new Error(`Failed to create version: ${error.message}`);
-  }
-
+  if (error) throw new Error(`Failed to create version: ${error.message}`);
   return data as ProjectVersion;
 }
 
-/**
- * Get a version by ID
- */
 export async function getVersion(versionId: string): Promise<ProjectVersion | null> {
   if (!isSupabaseConfigured()) {
-    return inMemoryVersions.get(versionId) || null;
+    const db = getSQLiteDB();
+    const row = db.prepare('SELECT * FROM project_versions WHERE id = ?').get(versionId) as Record<string, unknown> | undefined;
+    return row ? rowToVersion(row) : null;
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('project_versions')
-    .select('*')
-    .eq('id', versionId)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('project_versions').select('*').eq('id', versionId).single();
+  if (error || !data) return null;
   return data as ProjectVersion;
 }
 
-/**
- * List versions for a project
- */
 export async function listVersions(projectId: string): Promise<ProjectVersion[]> {
   if (!isSupabaseConfigured()) {
-    return Array.from(inMemoryVersions.values()).filter(
-      (v) => v.project_id === projectId
-    );
+    const db = getSQLiteDB();
+    const rows = db.prepare('SELECT * FROM project_versions WHERE project_id = ? ORDER BY created_at DESC').all(projectId) as Record<string, unknown>[];
+    return rows.map(rowToVersion);
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('project_versions')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Failed to list versions: ${error.message}`);
-  }
-
+  const { data, error } = await supabase.from('project_versions').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+  if (error) throw new Error(`Failed to list versions: ${error.message}`);
   return (data || []) as ProjectVersion[];
 }
 
-/**
- * Get the latest version for a project
- */
 export async function getLatestVersion(projectId: string): Promise<ProjectVersion | null> {
   if (!isSupabaseConfigured()) {
-    const versions = Array.from(inMemoryVersions.values())
-      .filter((v) => v.project_id === projectId)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return versions[0] || null;
+    const db = getSQLiteDB();
+    const row = db.prepare('SELECT * FROM project_versions WHERE project_id = ? ORDER BY created_at DESC LIMIT 1').get(projectId) as Record<string, unknown> | undefined;
+    return row ? rowToVersion(row) : null;
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('project_versions')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('project_versions').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1).single();
+  if (error || !data) return null;
   return data as ProjectVersion;
 }
 
-/**
- * Update a version
- */
 export async function updateVersion(
   versionId: string,
   updates: Partial<Pick<ProjectVersion, 'openapi' | 'endpoints' | 'status'>>
 ): Promise<ProjectVersion | null> {
   if (!isSupabaseConfigured()) {
-    const version = inMemoryVersions.get(versionId);
-    if (!version) return null;
-    Object.assign(version, updates);
-    return version;
+    const db = getSQLiteDB();
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    if (updates.openapi !== undefined) { sets.push('openapi = ?'); values.push(toJSON(updates.openapi)); }
+    if (updates.endpoints !== undefined) { sets.push('endpoints = ?'); values.push(toJSON(updates.endpoints)); }
+    if (updates.status !== undefined) { sets.push('status = ?'); values.push(updates.status); }
+    if (sets.length === 0) return getVersion(versionId);
+    values.push(versionId);
+    db.prepare(`UPDATE project_versions SET ${sets.join(', ')} WHERE id = ?`).run(...values);
+    return getVersion(versionId);
   }
 
   const supabase = getServiceSupabaseClient();
-  const { data, error } = await supabase
-    .from('project_versions')
-    .update(updates)
-    .eq('id', versionId)
-    .select()
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-
+  const { data, error } = await supabase.from('project_versions').update(updates).eq('id', versionId).select().single();
+  if (error || !data) return null;
   return data as ProjectVersion;
 }
 
-/**
- * Get project with versions
- */
 export async function getProjectWithVersions(
   projectId: string
 ): Promise<(Project & { versions: ProjectVersion[] }) | null> {
   const project = await getProject(projectId);
   if (!project) return null;
-
   const versions = await listVersions(projectId);
   return { ...project, versions };
 }

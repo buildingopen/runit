@@ -1,0 +1,55 @@
+name: invoice-generator
+version: 1
+runtime: python3.11
+
+endpoints:
+  POST /generate_invoice:
+    summary: Generate an invoice
+    description: Creates a new invoice for a client with tax calculation.
+    inputs:
+      type: object
+      required: [client_name, amount]
+      properties:
+        client_name:
+          type: string
+          description: Client or company name
+        amount:
+          type: number
+          description: Invoice amount before tax
+        currency:
+          type: string
+          enum: [USD, EUR, GBP]
+          default: USD
+    outputs:
+      type: object
+      properties:
+        invoice_id:
+          type: string
+        client_name:
+          type: string
+        amount:
+          type: number
+        tax:
+          type: number
+        total:
+          type: number
+        status:
+          type: string
+        created_at:
+          type: string
+
+  POST /list_invoices:
+    summary: List recent invoices
+    inputs:
+      type: object
+      properties:
+        limit:
+          type: integer
+          default: 10
+
+secrets:
+  STRIPE_API_KEY:
+    description: Stripe key for payment processing
+    required: false
+
+network: false

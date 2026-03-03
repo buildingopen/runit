@@ -3,6 +3,7 @@
 
 import { getServiceSupabaseClient, isSupabaseConfigured } from './supabase.js';
 import type { Tier } from '../config/tiers.js';
+import { features } from '../config/features.js';
 
 export interface Subscription {
   id: string;
@@ -122,6 +123,7 @@ export async function incrementProjectsCount(userId: string): Promise<void> {
 }
 
 export async function getUserTier(userId: string): Promise<Tier> {
+  if (features.isOSS) return 'unlimited';
   const sub = await getSubscription(userId);
   return sub?.tier || 'free';
 }

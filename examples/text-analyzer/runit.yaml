@@ -1,0 +1,37 @@
+name: text-analyzer
+version: 1
+
+endpoints:
+  word_count:
+    summary: Count words, sentences, and characters
+    inputs:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: Text to analyze
+
+  top_words:
+    summary: Find most common words
+    inputs:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          description: Text to analyze
+        n:
+          type: integer
+          default: 5
+          description: Number of top words to return
+
+  sentiment:
+    summary: Analyze text sentiment
+    description: Simple keyword-based sentiment analysis (positive/negative/neutral).
+    inputs:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string

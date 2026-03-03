@@ -14,6 +14,20 @@ import {
   asHonoNext,
 } from '../src/middleware/test-helpers';
 
+// Force cloud mode so quotas use default limits (not unlimited)
+vi.mock('../src/config/features', () => ({
+  features: {
+    mode: 'cloud',
+    isOSS: false,
+    isCloud: true,
+    authMode: 'supabase',
+    billing: true,
+    quotas: true,
+    rateLimiting: true,
+    ipFiltering: true,
+  },
+}));
+
 // --- Mock wiring ---
 
 const mockIsSupabaseConfigured = vi.fn(() => false);

@@ -35,12 +35,15 @@ import endpoints from './routes/endpoints.js';
 import runs from './routes/runs.js';
 import openapi from './routes/openapi.js';
 import secrets from './routes/secrets.js';
+import storageRoutes from './routes/storage.js';
 import contextRoutes from './routes/context.js';
 import { projectShare, shareLinks } from './routes/share.js';
 import deploy from './routes/deploy.js';
+import oneClickDeploy from './routes/one-click-deploy.js';
 import billing from './routes/billing.js';
 import templates from './routes/templates.js';
 import metrics from './routes/metrics.js';
+import versionsRoutes from './routes/versions.js';
 import { rateLimitMiddleware, shutdownRateLimit } from './middleware/rate-limit.js';
 import { quotaMiddleware } from './middleware/quota.js';
 import { cloudIPFilterMiddleware } from './middleware/ip-filter.js';
@@ -60,6 +63,8 @@ import { getCircuitBreakerStats, hasOpenCircuit } from './lib/circuit-breaker.js
 import { openAPISpec } from './lib/openapi-spec.js';
 import { isDraining, setDraining } from './lib/server-state.js';
 import { activeConnections } from './lib/metrics.js';
+import { features } from './config/features.js';
+import { closeSQLiteDB } from './db/sqlite.js';
 
 // Validate environment variables at boot
 validateEnv();
@@ -206,22 +211,27 @@ app.use('/*', async (c, next) => {
   return authMiddleware(c, next);
 });
 
-// Apply rate limiting (120/min auth, 60/min anon)
-// Excluded: /metrics (Prometheus scraping)
-app.use('/*', async (c, next) => {
-  if (c.req.path === '/metrics' || c.req.path.startsWith('/metrics/')) {
-    return next();
-  }
-  return rateLimitMiddleware(c, next);
-});
+// Apply rate limiting (120/min auth, 60/min anon) - cloud mode only
+if (features.rateLimiting) {
+  app.use('/*', async (c, next) => {
+    if (c.req.path === '/metrics' || c.req.path.startsWith('/metrics/')) {
+      return next();
+    }
+    return rateLimitMiddleware(c, next);
+  });
+}
 
-// Block cloud/datacenter IPs from executing runs (before quota check)
-app.use('/runs/*', cloudIPFilterMiddleware);
-app.use('/v1/runs/*', cloudIPFilterMiddleware);
+// Block cloud/datacenter IPs from executing runs (before quota check) - cloud mode only
+if (features.ipFiltering) {
+  app.use('/runs/*', cloudIPFilterMiddleware);
+  app.use('/v1/runs/*', cloudIPFilterMiddleware);
+}
 
-// Apply quota enforcement on run endpoints (both versioned and legacy paths)
-app.use('/runs/*', quotaMiddleware);
-app.use('/v1/runs/*', quotaMiddleware);
+// Apply quota enforcement on run endpoints - cloud mode only
+if (features.quotas) {
+  app.use('/runs/*', quotaMiddleware);
+  app.use('/v1/runs/*', quotaMiddleware);
+}
 
 // Health check
 app.get('/', (c) => {
@@ -247,10 +257,12 @@ app.get('/health', (c) => {
       timestamp: new Date().toISOString(),
     }, 503);
   }
+  const tunnelUrl = process.env.TUNNEL_URL || null;
   return c.json({
     status: 'healthy',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    ...(tunnelUrl ? { tunnel_url: tunnelUrl } : {}),
   });
 });
 
@@ -316,12 +328,17 @@ apiRouter.route('/projects', projects);
 apiRouter.route('/projects', endpoints);     // /projects/:id/endpoints
 apiRouter.route('/projects', openapi);       // /projects/:id/versions/:vid/extract-openapi
 apiRouter.route('/projects', secrets);       // /projects/:id/secrets
+apiRouter.route('/projects', storageRoutes); // /projects/:id/storage
 apiRouter.route('/projects', contextRoutes); // /projects/:id/context
 apiRouter.route('/projects', projectShare);  // /projects/:id/share
 apiRouter.route('/projects', deploy);        // /projects/:id/deploy, /projects/:id/deploy/stream
+apiRouter.route('/projects', versionsRoutes); // /projects/:id/versions, promote, rollback
 apiRouter.route('/share', shareLinks);       // /share/:share_id
+apiRouter.route('/deploy', oneClickDeploy);   // POST /deploy (one-call deploy)
 apiRouter.route('/runs', runs);
-apiRouter.route('/billing', billing);       // /billing/subscription, /billing/checkout, etc.
+if (features.billing) {
+  apiRouter.route('/billing', billing);      // /billing/subscription, /billing/checkout, etc.
+}
 apiRouter.route('/templates', templates);   // /templates (list), /templates/:id (details)
 
 // Mount v1 API (recommended)
@@ -339,9 +356,11 @@ app.route('/projects', projects);
 app.route('/projects', endpoints);
 app.route('/projects', openapi);
 app.route('/projects', secrets);
+app.route('/projects', storageRoutes);
 app.route('/projects', contextRoutes);
 app.route('/projects', projectShare);
 app.route('/projects', deploy);
+app.route('/projects', versionsRoutes);
 app.use('/share/*', async (c, next) => {
   await next();
   c.header('Deprecation', 'true');
@@ -355,8 +374,11 @@ app.use('/runs/*', async (c, next) => {
   c.header('Sunset', '2026-12-31');
   c.header('Link', '</v1/runs>; rel="successor-version"');
 });
+app.route('/deploy', oneClickDeploy);
 app.route('/runs', runs);
-app.route('/billing', billing);
+if (features.billing) {
+  app.route('/billing', billing);
+}
 app.route('/templates', templates);
 
 // Metrics always at root (Prometheus convention)
@@ -366,9 +388,11 @@ const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
 console.log(`
 ┌─────────────────────────────────────────────────────────────┐
-│  Runtime AI Control Plane                                   │
+│  RunIt Control Plane                                        │
 │  Port: ${String(port).padEnd(52)}│
-│  Mode: ${(isProduction ? 'PRODUCTION' : 'development').padEnd(52)}│
+│  Mode: ${features.mode.toUpperCase().padEnd(52)}│
+│  Auth: ${features.authMode.padEnd(52)}│
+│  Env:  ${(isProduction ? 'PRODUCTION' : 'development').padEnd(52)}│
 │  API:  /v1/* (versioned) or /* (legacy)                     │
 └─────────────────────────────────────────────────────────────┘
 
@@ -389,6 +413,9 @@ Routes (all available at /v1/* and /*):
     GET  /v1/projects/:id/endpoints                  List endpoints
     POST /v1/projects/:id/versions/:vid/extract-openapi  Extract OpenAPI
 
+  Deploy:
+    POST /v1/deploy        One-call deploy (code -> URL)
+
   Runs:
     POST /v1/runs          Execute endpoint
     GET  /v1/runs/:id      Get run status/result
@@ -398,6 +425,12 @@ Routes (all available at /v1/* and /*):
     GET  /v1/projects/:id/secrets      List secrets (masked)
     PUT  /v1/projects/:id/secrets/:key Update secret
     DEL  /v1/projects/:id/secrets/:key Delete secret
+
+  Storage:
+    PUT  /v1/projects/:id/storage/:key Upsert value
+    GET  /v1/projects/:id/storage/:key Get value
+    DEL  /v1/projects/:id/storage/:key Delete value
+    GET  /v1/projects/:id/storage      List keys
 
   Sharing:
     POST /v1/projects/:id/share        Create share link
@@ -424,6 +457,9 @@ async function shutdown(signal: string) {
 
   // Shutdown rate limit (close Redis connection)
   await shutdownRateLimit();
+
+  // Close SQLite database
+  closeSQLiteDB();
 
   // Shutdown OpenTelemetry (flush remaining spans)
   await shutdownTracing();

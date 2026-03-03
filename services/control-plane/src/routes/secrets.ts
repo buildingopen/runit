@@ -8,29 +8,10 @@ import { Hono } from 'hono';
 import { encryptSecret, decryptSecret } from '../encryption/kms.js';
 import { getProjectSecrets, storeSecret, deleteSecret, getSecret } from '../db/secrets-store.js';
 import { SECRETS_RESERVED_PREFIX, ERROR_CODES } from '../config/constants.js';
-import { getAuthContext } from '../middleware/auth.js';
-import * as projectsStore from '../db/projects-store.js';
+import { verifyProjectOwnership } from '../middleware/verify-ownership.js';
 import { logger } from '../lib/logger.js';
 import { captureMessage } from '../lib/sentry.js';
 import { recordSecretsOperation } from '../lib/metrics.js';
-
-/**
- * Verify project ownership. Returns owner_id or null response.
- */
-async function verifyProjectOwnership(c: any, projectId: string): Promise<string | Response> {
-  const authContext = getAuthContext(c);
-  if (!authContext.isAuthenticated || !authContext.user) {
-    return c.json({ error: 'Authentication required' }, 401);
-  }
-  const project = await projectsStore.getProject(projectId);
-  if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
-  }
-  if (project.owner_id !== authContext.user.id) {
-    return c.json({ error: 'Not authorized' }, 403);
-  }
-  return authContext.user.id;
-}
 
 const secrets = new Hono();
 
