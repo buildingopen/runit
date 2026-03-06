@@ -1,4 +1,4 @@
-// ABOUTME: Tests for the RunIt CLI commands (deploy, list, logs, delete, status, secrets, share).
+// ABOUTME: Tests for the RunIt CLI commands (deploy, list, logs, delete, status, secrets, share, open).
 // ABOUTME: Imports exported program and uses parseAsync() for deterministic async handling.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -18,10 +18,13 @@ const mockClient = {
   createShareLink: vi.fn(),
   listShareLinks: vi.fn(),
   disableShareLink: vi.fn(),
+  listVersions: vi.fn(),
 };
 
 const mockExistsSync = vi.fn().mockReturnValue(true);
 const mockReadFileSync = vi.fn().mockReturnValue('def hello(): pass');
+const mockWriteFileSync = vi.fn();
+const mockMkdirSync = vi.fn();
 
 vi.mock('@runit/client', () => ({
   RunitClient: vi.fn().mockImplementation(function () {
@@ -35,8 +38,14 @@ vi.mock('fs', async () => {
     ...actual,
     existsSync: (...args: unknown[]) => mockExistsSync(...args),
     readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+    writeFileSync: (...args: unknown[]) => mockWriteFileSync(...args),
+    mkdirSync: (...args: unknown[]) => mockMkdirSync(...args),
   };
 });
+
+vi.mock('child_process', () => ({
+  exec: vi.fn(),
+}));
 
 // Capture console output
 let logOutput: string[];
@@ -79,9 +88,12 @@ beforeEach(() => {
   mockClient.createShareLink.mockReset();
   mockClient.listShareLinks.mockReset();
   mockClient.disableShareLink.mockReset();
+  mockClient.listVersions.mockReset();
 
   mockExistsSync.mockReset().mockReturnValue(true);
   mockReadFileSync.mockReset().mockReturnValue('def hello(): pass');
+  mockWriteFileSync.mockReset();
+  mockMkdirSync.mockReset();
 });
 
 afterEach(() => {
@@ -91,13 +103,14 @@ afterEach(() => {
 // ---- deploy ----
 
 describe('deploy command', () => {
-  it('deploys a file successfully', async () => {
+  it('deploys a file successfully with friendly output', async () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('def hello(): return "hi"');
 
     mockClient.deploy.mockResolvedValue({
       status: 'deployed',
       project_id: 'proj-123',
+      project_slug: 'hello',
       version_hash: 'abc123',
       url: '/p/hello',
       endpoints: [{ id: 'ep1', method: 'GET', path: '/hello', summary: 'Say hi' }],
@@ -108,11 +121,36 @@ describe('deploy command', () => {
 
     const output = logOutput.join('\n');
     expect(output).toContain('Deploying hello.py');
-    expect(output).toContain('Deployed successfully');
-    expect(output).toContain('proj-123');
-    expect(output).toContain('abc123');
+    expect(output).toContain('Your app is live!');
+    expect(output).toContain('/p/hello');
     expect(output).toContain('GET /hello');
+    expect(output).toContain('(App: hello, ID: proj-123)');
     expect(exitCode).toBeUndefined();
+  });
+
+  it('saves project context after deploy', async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue('def hello(): return "hi"');
+
+    mockClient.deploy.mockResolvedValue({
+      status: 'deployed',
+      project_id: 'proj-123',
+      project_slug: 'hello',
+      version_hash: 'abc123',
+      url: '/p/hello',
+      endpoints: [{ id: 'ep1', method: 'POST', path: '/greet', summary: 'Say hello' }],
+      detected_env_vars: [],
+    });
+
+    await runCLI(['deploy', 'hello.py']);
+
+    expect(mockMkdirSync).toHaveBeenCalled();
+    expect(mockWriteFileSync).toHaveBeenCalled();
+    const savedData = JSON.parse(mockWriteFileSync.mock.calls[0][1] as string);
+    expect(savedData.project_id).toBe('proj-123');
+    expect(savedData.name).toBe('hello');
+    expect(savedData.actions).toHaveLength(1);
+    expect(savedData.actions[0].method).toBe('POST');
   });
 
   it('shows error when file not found', async () => {
@@ -120,7 +158,7 @@ describe('deploy command', () => {
 
     await runCLI(['deploy', 'missing.py']);
 
-    expect(errorOutput.join('\n')).toContain('File not found: missing.py');
+    expect(errorOutput.join('\n')).toContain("File 'missing.py' not found");
     expect(exitCode).toBe(1);
   });
 
@@ -136,6 +174,7 @@ describe('deploy command', () => {
     mockClient.deploy.mockResolvedValue({
       status: 'deployed',
       project_id: 'proj-456',
+      project_slug: 'app',
       version_hash: 'def456',
       url: null,
       endpoints: [],
@@ -151,13 +190,14 @@ describe('deploy command', () => {
     );
   });
 
-  it('shows detected env vars', async () => {
+  it('shows detected env vars as API keys', async () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('import os\nos.environ["API_KEY"]');
 
     mockClient.deploy.mockResolvedValue({
       status: 'deployed',
       project_id: 'proj-789',
+      project_slug: 'app',
       version_hash: 'ghi789',
       url: null,
       endpoints: [],
@@ -190,6 +230,7 @@ describe('deploy command', () => {
     mockClient.deploy.mockResolvedValue({
       status: 'deployed',
       project_id: 'proj-custom',
+      project_slug: 'my-project',
       version_hash: 'xyz',
       url: null,
       endpoints: [],
@@ -205,7 +246,7 @@ describe('deploy command', () => {
 // ---- list ----
 
 describe('list command', () => {
-  it('lists projects', async () => {
+  it('lists apps', async () => {
     mockClient.listProjects.mockResolvedValue({
       projects: [
         {
@@ -231,28 +272,28 @@ describe('list command', () => {
     await runCLI(['list']);
 
     const output = logOutput.join('\n');
-    expect(output).toContain('2 project(s)');
+    expect(output).toContain('2 app(s)');
     expect(output).toContain('hello');
     expect(output).toContain('world');
     expect(output).toContain('p1');
     expect(output).toContain('p2');
   });
 
-  it('shows message when no projects exist', async () => {
+  it('shows message when no apps exist', async () => {
     mockClient.listProjects.mockResolvedValue({ projects: [], total: 0 });
 
     await runCLI(['list']);
 
     const output = logOutput.join('\n');
-    expect(output).toContain('No projects found');
+    expect(output).toContain('No apps found');
   });
 
   it('handles API failure', async () => {
-    mockClient.listProjects.mockRejectedValue(new Error('Unauthorized'));
+    mockClient.listProjects.mockRejectedValue(new Error('Server error'));
 
     await runCLI(['list']);
 
-    expect(errorOutput.join('\n')).toContain('Failed: Unauthorized');
+    expect(errorOutput.join('\n')).toContain('Failed:');
     expect(exitCode).toBe(1);
   });
 });
@@ -336,11 +377,11 @@ describe('logs command', () => {
   });
 
   it('handles API failure', async () => {
-    mockClient.getProjectRuns.mockRejectedValue(new Error('Not found'));
+    mockClient.getProjectRuns.mockRejectedValue(new Error('Server error'));
 
     await runCLI(['logs', 'proj-missing']);
 
-    expect(errorOutput.join('\n')).toContain('Failed: Not found');
+    expect(errorOutput.join('\n')).toContain('Failed:');
     expect(exitCode).toBe(1);
   });
 
@@ -356,7 +397,7 @@ describe('logs command', () => {
 // ---- delete ----
 
 describe('delete command', () => {
-  it('deletes a project', async () => {
+  it('deletes an app', async () => {
     mockClient.deleteProject.mockResolvedValue({ success: true });
 
     await runCLI(['delete', 'proj-123']);
@@ -367,19 +408,19 @@ describe('delete command', () => {
   });
 
   it('handles deletion failure', async () => {
-    mockClient.deleteProject.mockRejectedValue(new Error('Project not found'));
+    mockClient.deleteProject.mockRejectedValue(new Error('Server error'));
 
     await runCLI(['delete', 'proj-nonexistent']);
 
-    expect(errorOutput.join('\n')).toContain('Failed: Project not found');
+    expect(errorOutput.join('\n')).toContain('Failed:');
     expect(exitCode).toBe(1);
   });
 });
 
-// ---- secrets ----
+// ---- secrets (API Keys) ----
 
 describe('secrets commands', () => {
-  it('lists secrets with timestamps', async () => {
+  it('lists API keys with timestamps', async () => {
     mockClient.listSecrets.mockResolvedValue({
       secrets: [
         { key: 'API_KEY', updated_at: '2025-01-15T10:00:00Z' },
@@ -390,48 +431,48 @@ describe('secrets commands', () => {
     await runCLI(['secrets', 'list', 'proj-123']);
 
     const output = logOutput.join('\n');
-    expect(output).toContain('2 secret(s)');
+    expect(output).toContain('2 API key(s)');
     expect(output).toContain('API_KEY');
     expect(output).toContain('DB_URL');
     expect(output).toContain('2025-01-15T10:00:00Z');
     expect(mockClient.listSecrets).toHaveBeenCalledWith('proj-123');
   });
 
-  it('shows message when no secrets exist', async () => {
+  it('shows message when no API keys exist', async () => {
     mockClient.listSecrets.mockResolvedValue({ secrets: [] });
 
     await runCLI(['secrets', 'list', 'proj-123']);
 
     const output = logOutput.join('\n');
-    expect(output).toContain('No secrets configured.');
+    expect(output).toContain('No API keys configured.');
   });
 
-  it('sets a secret', async () => {
+  it('sets an API key', async () => {
     mockClient.setSecret.mockResolvedValue({ key: 'MY_KEY' });
 
-    await runCLI(['secrets', 'set', 'proj-123', 'MY_KEY', 'my-value']);
+    await runCLI(['secrets', 'set', 'MY_KEY', 'my-value', '-a', 'proj-123']);
 
     const output = logOutput.join('\n');
-    expect(output).toContain('Secret "MY_KEY" set.');
+    expect(output).toContain('API key "MY_KEY" set.');
     expect(mockClient.setSecret).toHaveBeenCalledWith('proj-123', 'MY_KEY', 'my-value');
   });
 
-  it('deletes a secret', async () => {
+  it('deletes an API key', async () => {
     mockClient.deleteSecret.mockResolvedValue({ deleted: true });
 
-    await runCLI(['secrets', 'delete', 'proj-123', 'OLD_KEY']);
+    await runCLI(['secrets', 'delete', 'OLD_KEY', '-a', 'proj-123']);
 
     const output = logOutput.join('\n');
-    expect(output).toContain('Secret "OLD_KEY" deleted.');
+    expect(output).toContain('API key "OLD_KEY" deleted.');
     expect(mockClient.deleteSecret).toHaveBeenCalledWith('proj-123', 'OLD_KEY');
   });
 
   it('handles list failure', async () => {
-    mockClient.listSecrets.mockRejectedValue(new Error('Forbidden'));
+    mockClient.listSecrets.mockRejectedValue(new Error('Server error'));
 
     await runCLI(['secrets', 'list', 'proj-123']);
 
-    expect(errorOutput.join('\n')).toContain('Failed: Forbidden');
+    expect(errorOutput.join('\n')).toContain('Failed:');
     expect(exitCode).toBe(1);
   });
 });
@@ -445,7 +486,7 @@ describe('share commands', () => {
       share_url: '/share/abc',
     });
 
-    await runCLI(['share', 'create', 'proj-123', 'post--generate']);
+    await runCLI(['share', 'create', 'post--generate', '-a', 'proj-123']);
 
     const output = logOutput.join('\n');
     expect(output).toContain('/share/abc');
@@ -501,7 +542,7 @@ describe('share commands', () => {
   it('disables a share link', async () => {
     mockClient.disableShareLink.mockResolvedValue({ share_id: 'share-abc', status: 'disabled' });
 
-    await runCLI(['share', 'disable', 'proj-123', 'share-abc']);
+    await runCLI(['share', 'disable', 'share-abc', '-a', 'proj-123']);
 
     const output = logOutput.join('\n');
     expect(output).toContain('share-abc disabled');
@@ -509,11 +550,11 @@ describe('share commands', () => {
   });
 
   it('handles create failure', async () => {
-    mockClient.createShareLink.mockRejectedValue(new Error('Not found'));
+    mockClient.createShareLink.mockRejectedValue(new Error('Server error'));
 
-    await runCLI(['share', 'create', 'proj-123', 'bad-endpoint']);
+    await runCLI(['share', 'create', 'bad-endpoint', '-a', 'proj-123']);
 
-    expect(errorOutput.join('\n')).toContain('Failed: Not found');
+    expect(errorOutput.join('\n')).toContain('Failed:');
     expect(exitCode).toBe(1);
   });
 });
@@ -535,8 +576,39 @@ describe('status command', () => {
 
     await runCLI(['status']);
 
-    expect(errorOutput.join('\n')).toContain('Cannot connect to');
-    expect(errorOutput.join('\n')).toContain('ECONNREFUSED');
+    expect(errorOutput.join('\n')).toContain("Can't reach RunIt server");
+    expect(exitCode).toBe(1);
+  });
+});
+
+// ---- error formatting ----
+
+describe('error formatting', () => {
+  it('formats ECONNREFUSED errors', async () => {
+    mockClient.listProjects.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    await runCLI(['list']);
+
+    expect(errorOutput.join('\n')).toContain("Can't reach RunIt server");
+    expect(exitCode).toBe(1);
+  });
+
+  it('formats auth errors', async () => {
+    mockClient.listProjects.mockRejectedValue(new Error('HTTP 401: Unauthorized'));
+
+    await runCLI(['list']);
+
+    expect(errorOutput.join('\n')).toContain('Authentication failed');
+    expect(errorOutput.join('\n')).toContain('RUNIT_API_KEY');
+    expect(exitCode).toBe(1);
+  });
+
+  it('formats 404 errors', async () => {
+    mockClient.getProjectRuns.mockRejectedValue(new Error('HTTP 404: not found'));
+
+    await runCLI(['logs', 'proj-missing']);
+
+    expect(errorOutput.join('\n')).toContain('App not found');
     expect(exitCode).toBe(1);
   });
 });
