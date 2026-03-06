@@ -11,6 +11,28 @@ const isValidGithubUrl = (url: string): boolean => {
   return /^https?:\/\/github\.com\/[\w.-]+\/[\w.-]+/.test(url);
 };
 
+/**
+ * Extract clean Python code from a ChatGPT-style paste that may contain
+ * markdown, explanations, and triple-backtick code blocks.
+ */
+function extractPythonFromPaste(raw: string): string {
+  // Match ```python ... ``` or ``` ... ``` code blocks
+  const codeBlockRegex = /```(?:python|py)?\s*\n([\s\S]*?)```/g;
+  const blocks: string[] = [];
+  let match;
+  while ((match = codeBlockRegex.exec(raw)) !== null) {
+    const block = match[1].trim();
+    if (block) blocks.push(block);
+  }
+
+  if (blocks.length > 0) {
+    return blocks.join('\n\n').trim();
+  }
+
+  // No code blocks found, use the raw input as-is
+  return raw.trim();
+}
+
 export default function NewProjectPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -184,7 +206,7 @@ export default function NewProjectPage() {
   };
 
   const handlePasteSubmit = async () => {
-    const code = pastedCode.trim();
+    const code = extractPythonFromPaste(pastedCode);
     if (!code) {
       setError('Please paste some Python code');
       return;
