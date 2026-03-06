@@ -2,94 +2,90 @@
 
 # RunIt
 
-### Self-hosted platform for deploying Python APIs
+### AI writes code. RunIt makes it real.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Python](https://img.shields.io/badge/Python-3.11+-green?logo=python)](https://www.python.org/)
-[![Docker](https://img.shields.io/badge/Docker-required-blue?logo=docker)](https://www.docker.com/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+Paste any Python function. Get a live web app with a shareable link.
 
-Upload Python code, get a running API. Persistent storage, encrypted secrets, versioning, share links.
-
-[Quick Start](#quick-start-self-hosted) · [Storage SDK](#persistent-storage-sdk) · [API Reference](#api-reference) · [Contributing](#contributing)
+[Try It](https://runit.dev) · [Examples](#examples) · [For Developers](#for-developers)
 
 </div>
 
 ---
 
-## Quick Start (Self-Hosted)
+## How It Works
 
-Requires: Docker with Docker Compose.
+1. **Get code from AI.** Ask ChatGPT, Claude, or Cursor for a Python function.
+2. **Paste it on [runit.dev](https://runit.dev).** Hit "Go Live."
+3. **Share the link.** Anyone can use your app immediately.
 
-```bash
-git clone https://github.com/federicodeponte/runtime-ai.git
-cd runtime-ai
+Your function gets a web interface automatically. No accounts, no setup, no servers.
 
-# Generate encryption key
-export MASTER_ENCRYPTION_KEY=$(openssl rand -base64 32)
+## What You Get
 
-# Build and start (builds both server + runner images)
-docker-compose up --build -d
+- **A live web app.** Your function becomes a form anyone can fill out and run.
+- **A shareable link.** Send it to anyone. They see a clean UI, not code.
+- **Built-in memory.** Your app can remember data between uses.
+- **No setup.** No servers, no databases, no hosting, no command line.
 
-# Verify
-curl http://localhost:3001/health
+## Try It
+
+Go to [runit.dev](https://runit.dev) and paste this:
+
+```python
+def greet(name):
+    return {"message": f"Hello, {name}!"}
 ```
 
-That's it. The server builds both images (control plane + Python runner), creates SQLite for metadata, and mounts persistent volumes for storage.
+That's it. You now have a live web app with a form and a shareable link.
 
-### Deploy and run your first API
+### Your App Can Remember Things
 
-```bash
-# Deploy a FastAPI app
-curl -X POST http://localhost:3001/v1/deploy \
-  -H "Content-Type: application/json" \
-  -d '{
-    "code": "from fastapi import FastAPI\n\napp = FastAPI()\n\n@app.get(\"/hello\")\ndef hello():\n    return {\"hello\": \"world\"}",
-    "name": "my-api"
-  }'
-# Response includes project_id, version_id, and endpoints[0].id
+```python
+from runit import remember
 
-# Run the endpoint
-curl -X POST http://localhost:3001/v1/runs \
-  -H "Content-Type: application/json" \
-  -d '{"project_id": "<project_id>", "version_id": "<version_id>", "endpoint_id": "get--hello"}'
-# Returns run_id with status "running"
-
-# Get the result (async, poll until status is "success")
-curl http://localhost:3001/v1/runs/<run_id>
-# {"status": "success", "result": {"json": {"hello": "world"}}}
+def count_visits(name):
+    visits = remember("visits") or 0
+    visits = visits + 1
+    remember("visits", visits)
+    return {"message": f"Hello {name}! Visit #{visits}"}
 ```
 
-Plain functions with type hints are also auto-detected as POST endpoints:
+Every time someone runs this, the counter goes up. Your app remembers data between uses, no database required.
+
+## Examples
+
+| Example | What it does |
+|---------|-------------|
+| [Invoice Generator](examples/invoice-generator) | Create invoices with automatic tax calculation |
+| [Text Analyzer](examples/text-analyzer) | Count words, find common phrases, detect sentiment |
+| [Unit Converter](examples/unit-converter) | Convert temperatures and distances between units |
+
+---
+
+## For Developers
+
+<details>
+<summary><strong>CLI</strong></summary>
 
 ```bash
-curl -X POST http://localhost:3001/v1/deploy \
-  -H "Content-Type: application/json" \
-  -d '{"code": "def add(x: int, y: int) -> dict:\n    return {\"result\": x + y}", "name": "math-api"}'
+npm install -g @runit/cli
+
+# Deploy a Python file
+runit deploy my-app.py --name "My App"
+
+# List your apps
+runit projects list
+
+# Run an action
+runit run <project-id> greet --name "World"
 ```
 
-### Public URL (optional)
+</details>
 
-Expose your instance to the internet with Cloudflare Tunnel:
+<details>
+<summary><strong>Storage SDK</strong></summary>
 
-```bash
-docker-compose --profile tunnel up --build -d
-```
-
-## Features
-
-- **Instant Deployment** -- Upload a ZIP or raw Python code, get endpoints.
-- **Persistent Storage** -- Key-value store accessible from user code via `from runit import storage`.
-- **Secrets Management** -- AES-256-GCM encrypted vault, injected as env vars at runtime.
-- **Versioning** -- Multiple versions per project with promote/rollback.
-- **Share Links** -- Public URLs with built-in rate limiting.
-- **Isolated Execution** -- Each run in a sandboxed container (`--network none`, read-only root, dropped capabilities).
-- **CLI + MCP Server** -- Manage projects from the terminal or through AI agents.
-
-## Persistent Storage SDK
-
-User code can persist data across runs:
+The full storage API for developers:
 
 ```python
 from runit import storage
@@ -98,193 +94,109 @@ storage.set("config", {"theme": "dark"})
 data = storage.get("config")        # {"theme": "dark"}
 storage.get("missing", default=0)   # 0
 storage.list()                       # ["config"]
-storage.exists("config")            # True
-storage.delete("config")            # True
+storage.delete("config")
 ```
 
-- Persists across container restarts (mounted volume)
+- Persists across runs (mounted volume)
 - 10MB per value, 100MB per project
-- Atomic writes (no partial reads on concurrent access)
+- Atomic writes
 - Also accessible via HTTP API, CLI (`runit storage list`), and MCP tools
 
-## Architecture
+</details>
 
-```
-runtime-ai/
-+-- docker-compose.yml          # Self-hosted deployment
-+-- packages/
-|   +-- cli/                    # CLI: runit deploy, runit storage, ...
-|   +-- client/                 # TypeScript API client
-|   +-- mcp-server/             # MCP tools for AI agents
-|   +-- shared/                 # Shared types
-+-- services/
-|   +-- control-plane/          # Hono.js API server (projects, runs, storage, secrets)
-|   +-- runner/                 # Python execution runtime (Docker image)
-+-- docs/
-    +-- protocol-openapi.yaml   # OpenAPI 3.0 spec
-```
+<details>
+<summary><strong>Self-Hosting</strong></summary>
 
-### How It Works
-
-```
-                    +-------------------+
-                    |  Control Plane    |
-  curl/CLI/MCP --> |  (Hono.js API)    |--> SQLite (metadata)
-                    |                   |--> Filesystem (storage, code bundles)
-                    +--------+----------+
-                             |
-                    docker run --network none
-                             |
-                    +--------v----------+
-                    |   Runner          |
-                    |   (Python 3.11)   |--> /storage (mounted volume)
-                    |   User code runs  |
-                    +-------------------+
-```
-
-1. **Upload** -- User uploads ZIP or raw Python code
-2. **Parse** -- Control plane extracts endpoints from code/runit.yaml
-3. **Store** -- Code bundle + metadata saved to SQLite + filesystem
-4. **Execute** -- Each run launches an isolated Docker container
-5. **Persist** -- Storage SDK reads/writes to mounted volume
-
-## API Reference
-
-All endpoints are under `/v1/`. Full OpenAPI spec at `/v1/openapi.json`.
-
-### Projects
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/projects` | GET | List all projects |
-| `/v1/projects` | POST | Create project from ZIP |
-| `/v1/projects/:id` | GET | Get project details |
-| `/v1/projects/:id` | DELETE | Delete project (+ storage cleanup) |
-| `/v1/deploy` | POST | One-call deploy (code + name) |
-
-### Versions
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/projects/:id/versions` | GET | List versions |
-| `/v1/projects/:id/versions/:vid/promote` | POST | Promote to dev/prod |
-| `/v1/projects/:id/deploy` | POST | Deploy a version |
-
-### Runs
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/runs` | POST | Execute an endpoint |
-| `/v1/runs/:id` | GET | Get run status/result |
-
-### Secrets
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/projects/:id/secrets` | POST | Create secret |
-| `/v1/projects/:id/secrets` | GET | List secrets (keys only) |
-| `/v1/projects/:id/secrets/:key` | PUT | Update secret |
-| `/v1/projects/:id/secrets/:key` | DELETE | Delete secret |
-
-### Storage
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/projects/:id/storage` | GET | List keys + usage |
-| `/v1/projects/:id/storage/:key` | PUT | Store value (JSON body: `{"value": ...}`) |
-| `/v1/projects/:id/storage/:key` | GET | Get value |
-| `/v1/projects/:id/storage/:key` | DELETE | Delete value |
-
-## CLI
+Requires Docker with Docker Compose.
 
 ```bash
-npm install -g @runtime-ai/cli
+git clone https://github.com/federicodeponte/runtime-ai.git
+cd runtime-ai
 
-runit deploy my-api.zip --name "My API"
-runit projects list
-runit storage list <project-id>
-runit storage set <project-id> config '{"key": "value"}'
-runit storage get <project-id> config
+# Generate encryption key
+export MASTER_ENCRYPTION_KEY=$(openssl rand -base64 32)
+
+# Build and start
+docker-compose up --build -d
+
+# Verify
+curl http://localhost:3001/health
 ```
 
-## MCP Server
-
-For AI agents (Claude, etc.):
-
-```bash
-npm install -g @runtime-ai/mcp-server
-```
-
-Available tools: `deploy`, `list_projects`, `run_endpoint`, `storage_set`, `storage_get`, `storage_delete`, `storage_list`, and more.
-
-## Configuration
-
-### Environment Variables
+#### Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `MASTER_ENCRYPTION_KEY` | Yes | -- | 32-byte base64 key for secrets encryption |
+| `MASTER_ENCRYPTION_KEY` | Yes | | 32-byte base64 key for secrets encryption |
 | `COMPUTE_BACKEND` | No | `docker` | `docker` for self-hosted, `modal` for cloud |
 | `PORT` | No | `3001` | Server port |
-| `API_KEY` | No | -- | Bearer token to protect API endpoints |
+| `API_KEY` | No | | Bearer token to protect API |
 | `RUNNER_IMAGE` | No | `runtime-runner:latest` | Docker image for code execution |
 | `RUNNER_MEMORY` | No | `512m` | Memory limit per container |
 | `RUNNER_CPUS` | No | `1` | CPU limit per container |
 | `RUNNER_NETWORK` | No | `none` | Network mode (`none` for isolation) |
-| `TUNNEL_URL` | No | -- | Public URL (shown in API responses) |
 
-See `.env.example` for the full list including cloud mode variables.
+See `.env.example` for the full list.
 
-## FAQ
-
-<details>
-<summary><strong>What Python frameworks are supported?</strong></summary>
-
-FastAPI apps are auto-detected. Plain functions with type hints (`def calc(x: int) -> dict`) are auto-wrapped as POST endpoints. Use a `runit.yaml` to define custom endpoints.
 </details>
 
 <details>
-<summary><strong>Do I need Supabase or Modal?</strong></summary>
+<summary><strong>MCP Server (for AI agents)</strong></summary>
 
-No. Self-hosted mode uses SQLite + Docker. Supabase and Modal are optional for cloud deployments.
+```bash
+npm install -g @runit/mcp-server
+```
+
+Gives AI agents (Claude, Cursor, etc.) tools to deploy code, run actions, and manage storage.
+
 </details>
 
 <details>
-<summary><strong>How are secrets stored?</strong></summary>
+<summary><strong>API Reference</strong></summary>
 
-Secrets are encrypted with AES-256-GCM using the `MASTER_ENCRYPTION_KEY`. Plaintext never touches the database.
+All routes are under `/v1/`. Full OpenAPI spec at `/v1/openapi.json`.
+
+**Apps:** `GET /v1/projects`, `POST /v1/projects`, `GET /v1/projects/:id`, `DELETE /v1/projects/:id`, `POST /v1/deploy`
+
+**Versions:** `GET /v1/projects/:id/versions`, `POST /v1/projects/:id/versions/:vid/promote`, `POST /v1/projects/:id/deploy`
+
+**Runs:** `POST /v1/runs`, `GET /v1/runs/:id`
+
+**API Keys:** `POST /v1/projects/:id/secrets`, `GET /v1/projects/:id/secrets`, `PUT /v1/projects/:id/secrets/:key`, `DELETE /v1/projects/:id/secrets/:key`
+
+**Storage:** `GET /v1/projects/:id/storage`, `PUT /v1/projects/:id/storage/:key`, `GET /v1/projects/:id/storage/:key`, `DELETE /v1/projects/:id/storage/:key`
+
 </details>
 
 <details>
-<summary><strong>Is user code isolated?</strong></summary>
+<summary><strong>Architecture</strong></summary>
 
-Yes. Each run executes in a Docker container with `--network none`, `--read-only`, `--cap-drop ALL`, and `--security-opt no-new-privileges`. User code cannot access the network, modify the filesystem (except /storage and /tmp), or escalate privileges.
+```
+runit/
++-- apps/web/                  # Next.js web app (paste, deploy, run, share)
++-- packages/
+|   +-- cli/                   # CLI: runit deploy, runit run, ...
+|   +-- client/                # TypeScript API client
+|   +-- mcp-server/            # MCP tools for AI agents
+|   +-- openapi-form/          # Auto-generates web forms from functions
++-- services/
+|   +-- control-plane/         # Hono.js API server
+|   +-- runner/                # Python execution runtime
+```
+
 </details>
 
 <details>
-<summary><strong>How does persistent storage work?</strong></summary>
-
-Each project gets a directory on a Docker volume, mounted at `/storage` inside runner containers. The Python SDK (`from runit import storage`) reads/writes files there with atomic writes (temp file + rename). The same data is also accessible via the HTTP API.
-</details>
-
-## Development
+<summary><strong>Development</strong></summary>
 
 ```bash
 npm install
-npm run build   # Build all workspaces
-npm test        # Run all tests (515 TypeScript + 130 Python)
-npm run lint    # Lint
+npm run build   # Build all packages
+npm test        # Run all tests
+npm run lint
 ```
 
-## Examples
-
-See the [`examples/`](examples/) directory for sample projects:
-
-- **invoice-generator** -- FastAPI app that generates invoices
-- **text-analyzer** -- Text analysis with NLP
-- **unit-converter** -- Simple unit conversion API
-
-Each example can be deployed with `runit deploy`.
+</details>
 
 ## Contributing
 
@@ -292,4 +204,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT License -- see [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).

@@ -1,7 +1,7 @@
 {
   "name": "@runit/cli",
   "version": "0.1.0",
-  "description": "CLI for RunIt - deploy Python code from the terminal",
+  "description": "Deploy Python functions as live web apps",
   "type": "module",
   "bin": {
     "runit": "./dist/index.js"
