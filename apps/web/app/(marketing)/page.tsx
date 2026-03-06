@@ -39,7 +39,7 @@ export default function MarketingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
-            <span className="font-semibold text-[var(--text-primary)] text-[15px]">Runtime</span>
+            <span className="font-semibold text-[var(--text-primary)] text-[15px]">RunIt</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className="px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Sign in</Link>
@@ -109,7 +109,7 @@ export default function MarketingPage() {
                 <div className="term-line term-line-4 text-[var(--text-tertiary)]"><span className="text-[var(--accent)]">$</span> Going live... <span className="text-[var(--accent)] font-semibold">ready</span></div>
                 <div className="term-line term-line-5 mt-3 pt-3 border-t border-white/[0.06]">
                   <span className="text-[var(--text-tertiary)]">Your app is live at</span><br />
-                  <span className="text-[var(--accent)] font-semibold">https://runtime.dev/s/ab3f9k2</span>
+                  <span className="text-[var(--accent)] font-semibold">https://runit.dev/s/ab3f9k2</span>
                 </div>
                 <div className="term-line term-line-6 mt-3 text-[var(--text-tertiary)]">
                   <span className="text-[var(--accent)]">$</span>{' '}
@@ -207,7 +207,7 @@ export default function MarketingPage() {
           {/* Desktop */}
           <div className="hidden md:grid md:grid-cols-3 gap-0">
             <div className="relative p-4">
-              <StepCard number="1" title="Upload your code" description="Paste a Python script or drop a .zip file. We handle the rest." icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>} />
+              <StepCard number="1" title="Paste your code" description="Paste from ChatGPT, Cursor, or Claude. Drop a .py file or .zip. We handle the rest." icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>} />
               <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-8 h-8 rounded-full bg-[var(--bg-primary)] border border-[var(--accent)]/20 flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.15)]">
                 <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
               </div>
@@ -226,7 +226,7 @@ export default function MarketingPage() {
           {/* Mobile */}
           <div className="md:hidden step-connector space-y-4 py-4">
             {[
-              { n: '1', t: 'Upload your code', d: 'Paste a Python script or drop a .zip file. We handle the rest.', i: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg> },
+              { n: '1', t: 'Paste your code', d: 'Paste from ChatGPT, Cursor, or Claude. Drop a .py file or .zip. We handle the rest.', i: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg> },
               { n: '2', t: 'We build your app', d: 'Your code gets a live URL and an auto-generated interface. No frontend needed.', i: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.385 3.17M6.09 6.09l5.33 3.168m0 0l5.33-3.168M11.42 9.26v6.91m5.385 3.17L21.75 16.5V7.5l-4.945-2.83M6.09 6.09L1.145 3.26v9l4.945 2.83" /></svg> },
               { n: '3', t: 'Share the link', d: 'Anyone can run your app from their browser. Share it with your team, clients, or the world.', i: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" /></svg> },
             ].map((s) => (
@@ -251,17 +251,17 @@ export default function MarketingPage() {
             <AudienceCard
               icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" /></svg>}
               title="Cursor users"
-              description="You wrote a Python script with Cursor. Now what? Upload it here and get a live app with a URL in under a minute."
+              description="Cursor wrote you a Python script. Paste it into RunIt and get a live app with a shareable URL in under a minute."
             />
             <AudienceCard
               icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>}
               title="n8n & Make users"
-              description="Need custom logic your automation tool can't handle? Deploy a Python function and call it as a webhook from your flow."
+              description="Need custom logic your automation tool can't handle? Go live with a Python function and call it as a webhook from your flow."
             />
             <AudienceCard
               icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>}
               title="ChatGPT users"
-              description="ChatGPT gave you working code. RunIt turns it into a real app anyone can use, with a UI and a shareable link."
+              description="ChatGPT gave you working code. Paste it into RunIt and get a real app anyone can use, with a UI and a shareable link."
             />
           </div>
 
@@ -285,7 +285,7 @@ export default function MarketingPage() {
               color="bg-cyan-500/20"
             />
             <TestimonialCard
-              quote="Built 3 internal tools in an afternoon. Would've taken a week to deploy normally."
+              quote="Built 3 internal tools in an afternoon. Would've taken a week to ship them normally."
               name="James L."
               role="Cursor user"
               initials="JL"
@@ -295,7 +295,47 @@ export default function MarketingPage() {
         </div>
       </section>
 
-      {/* ═══════════ SECTION 5: FINAL CTA ═══════════ */}
+      {/* ═══════════ SECTION 5: TEMPLATE GALLERY ═══════════ */}
+      <section className="fade-in-section section-glow-top pt-16 pb-10 px-6">
+        <div className="max-w-[900px] mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-[30px] md:text-[36px] font-bold text-[var(--text-primary)] mb-3">Start from a <span className="gradient-text">template</span></h2>
+            <p className="text-[var(--text-secondary)] text-[16px]">Pick one, customize it, go live. Each takes under a minute.</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <TemplateCard
+              title="Visit Counter"
+              description="Track who visits and how often. Built-in memory."
+              icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>}
+            />
+            <TemplateCard
+              title="Text Analyzer"
+              description="Paste text, get word count, reading time, and sentiment."
+              icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>}
+            />
+            <TemplateCard
+              title="Unit Converter"
+              description="Convert between currencies, temperatures, distances."
+              icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>}
+            />
+            <TemplateCard
+              title="Email Validator"
+              description="Check if an email address is real and deliverable."
+              icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>}
+            />
+          </div>
+
+          <div className="text-center mt-8">
+            <Link href="/templates" className="inline-flex items-center gap-2 text-[14px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors">
+              Browse all templates
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════ SECTION 6: FINAL CTA ═══════════ */}
       <section className="fade-in-section relative py-24 px-6 overflow-hidden">
         {/* Dramatic gradient bg */}
         <div className="absolute inset-0 pointer-events-none">
@@ -321,6 +361,13 @@ export default function MarketingPage() {
         </div>
       </section>
 
+      {/* Made with RunIt - viral seed */}
+      <div className="text-center py-6 px-6">
+        <p className="text-[12px] text-[var(--text-tertiary)]">
+          Apps built with RunIt include a subtle &ldquo;Made with RunIt&rdquo; badge, so your users discover us through you.
+        </p>
+      </div>
+
       {/* Footer */}
       <footer className="py-10 px-6 border-t border-white/[0.06]">
         <div className="max-w-[900px] mx-auto">
@@ -329,7 +376,7 @@ export default function MarketingPage() {
               <div className="w-5 h-5 bg-[var(--accent)] rounded-md flex items-center justify-center shadow-[0_0_8px_rgba(16,185,129,0.2)]">
                 <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               </div>
-              <span className="text-[12px] text-[var(--text-tertiary)]">Runtime</span>
+              <span className="text-[12px] text-[var(--text-tertiary)]">RunIt</span>
             </div>
             <div className="flex items-center gap-6 text-[12px] text-[var(--text-tertiary)]">
               <a href="https://github.com/federicodeponte/execution-layer" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--text-secondary)] transition-colors">GitHub</a>
@@ -440,6 +487,21 @@ function AudienceCard({ icon, title, description }: { icon: React.ReactNode; tit
       <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-2">{title}</h3>
       <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{description}</p>
     </div>
+  );
+}
+
+function TemplateCard({ title, description, icon }: { title: string; description: string; icon: React.ReactNode }) {
+  return (
+    <Link href="/templates" className="glass-card p-6 rounded-2xl flex items-start gap-4 group">
+      <div className="w-10 h-10 bg-[var(--accent)]/[0.08] rounded-xl flex items-center justify-center text-[var(--accent)] flex-shrink-0">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1">{title}</h3>
+        <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">{description}</p>
+      </div>
+      <div className="flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+      </div>
+    </Link>
   );
 }
 
