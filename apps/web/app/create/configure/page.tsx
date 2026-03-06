@@ -140,7 +140,7 @@ function ConfigurePageContent() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
           </div>
-          <h2 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1.5">Failed to load project</h2>
+          <h2 className="text-[15px] font-semibold text-[var(--text-primary)] mb-1.5">Failed to load app</h2>
           <p className="text-[13px] text-[var(--text-tertiary)] mb-5">{error}</p>
           <Link
             href="/new"
@@ -203,13 +203,14 @@ function ConfigurePageContent() {
         {/* Detected Endpoints */}
         {endpoints.length > 0 && (
           <div className="mb-6 p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-[10px]">
-            <div className="flex items-center gap-2 text-[var(--success)] text-[13px] font-medium mb-2.5">
+            <div className="flex items-center gap-2 text-[var(--success)] text-[13px] font-medium mb-1">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
                 <polyline points="22 4 12 14.01 9 11.01"/>
               </svg>
               Detected {endpoints.length} action{endpoints.length !== 1 ? 's' : ''}
             </div>
+            <p className="text-[11px] text-[var(--text-tertiary)] mb-2.5 ml-[22px]">These are the features your app provides</p>
             <div className="flex flex-wrap gap-2">
               {endpoints.map((ep: { id: string; path: string }) => (
                 <span key={ep.id} className="px-3 py-1.5 bg-[var(--bg-secondary)] rounded-md text-[13px] font-mono text-[var(--text-secondary)]">
@@ -252,8 +253,9 @@ function ConfigurePageContent() {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
               <path d="M7 11V7a5 5 0 0110 0v4"/>
             </svg>
-            Secrets
+            API Keys
           </div>
+          <p className="text-[11px] text-[var(--text-tertiary)] mb-2.5">Only needed if your code uses external services like OpenAI</p>
           {detectedEnvVars.length > 0 ? (
             <div className="space-y-2.5">
               {detectedEnvVars.map((key) => (
@@ -285,7 +287,7 @@ function ConfigurePageContent() {
             </div>
           ) : (
             <div className="p-4 bg-[var(--bg-secondary)] border border-dashed border-[var(--border)] rounded-lg text-center text-[var(--text-tertiary)] text-[13px]">
-              No secrets detected
+              No API keys needed
             </div>
           )}
         </div>

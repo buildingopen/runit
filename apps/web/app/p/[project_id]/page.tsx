@@ -89,7 +89,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   // Handle redeploy
   const handleRedeploy = async () => {
     setIsRedeploying(true);
-    setRedeployStep('Starting redeploy...');
+    setRedeployStep('Going live again...');
     try {
       await apiClient.redeploy(projectId);
 
@@ -249,9 +249,9 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Failed to load project</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Failed to load app</h2>
           <p className="text-sm text-[var(--text-tertiary)] mb-6">
-            {projectError instanceof Error ? projectError.message : 'Project not found'}
+            {projectError instanceof Error ? projectError.message : 'App not found'}
           </p>
           <Link
             href="/dashboard"

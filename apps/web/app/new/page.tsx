@@ -53,15 +53,17 @@ export default function NewProjectPage() {
   const [pastedCode, setPastedCode] = useState('');
 
   const handleFileSelect = async (file: File) => {
-    if (!file.name.endsWith('.zip')) {
-      setError('Please select a ZIP file');
+    const isPy = file.name.endsWith('.py');
+    const isZip = file.name.endsWith('.zip');
+    if (!isPy && !isZip) {
+      setError('Please select a .py or .zip file');
       return;
     }
     if (file.size > 50 * 1024 * 1024) {
       setError('File size must be less than 50MB');
       return;
     }
-    if (file.size < 100) {
+    if (file.size < 10) {
       setError('File appears to be empty or corrupted');
       return;
     }
@@ -70,18 +72,43 @@ export default function NewProjectPage() {
     setError(null);
     setIsProcessingFile(true);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      setZipBase64(base64);
-      setIsProcessingFile(false);
-    };
-    reader.onerror = () => {
-      setError('Failed to read file');
-      setSelectedFile(null);
-      setIsProcessingFile(false);
-    };
-    reader.readAsDataURL(file);
+    if (isPy) {
+      // Auto-wrap .py file into a zip
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const content = reader.result as string;
+          const zipped = zipSync({ [file.name]: strToU8(content) });
+          const base64 = btoa(String.fromCharCode(...zipped));
+          setZipBase64(base64);
+          setIsProcessingFile(false);
+        } catch {
+          setError('Failed to process file');
+          setSelectedFile(null);
+          setIsProcessingFile(false);
+        }
+      };
+      reader.onerror = () => {
+        setError('Failed to read file');
+        setSelectedFile(null);
+        setIsProcessingFile(false);
+      };
+      reader.readAsText(file);
+    } else {
+      // ZIP file: read as data URL
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        setZipBase64(base64);
+        setIsProcessingFile(false);
+      };
+      reader.onerror = () => {
+        setError('Failed to read file');
+        setSelectedFile(null);
+        setIsProcessingFile(false);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -98,7 +125,7 @@ export default function NewProjectPage() {
       if (match) return match[1].replace('.git', '').replace(/[^a-zA-Z0-9-_]/g, '-');
     }
     if (sourceType === 'zip' && selectedFile) {
-      return selectedFile.name.replace('.zip', '').replace(/[^a-zA-Z0-9-_]/g, '-');
+      return selectedFile.name.replace(/\.(zip|py)$/, '').replace(/[^a-zA-Z0-9-_]/g, '-');
     }
     return 'my-app';
   };
@@ -143,7 +170,7 @@ export default function NewProjectPage() {
       });
       if (response.endpoints.length === 0) {
         setError(
-          'No actions found in this repository. Make sure your project has a Python file with functions (e.g., main.py with at least one function).'
+          'No actions found in this repository. Make sure it has a Python file with functions (e.g., main.py with at least one function).'
         );
         setIsSubmitting(false);
         setSubmittingStep('');
@@ -183,7 +210,7 @@ export default function NewProjectPage() {
       });
       if (response.endpoints.length === 0) {
         setError(
-          'No actions found in this upload. Make sure your project has a Python file with functions (e.g., main.py with at least one function).'
+          'No actions found in this upload. Make sure it has a Python file with functions (e.g., main.py with at least one function).'
         );
         setIsSubmitting(false);
         setSubmittingStep('');
@@ -396,7 +423,7 @@ export default function NewProjectPage() {
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
                 tabIndex={0}
                 role="button"
-                aria-label="Upload ZIP file"
+                aria-label="Upload .py or .zip file"
                 className={`flex items-center gap-3 px-4 py-3.5 border border-dashed rounded-lg cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
                   isDragging
                     ? 'border-[var(--accent)] bg-[var(--accent)]/5'
@@ -406,7 +433,7 @@ export default function NewProjectPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".zip"
+                  accept=".zip,.py"
                   onChange={(e) => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]); e.target.value = ''; }}
                   className="hidden"
                   aria-hidden="true"
@@ -416,7 +443,7 @@ export default function NewProjectPage() {
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                   </svg>
                 </div>
-                <span className="text-[13px] text-[var(--text-secondary)]">Drop project folder or .zip</span>
+                <span className="text-[13px] text-[var(--text-secondary)]">Drop a .py file or .zip</span>
               </div>
             )}
             {/* Or Divider */}
@@ -431,8 +458,8 @@ export default function NewProjectPage() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-[15px] font-semibold text-[var(--text-primary)]">Paste your code</div>
-                  <div className="text-[13px] text-[var(--text-secondary)]">Paste a Python script, we&apos;ll wrap it as an app</div>
+                  <div className="text-[15px] font-semibold text-[var(--text-primary)]">Paste from ChatGPT</div>
+                  <div className="text-[13px] text-[var(--text-secondary)]">Paste AI-generated code, we&apos;ll turn it into an app</div>
                 </div>
               </div>
               <textarea
@@ -442,6 +469,7 @@ export default function NewProjectPage() {
                 rows={6}
                 className="w-full py-3 px-4 bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg text-[13px] text-[var(--text-primary)] font-mono placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)] transition-colors resize-none"
               />
+              <p className="text-[11px] text-[var(--text-tertiary)] mt-1.5">Paste your Python code. It needs at least one function.</p>
               <button
                 onClick={handlePasteSubmit}
                 disabled={!pastedCode.trim()}

@@ -51,9 +51,9 @@ export default function TemplatesPage() {
       router.push(`/create/configure?project=${response.project_id}`);
     } catch (err) {
       console.error('Template creation failed:', err);
-      const message = err instanceof Error ? err.message : 'Failed to create project from template';
+      const message = err instanceof Error ? err.message : 'Failed to create app from template';
       if (message.includes('Authentication') || message.includes('401') || message.includes('auth')) {
-        setError('Please sign in to create projects from templates.');
+        setError('Please sign in to create apps from templates.');
       } else {
         setError(message);
       }

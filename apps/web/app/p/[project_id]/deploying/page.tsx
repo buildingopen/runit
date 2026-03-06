@@ -76,7 +76,7 @@ export default function DeployingPage({ params }: PageProps) {
           const streamUrl = `${API_BASE_URL}/v1/projects/${projectId}/deploy/stream?token=${encodeURIComponent(token)}`;
           eventSource = new EventSource(streamUrl);
         } catch {
-          setError('Failed to connect to deploy stream');
+          setError('Failed to connect to progress updates');
           return;
         }
 
