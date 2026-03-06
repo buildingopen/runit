@@ -1,7 +1,7 @@
 {
   "name": "@runit/mcp-server",
   "version": "0.1.0",
-  "description": "MCP server for RunIt - deploy and run Python code via AI agents",
+  "description": "MCP server for RunIt, lets AI agents deploy and run apps",
   "type": "module",
   "bin": {
     "runit-mcp": "./dist/index.js"
