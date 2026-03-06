@@ -19,9 +19,9 @@ interface BillingData {
 }
 
 const PLANS = [
-  { tier: 'free', name: 'Free', price: '$0', features: ['50 CPU runs/hr', '5 GPU runs/hr', '3 projects', '10 MB uploads'] },
-  { tier: 'pro', name: 'Pro', price: '$19/mo', features: ['500 CPU runs/hr', '50 GPU runs/hr', '25 projects', '50 MB uploads'] },
-  { tier: 'team', name: 'Team', price: '$49/mo', features: ['2,000 CPU runs/hr', '200 GPU runs/hr', '100 projects', '100 MB uploads'] },
+  { tier: 'free', name: 'Free', price: '$0', features: ['50 CPU runs/hr', '5 GPU runs/hr', '3 apps', '10 MB uploads'] },
+  { tier: 'pro', name: 'Pro', price: '$19/mo', features: ['500 CPU runs/hr', '50 GPU runs/hr', '25 apps', '50 MB uploads'] },
+  { tier: 'team', name: 'Team', price: '$49/mo', features: ['2,000 CPU runs/hr', '200 GPU runs/hr', '100 apps', '100 MB uploads'] },
 ];
 
 export default function BillingPage() {
@@ -107,7 +107,7 @@ export default function BillingPage() {
                 <div className="text-[20px] font-semibold text-[var(--text-primary)]">{billing.usage.gpu_runs}</div>
               </div>
               <div>
-                <div className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Projects</div>
+                <div className="text-[11px] text-[var(--text-tertiary)] uppercase tracking-wider mb-1">Apps</div>
                 <div className="text-[20px] font-semibold text-[var(--text-primary)]">{billing.usage.projects_count}</div>
               </div>
             </div>

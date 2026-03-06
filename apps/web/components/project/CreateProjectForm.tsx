@@ -82,7 +82,7 @@ export function CreateProjectForm() {
       // Navigate to the project page
       router.push(`/p/${response.project_id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create project');
+      setError(err instanceof Error ? err.message : 'Failed to create app');
       setIsSubmitting(false);
     }
   };
@@ -92,7 +92,7 @@ export function CreateProjectForm() {
       {/* Project Name */}
       <div>
         <label htmlFor="project-name" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-          Project Name
+          App Name
         </label>
         <input
           id="project-name"
@@ -188,10 +188,10 @@ export function CreateProjectForm() {
         {isSubmitting ? (
           <>
             <LoadingSpinner size="sm" className="border-white border-t-transparent" />
-            Creating Project...
+            Creating App...
           </>
         ) : (
-          'Create Project'
+          'Create App'
         )}
       </button>
     </form>

@@ -82,7 +82,7 @@ export default function MarketingPage() {
 
             {/* Trust badges */}
             <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-7 text-[13px] text-[var(--text-tertiary)]">
-              {['Free forever', 'No credit card', '60 second deploy'].map((text) => (
+              {['Free forever', 'No credit card', '60 seconds to go live'].map((text) => (
                 <span key={text} className="flex items-center gap-1.5 whitespace-nowrap">
                   <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                   {text}
@@ -261,7 +261,7 @@ export default function MarketingPage() {
             <AudienceCard
               icon={<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>}
               title="ChatGPT users"
-              description="ChatGPT gave you working code. Runtime turns it into a real app anyone can use, with a UI and a shareable link."
+              description="ChatGPT gave you working code. RunIt turns it into a real app anyone can use, with a UI and a shareable link."
             />
           </div>
 

@@ -68,7 +68,7 @@ export default function SuccessPage({ params }: PageProps) {
   };
 
   const handleShareTwitter = () => {
-    const text = `I just launched ${project?.name || 'my app'} on Runtime!`;
+    const text = `I just launched ${project?.name || 'my app'} on RunIt!`;
     const shareUrl = hasUrl ? runtimeUrl : window.location.href;
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -115,7 +115,7 @@ export default function SuccessPage({ params }: PageProps) {
           {project?.name || 'Your app'} is ready!
         </h1>
         <p className="text-[16px] text-[var(--text-secondary)] mb-8">
-          Share it with anyone &mdash; they can run it instantly
+          Share it with anyone, they can run it instantly
         </p>
 
         {/* URL Box */}
