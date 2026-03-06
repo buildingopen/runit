@@ -183,3 +183,30 @@ class StorageClient:
 
 # Singleton instance
 storage = StorageClient()
+
+
+# ---- Human-friendly aliases ----
+
+_SENTINEL = object()
+
+
+def remember(key, value=_SENTINEL):
+    """If one arg: recall a stored value. If two args: store a value.
+
+    Examples:
+        remember("username", "Alice")   # stores "Alice"
+        remember("username")            # returns "Alice"
+    """
+    if value is _SENTINEL:
+        return storage.get(key)
+    storage.set(key, value)
+    return value
+
+
+def forget(key):
+    """Delete a stored value.
+
+    Example:
+        forget("username")  # removes "username" from storage
+    """
+    storage.delete(key)

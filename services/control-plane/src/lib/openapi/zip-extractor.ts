@@ -192,15 +192,14 @@ def extract_plain_functions(filepath):
             if node.module and 'fastapi' in node.module.lower():
                 return []  # Already a FastAPI app
 
-    # Find top-level function definitions with at least one typed parameter
+    # Find top-level function definitions (with or without type hints)
     for node in ast.iter_child_nodes(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             # Skip private/dunder functions
             if node.name.startswith('_'):
                 continue
 
-            # Check if function has typed parameters
-            has_typed_params = False
+            # Extract parameters; default untyped params to str
             params = []
             for arg in node.args.args:
                 if arg.arg == 'self' or arg.arg == 'cls':
@@ -208,7 +207,6 @@ def extract_plain_functions(filepath):
                 param_info = {'name': arg.arg, 'required': True}
                 if arg.annotation:
                     param_info['schema'] = annotation_to_schema(arg.annotation)
-                    has_typed_params = True
                 else:
                     param_info['schema'] = {'type': 'string'}
                 params.append(param_info)
@@ -219,10 +217,12 @@ def extract_plain_functions(filepath):
                 for i, param in enumerate(params[len(params) - num_defaults:]):
                     param['required'] = False
 
-            # Get return type annotation
+            # Get return type annotation; default to dict if missing
             return_schema = None
             if node.returns:
                 return_schema = annotation_to_schema(node.returns)
+            else:
+                return_schema = {'type': 'object'}
 
             # Extract docstring
             summary = None
@@ -231,15 +231,14 @@ def extract_plain_functions(filepath):
                 isinstance(node.body[0].value.value, str)):
                 summary = node.body[0].value.value.split('\\n')[0].strip()
 
-            # Include function if it has typed params or a return type
-            if has_typed_params or return_schema:
-                functions.append({
-                    'name': node.name,
-                    'params': params,
-                    'return_schema': return_schema,
-                    'summary': summary,
-                    'is_async': isinstance(node, ast.AsyncFunctionDef),
-                })
+            # Include any public function (typed or untyped)
+            functions.append({
+                'name': node.name,
+                'params': params,
+                'return_schema': return_schema,
+                'summary': summary,
+                'is_async': isinstance(node, ast.AsyncFunctionDef),
+            })
 
     return functions
 
