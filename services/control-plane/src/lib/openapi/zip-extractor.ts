@@ -446,7 +446,10 @@ sys.exit(1)
  */
 export async function extractOpenAPIFromZip(zipBase64: string): Promise<ExtractedOpenAPI & { updated_code_bundle?: string }> {
   const workDir = join(tmpdir(), `openapi-extract-${randomUUID()}`);
-  mkdirSync(workDir, { recursive: true });
+  // Extract user code to a subdirectory so the script files (extract.py, config.json)
+  // don't get picked up during Python file scanning
+  const codeDir = join(workDir, 'code');
+  mkdirSync(codeDir, { recursive: true });
 
   // Write the static Python script
   const scriptPath = join(workDir, 'extract.py');
@@ -457,7 +460,7 @@ export async function extractOpenAPIFromZip(zipBase64: string): Promise<Extracte
   const configPath = join(workDir, 'config.json');
   writeFileSync(configPath, JSON.stringify({
     zip_base64: zipBase64,
-    work_dir: workDir,
+    work_dir: codeDir,
   }));
 
   try {
@@ -510,7 +513,7 @@ export async function extractOpenAPIFromZip(zipBase64: string): Promise<Extracte
     // If auto-wrapped, re-bundle the ZIP with the wrapper included
     let updated_code_bundle: string | undefined;
     if (autoWrapped) {
-      updated_code_bundle = rebundleWithWrapper(zipBase64, workDir);
+      updated_code_bundle = rebundleWithWrapper(zipBase64, codeDir);
     }
 
     // Read runit.yaml if present in the bundle

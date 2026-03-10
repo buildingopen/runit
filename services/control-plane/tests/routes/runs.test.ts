@@ -4,8 +4,9 @@ vi.mock('../../src/routes/projects', () => ({
   getProject: vi.fn(),
 }));
 
-vi.mock('../../src/lib/modal/client', () => ({
-  executeOnModal: vi.fn(),
+const mockExecute = vi.fn();
+vi.mock('../../src/lib/compute/index', () => ({
+  getComputeBackend: vi.fn(() => ({ execute: mockExecute })),
 }));
 
 vi.mock('../../src/routes/secrets', () => ({
@@ -36,7 +37,6 @@ vi.mock('../../src/db/projects-store', () => ({
 }));
 
 import runs from '../../src/routes/runs';
-import { executeOnModal } from '../../src/lib/modal/client';
 import { getDecryptedSecretsForRun } from '../../src/routes/secrets';
 import { encryptSecretsBundle } from '../../src/encryption/kms';
 import { getAuthContext } from '../../src/middleware/auth';
@@ -106,7 +106,7 @@ describe('routes/runs', () => {
     vi.mocked(getDecryptedSecretsForRun).mockResolvedValue({});
     vi.mocked(encryptSecretsBundle).mockResolvedValue('enc-secrets');
 
-    vi.mocked(executeOnModal).mockResolvedValue({
+    mockExecute.mockResolvedValue({
       run_id: 'run-1',
       status: 'success',
       http_status: 200,
@@ -114,7 +114,7 @@ describe('routes/runs', () => {
       duration_ms: 123,
       logs: 'done',
       artifacts: [],
-    } as any);
+    });
   });
 
   it('returns 400 when required fields are missing', async () => {
@@ -211,7 +211,7 @@ describe('routes/runs', () => {
     );
 
     expect(encryptSecretsBundle).toHaveBeenCalledWith({ API_KEY: 'abc123secret' });
-    expect(executeOnModal).toHaveBeenCalledWith(
+    expect(mockExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         run_id: 'run-1',
         endpoint: 'POST /extract',
@@ -232,7 +232,7 @@ describe('routes/runs', () => {
   });
 
   it('marks run as error when modal execution rejects', async () => {
-    vi.mocked(executeOnModal).mockRejectedValue(new Error('modal down'));
+    mockExecute.mockRejectedValue(new Error('backend down'));
 
     const res = await runs.request('/', {
       method: 'POST',

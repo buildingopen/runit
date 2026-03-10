@@ -68,8 +68,9 @@ vi.mock('../../src/db/runs-store', () => ({
   listProjectRuns: vi.fn(async () => []),
 }));
 
-vi.mock('../../src/lib/modal/client', () => ({
-  executeOnModal: vi.fn(),
+const mockExecute = vi.fn();
+vi.mock('../../src/lib/compute/index', () => ({
+  getComputeBackend: vi.fn(() => ({ execute: mockExecute })),
 }));
 
 vi.mock('../../src/lib/openapi/zip-extractor', () => ({
@@ -102,7 +103,6 @@ vi.mock('../../src/lib/validation-utils', () => ({
 import { Hono } from 'hono';
 import projects from '../../src/routes/projects';
 import runs from '../../src/routes/runs';
-import { executeOnModal } from '../../src/lib/modal/client';
 import { extractOpenAPIFromZip } from '../../src/lib/openapi/zip-extractor';
 import { getAuthContext } from '../../src/middleware/auth';
 import { getDecryptedSecretsForRun } from '../../src/routes/secrets';
@@ -134,7 +134,7 @@ describe('full-flow integration: upload -> run -> result', () => {
 
     vi.mocked(getDecryptedSecretsForRun).mockResolvedValue({});
 
-    vi.mocked(executeOnModal).mockImplementation(async (req: any) => ({
+    mockExecute.mockImplementation(async (req: any) => ({
       run_id: req.run_id,
       status: 'success',
       http_status: 200,
@@ -190,8 +190,8 @@ describe('full-flow integration: upload -> run -> result', () => {
 
     const run_id = runBody.run_id;
 
-    // Verify executeOnModal was called with correct cross-store data
-    expect(executeOnModal).toHaveBeenCalledWith(
+    // Verify compute backend was called with correct cross-store data
+    expect(mockExecute).toHaveBeenCalledWith(
       expect.objectContaining({
         run_id,
         endpoint: 'POST /greet',
@@ -218,7 +218,7 @@ describe('full-flow integration: upload -> run -> result', () => {
   });
 
   it('propagates error status when Modal execution fails', async () => {
-    vi.mocked(executeOnModal).mockImplementation(async (req: any) => ({
+    mockExecute.mockImplementation(async (req: any) => ({
       run_id: req.run_id,
       status: 'error',
       http_status: 500,
