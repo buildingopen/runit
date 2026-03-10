@@ -59,6 +59,7 @@ No database setup. Built-in key-value storage.
 | [Invoice Generator](examples/invoice-generator) | Create invoices with automatic tax calculation |
 | [Text Analyzer](examples/text-analyzer) | Count words, find common phrases, detect sentiment |
 | [Unit Converter](examples/unit-converter) | Convert temperatures and distances between units |
+| [Visit Counter](examples/visit-counter) | Greet visitors and track counts with `remember()` |
 
 ---
 

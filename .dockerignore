@@ -7,7 +7,13 @@ dist
 .env
 .env.*
 !.env.example
-infra/
-apps/
 .queen/
 .claude/
+coverage/
+*.log
+WORKPLAN-*.md
+screenshots/
+repro-bundles/
+playwright-report/
+test-results/
+services/runner/MagicMock/

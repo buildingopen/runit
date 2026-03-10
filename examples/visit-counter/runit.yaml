@@ -1,0 +1,3 @@
+name: visit-counter
+description: Greet visitors and track visit counts with built-in storage
+entrypoint: main.py
