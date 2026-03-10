@@ -133,8 +133,8 @@ ptw
 # Skip slow tests
 pytest -m "not slow"
 
-# Skip Modal tests (if no credentials)
-pytest -m "not requires_modal"
+# Skip integration tests
+pytest -m "not integration"
 ```
 
 ### E2E Tests (Playwright)
@@ -267,11 +267,10 @@ def test_dependency_installation():
     pass
 
 
-@pytest.mark.requires_modal
-def test_modal_function_execution():
-    """Test Modal function execution (requires credentials)."""
-    # TODO: Agent 2 (KERNEL) will implement
-    # This test will be skipped if MODAL_TOKEN_ID not set
+@pytest.mark.integration
+def test_docker_function_execution():
+    """Test Docker function execution (requires Docker daemon)."""
+    # TODO: implement
     pass
 ```
 
@@ -477,7 +476,7 @@ def test_concurrent_runs():
 ✅ Test the happy path first
 ✅ Test error cases second
 ✅ Use fixtures for common setup
-✅ Mock external services (API calls, Modal)
+✅ Mock external services (API calls, compute backends)
 ✅ Write descriptive test names
 ✅ Keep tests fast (<1s per unit test)
 ✅ Use appropriate markers (`@slow`, `@integration`, `@requires_modal`)

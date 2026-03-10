@@ -1,4 +1,4 @@
-{$API_DOMAIN:api.runtime-ai.com} {
+{$API_DOMAIN:api.runit.dev} {
     reverse_proxy localhost:3001
 
     header {
@@ -7,7 +7,7 @@
     }
 
     log {
-        output file /var/log/caddy/runtime-api.log
+        output file /var/log/caddy/runit-api.log
         format filter {
             wrap json
             fields {

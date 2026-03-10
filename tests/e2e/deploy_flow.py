@@ -190,17 +190,17 @@ def hello():
         await page.screenshot(path=SCREENSHOT_DIR / f"{timestamp()}_03e_after_click.png")
 
         # Wait for status to change from "Waiting" - indicates request started
-        # Modal cold starts can exceed 3 minutes, so treat timeout as acceptable
+        # Docker containers may take time to start, so treat timeout as acceptable
         try:
             await page.wait_for_function(
                 "() => !document.body.innerText.includes('No results yet')",
-                timeout=180000  # 3 minutes for Modal cold start
+                timeout=60000  # 1 minute for Docker container start
             )
 
             # Wait for completion (Success OR Error - both indicate Modal responded)
             try:
                 success_badge = page.locator("text=Success")
-                await expect(success_badge).to_be_visible(timeout=180000)  # 3 minutes
+                await expect(success_badge).to_be_visible(timeout=60000)  # 1 minute
                 # If success, verify response
                 response_text = page.locator("text=Hello World")
                 await expect(response_text).to_be_visible(timeout=5000)
@@ -208,14 +208,14 @@ def hello():
                 # Check if it errored (still means Modal responded)
                 error_badge = page.locator("span:has-text('Error')").first
                 if await error_badge.is_visible():
-                    print("Run completed with error status - Modal responded")
+                    print("Run completed with error status - container responded")
                 else:
-                    print("Run status unclear but Modal may still be processing")
+                    print("Run status unclear but container may still be processing")
         except Exception:
-            # Modal didn't respond within timeout - this is an infrastructure issue,
+            # Container didn't respond within timeout - this is an infrastructure issue,
             # not a code bug. The deploy flow (create -> configure -> deploy -> success)
             # already passed, which is what this test primarily validates.
-            print("Modal execution timed out - cold start or infrastructure issue (acceptable)")
+            print("Execution timed out - infrastructure issue (acceptable)")
 
         await page.screenshot(path=SCREENSHOT_DIR / f"{timestamp()}_03f_run_result.png")
 

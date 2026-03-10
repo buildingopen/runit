@@ -164,7 +164,7 @@ test.describe('Golden Path', () => {
     await expect(runButton).toBeVisible({ timeout: 10000 });
     await runButton.click();
 
-    // Wait for execution result (Modal cold start can take time)
+    // Wait for execution result (container start may take time)
     await page.waitForFunction(
       () => {
         const text = document.body?.textContent || '';

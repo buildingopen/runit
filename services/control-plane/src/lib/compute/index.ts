@@ -1,5 +1,5 @@
 // ABOUTME: Factory for compute backends. Reads COMPUTE_BACKEND env var to select implementation.
-// ABOUTME: Defaults to Modal; supports "docker" for local development.
+// ABOUTME: Defaults to Docker for self-hosted; supports "modal" for cloud deployment.
 
 import type { ComputeBackend } from './types.js';
 import { ModalBackend } from './modal-backend.js';
@@ -10,15 +10,15 @@ let instance: ComputeBackend | null = null;
 export function getComputeBackend(): ComputeBackend {
   if (instance) return instance;
 
-  const backend = process.env.COMPUTE_BACKEND || 'modal';
+  const backend = process.env.COMPUTE_BACKEND || 'docker';
 
   switch (backend) {
-    case 'docker':
-      instance = new DockerBackend();
-      break;
     case 'modal':
-    default:
       instance = new ModalBackend();
+      break;
+    case 'docker':
+    default:
+      instance = new DockerBackend();
       break;
   }
 
