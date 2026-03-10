@@ -7,7 +7,7 @@ End-to-end tests that verify the control plane functionality against a real Supa
 These tests validate:
 - **Projects**: Full project lifecycle (create, get, list, delete)
 - **Secrets**: Secret CRUD operations, encryption verification, masking
-- **Deployment**: Deployment flow with mocked Modal
+- **Deployment**: Deployment flow with mocked compute backend
 
 ## Prerequisites
 
