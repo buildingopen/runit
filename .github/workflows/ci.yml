@@ -101,7 +101,7 @@ jobs:
         run: PYTHONPATH=. pytest tests/ -v --tb=short --cov=runit --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 
   # E2E Tests (main branch only, non-blocking)
-  # Requires running servers + Supabase; expected to fail without infrastructure
+  # Requires running servers + Docker; expected to fail without infrastructure
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest

@@ -5,17 +5,16 @@ Hono-based API backend for RunIt.
 ## Features
 
 - Project and endpoint management
-- Secrets encryption with AES-256-GCM
-- Artifact storage (S3)
+- Secrets encryption with AES-256-GCM (envelope encryption)
 - Context source management
-- Cost monitoring and rate limiting
+- Share link generation
+- `createApp()` factory for extensibility
 
 ## Tech Stack
 
-- [Hono](https://hono.dev) — Web framework
-- [Supabase](https://supabase.com) — Database and auth
-- [AWS KMS](https://aws.amazon.com/kms/) — Key management
-- [AWS S3](https://aws.amazon.com/s3/) — Artifact storage
+- [Hono](https://hono.dev) - Web framework
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) - Database (self-hosted)
+- Node.js crypto - Local key management
 
 ## Development
 
@@ -37,35 +36,51 @@ npm run test
 
 ```bash
 PORT=3001
-DATABASE_URL=postgresql://...
-SUPABASE_URL=https://...
-SUPABASE_SERVICE_KEY=...
-AWS_S3_BUCKET=...
-AWS_KMS_KEY_ID=...
-MASTER_ENCRYPTION_KEY=...
+MASTER_ENCRYPTION_KEY=          # Required: openssl rand -base64 32
+API_KEY=                        # Optional: protect API access
+COMPUTE_BACKEND=docker          # Default: docker
+RUNNER_IMAGE=runit-runner       # Docker image for sandbox
+RUNNER_MEMORY=512m              # Container memory limit
+RUNNER_CPUS=1                   # Container CPU limit
 ```
 
 ## API Routes
 
-- `POST /projects` — Create project from ZIP upload
-- `GET /projects/:id` — Get project details
-- `POST /projects/:id/run` — Execute endpoint
-- `GET /projects/:id/runs` — List run history
-- `POST /projects/:id/secrets` — Store encrypted secret
-- `POST /projects/:id/context` — Add context source
+- `POST /projects` - Create project from ZIP upload
+- `GET /projects/:id` - Get project details
+- `POST /projects/:id/run` - Execute endpoint
+- `GET /projects/:id/runs` - List run history
+- `POST /projects/:id/secrets` - Store encrypted secret
+- `POST /projects/:id/context` - Add context source
 
 ## Architecture
 
 ```
 src/
-├── main.ts           # Entry point
+├── app.ts            # createApp() factory (importable by cloud-plane)
+├── main.ts           # Server entrypoint
+├── index.ts          # Library exports
 ├── routes/           # API route handlers
+├── db/               # Database stores (SQLite / Supabase)
 ├── lib/              # Core utilities
-│   ├── encryption.ts # Secrets encryption
-│   ├── redaction.ts  # Log redaction
-│   └── storage.ts    # S3 operations
+│   ├── compute/      # Docker sandbox management
+│   └── encryption/   # Envelope encryption (LocalKMS)
 └── middleware/       # Request middleware
-    ├── auth.ts       # Authentication
-    ├── quota.ts      # Usage limits
-    └── cost-monitor.ts
+    └── auth.ts       # API key authentication
 ```
+
+## Extensibility
+
+The control plane exports `createApp()` for cloud deployments to extend:
+
+```typescript
+import { createApp } from '@runit/control-plane';
+
+const app = createApp({
+  authMiddleware: customAuth,
+  extraRoutes: [{ path: '/billing', router: billingRoutes }],
+  features: { mode: 'cloud', billing: true },
+});
+```
+
+See the `runit-cloud` repo for a complete cloud implementation.

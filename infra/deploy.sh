@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Runtime AI Backend Deploy Script (local AX41)
+# RunIt Backend Deploy Script (local)
 # Usage: ./infra/deploy.sh (run from repo root)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
-IMAGE_NAME="runtime-api"
-CONTAINER_NAME="runtime-api"
+IMAGE_NAME="runit-api"
+CONTAINER_NAME="runit-api"
 HEALTH_URL="http://localhost:3001/health"
 
 cd "$REPO_ROOT"

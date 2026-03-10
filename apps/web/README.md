@@ -4,19 +4,18 @@ Next.js frontend for RunIt.
 
 ## Features
 
-- Project dashboard
-- ZIP upload interface
-- Run page with dynamic forms
+- Paste code and go live
+- Auto-generated forms from type hints
 - Run history and logs
 - Secrets management UI
 - Share link generation
+- Templates gallery
 
 ## Tech Stack
 
-- [Next.js 15](https://nextjs.org) — React framework
-- [Tailwind CSS 4](https://tailwindcss.com) — Styling
-- [TanStack Query](https://tanstack.com/query) — Data fetching
-- [Supabase](https://supabase.com) — Authentication
+- [Next.js 15](https://nextjs.org) - React framework
+- [Tailwind CSS 4](https://tailwindcss.com) - Styling
+- [TanStack Query](https://tanstack.com/query) - Data fetching
 
 ## Development
 
@@ -41,8 +40,6 @@ npm run test:e2e
 
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 ```
 
 ## Structure

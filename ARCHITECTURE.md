@@ -146,7 +146,7 @@ export default app;
 
 ### Database Stores
 
-Database operations are encapsulated in store modules. Each store checks `isSupabaseConfigured()` and falls back to SQLite when not configured.
+Database operations are encapsulated in store modules. Each store uses SQLite by default. When `SUPABASE_URL` is configured (cloud mode), stores use Supabase PostgreSQL instead.
 
 ## Testing
 

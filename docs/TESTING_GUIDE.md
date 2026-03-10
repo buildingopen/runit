@@ -479,7 +479,7 @@ def test_concurrent_runs():
 ✅ Mock external services (API calls, compute backends)
 ✅ Write descriptive test names
 ✅ Keep tests fast (<1s per unit test)
-✅ Use appropriate markers (`@slow`, `@integration`, `@requires_modal`)
+✅ Use appropriate markers (`@slow`, `@integration`)
 
 ### DON'T:
 ❌ Test implementation details

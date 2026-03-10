@@ -108,17 +108,17 @@ def mock_openapi_spec():
     }
 
 
-# Skip tests that require Modal credentials if not available
+# Skip tests that require Docker if not available
 def pytest_configure(config):
-    config.addinivalue_line("markers", "requires_modal: mark test as requiring Modal credentials")
+    config.addinivalue_line("markers", "requires_docker: mark test as requiring Docker daemon")
 
 
 def pytest_collection_modifyitems(config, items):
-    import os
+    import shutil
 
-    skip_modal = pytest.mark.skip(reason="Modal credentials not available")
+    skip_docker = pytest.mark.skip(reason="Docker not available")
 
     for item in items:
-        if "requires_modal" in item.keywords:
-            if not os.getenv("MODAL_TOKEN_ID"):
-                item.add_marker(skip_modal)
+        if "requires_docker" in item.keywords:
+            if not shutil.which("docker"):
+                item.add_marker(skip_docker)
