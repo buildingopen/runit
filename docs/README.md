@@ -1,4 +1,4 @@
-# Runtime AI Documentation
+# RunIt Documentation
 
 ## Guides
 
@@ -8,6 +8,6 @@
 
 ## Additional Resources
 
-- [Contributing](../CONTRIBUTING.md) — How to contribute to Runtime AI
+- [Contributing](../CONTRIBUTING.md) — How to contribute to RunIt
 - [Security](../SECURITY.md) — Security policy and vulnerability reporting
 - [Changelog](../CHANGELOG.md) — Version history and release notes

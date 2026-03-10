@@ -82,7 +82,7 @@ base_image = (
 )
 
 # Single Modal app (execution factory)
-app = modal.App("execution-layer-runtime")
+app = modal.App("runit-runtime")
 
 
 @app.function(

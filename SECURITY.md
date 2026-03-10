@@ -11,7 +11,7 @@
 If you discover a security vulnerability, please report it privately:
 
 1. **Do not** open a public GitHub issue
-2. Email security concerns to: **security@federicodeponte.com**
+2. Email security concerns to: **hello@buildingopen.org**
 3. Include a detailed description of the vulnerability
 4. Provide steps to reproduce if possible
 
@@ -50,7 +50,7 @@ We will respond within 48 hours and work with you to understand and resolve the 
 
 ## Security Best Practices
 
-When using Runtime AI:
+When using RunIt:
 
 - Never commit secrets to your uploaded code
 - Use the secrets management system for sensitive values

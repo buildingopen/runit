@@ -13,14 +13,14 @@ pip install -e .
 Or install from PyPI (when published):
 
 ```bash
-pip install execution-layer
+pip install runit
 ```
 
 ## Quick Start
 
 ```python
 from fastapi import FastAPI
-from execution_layer import context, save_artifact
+from runit import context, save_artifact
 
 app = FastAPI()
 
@@ -67,7 +67,7 @@ pip install -e ".[dev]"
 pytest
 
 # Run tests with coverage
-pytest --cov=execution_layer --cov-report=html
+pytest --cov=runit --cov-report=html
 ```
 
 ## License

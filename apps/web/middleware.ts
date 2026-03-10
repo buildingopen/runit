@@ -1,87 +1,14 @@
 /**
- * Next.js Middleware - Route Protection
+ * Next.js Middleware - Route Protection (OSS mode)
  *
- * Redirects unauthenticated users to login for protected routes.
- * Public routes: /, /login, /signup, /auth/*, /s/*, /r/*
- * Protected routes: /dashboard, /new, /create/*, /p/*
+ * In OSS mode, all routes are accessible. Authentication is handled
+ * by the control-plane API via API key.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
 
-const AUTH_ROUTES = ['/login', '/signup'];
-
-const PROTECTED_PREFIXES = [
-  '/dashboard',
-  '/new',
-  '/create/',
-  '/p/',
-];
-
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Bypass auth in dev mode (for E2E tests)
-  if (process.env.DEV_MODE === 'true') {
-    return NextResponse.next();
-  }
-
-  // Only run auth checks on protected routes and auth routes
-  const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(p));
-  const isAuthRoute = AUTH_ROUTES.includes(pathname);
-
-  if (!isProtected && !isAuthRoute) {
-    return NextResponse.next();
-  }
-
-  // Skip auth if Supabase is not configured
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return NextResponse.next();
-  }
-
-  // Create Supabase client for middleware
-  let response = NextResponse.next({
-    request: { headers: request.headers },
-  });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[]) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          });
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Redirect authenticated users away from login/signup
-  if (user && AUTH_ROUTES.includes(pathname)) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // Redirect unauthenticated users to login (skip for auth routes)
-  if (!user && !AUTH_ROUTES.includes(pathname)) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  return response;
+export async function middleware(_request: NextRequest) {
+  return NextResponse.next();
 }
 
 export const config = {

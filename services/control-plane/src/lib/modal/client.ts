@@ -75,7 +75,7 @@ def main():
     func_name = f"run_endpoint_{lane}"
 
     fn = modal.Function.from_name(
-        "execution-layer-runtime",
+        "runit-runtime",
         func_name,
         environment_name="main"
     )

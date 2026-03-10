@@ -25,7 +25,7 @@ ERROR_TAXONOMY = {
         "message": "Couldn't find your app's main file.",
         "suggested_fix": (
             "Name your main file main.py with app = FastAPI() inside it, "
-            "or create executionlayer.toml to specify which file to use."
+            "or create runit.toml to specify which file to use."
         ),
     },
     "IMPORT_ERROR": {

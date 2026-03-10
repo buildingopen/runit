@@ -75,7 +75,7 @@ jobs:
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
-          service: execution-layer-control-plane
+          service: runit-control-plane
           region: us-central1
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           env_vars: |

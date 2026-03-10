@@ -1,20 +1,20 @@
-# @runtime-ai/shared
+# @runit/shared
 
-Shared types, contracts, and schemas used across Runtime AI packages.
+Shared types, contracts, and schemas used across RunIt packages.
 
 ## Exports
 
-- `@runtime-ai/shared` — Main exports
-- `@runtime-ai/shared/contracts` — API request/response contracts
-- `@runtime-ai/shared/types` — TypeScript type definitions
-- `@runtime-ai/shared/schemas` — Zod validation schemas
+- `@runit/shared` — Main exports
+- `@runit/shared/contracts` — API request/response contracts
+- `@runit/shared/types` — TypeScript type definitions
+- `@runit/shared/schemas` — Zod validation schemas
 
 ## Usage
 
 ```typescript
-import { ProjectContract, RunContract } from '@runtime-ai/shared/contracts';
-import { Project, Run, Endpoint } from '@runtime-ai/shared/types';
-import { projectSchema, runSchema } from '@runtime-ai/shared/schemas';
+import { ProjectContract, RunContract } from '@runit/shared/contracts';
+import { Project, Run, Endpoint } from '@runit/shared/types';
+import { projectSchema, runSchema } from '@runit/shared/schemas';
 ```
 
 ## Development

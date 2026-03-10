@@ -84,3 +84,8 @@ screenshots/
 .queen/
 WORKPLAN-*.md
 ISSUES.md
+gemini_audit.py
+.claude/
+demo*.cast
+demo*.gif
+demo*.mp4

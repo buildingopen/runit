@@ -1,6 +1,6 @@
-# Contributing to Runtime AI
+# Contributing to RunIt
 
-Thank you for your interest in contributing to Runtime AI! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to RunIt! This document provides guidelines and information for contributors.
 
 ## Getting Started
 
@@ -9,12 +9,12 @@ Thank you for your interest in contributing to Runtime AI! This document provide
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/federicodeponte/runtime-ai.git
-   cd runtime-ai
+   git clone https://github.com/buildingopen/runit.git
+   cd runit
    ```
 3. Add the upstream remote:
    ```bash
-   git remote add upstream https://github.com/federicodeponte/runtime-ai.git
+   git remote add upstream https://github.com/buildingopen/runit.git
    ```
 
 ### Development Setup

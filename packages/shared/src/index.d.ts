@@ -1,7 +1,7 @@
 /**
- * @runtime-ai/shared
+ * @runit/shared
  *
- * Shared types, contracts, and schemas for Runtime.
+ * Shared types, contracts, and schemas for RunIt.
  * Single source of truth to prevent shape drift.
  */
 export * from './contracts';

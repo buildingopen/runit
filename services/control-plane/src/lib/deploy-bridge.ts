@@ -4,7 +4,7 @@
  * Deploy Bridge - Project deployment pipeline
  *
  * "Deploying" a project validates the code bundle and marks it as live.
- * The Modal runtime (execution-layer-runtime) is a shared execution factory
+ * The Modal runtime (runit-runtime) is a shared execution factory
  * deployed once as infrastructure — it is NOT called during project deploy.
  * Modal is called at RUN time via modal-client.ts.
  *

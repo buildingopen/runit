@@ -1,8 +1,6 @@
 /**
- * API Client for Runtime Control Plane
+ * API Client for RunIt Control Plane
  */
-
-import { createBrowserClient } from '@supabase/ssr';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -10,37 +8,12 @@ if (!API_BASE_URL && typeof window !== 'undefined') {
   console.error('NEXT_PUBLIC_API_URL is not configured');
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
 /**
- * Get the current user's access token from Supabase.
- * Returns null if not authenticated.
+ * Get the API key for authenticating requests.
+ * In OSS mode, uses a static API key from environment.
  */
 async function getAccessToken(): Promise<string | null> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    return null;
-  }
-
-  try {
-    const supabase = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data: { session }, error } = await supabase.auth.getSession();
-
-    if (error || !session) {
-      return null;
-    }
-
-    // Check if token is close to expiry (< 60s) and refresh
-    const expiresAt = session.expires_at;
-    if (expiresAt && expiresAt * 1000 - Date.now() < 60000) {
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      return refreshed.session?.access_token || session.access_token;
-    }
-
-    return session.access_token;
-  } catch {
-    return null;
-  }
+  return process.env.NEXT_PUBLIC_API_KEY || null;
 }
 
 export type ProjectStatus = 'draft' | 'deploying' | 'live' | 'failed';
@@ -443,40 +416,6 @@ class APIClient {
       zip_data: string;
       detected_env_vars: string[];
     }>(`/templates/${templateId}/create`, {
-      method: 'POST',
-    });
-  }
-
-  // Get billing subscription info
-  async getBillingSubscription() {
-    return this.request<{
-      tier: string;
-      status: string;
-      current_period_end: string | null;
-      usage: { cpu_runs: number; gpu_runs: number; projects_count: number };
-      limits: {
-        cpuRunsPerHour: number;
-        gpuRunsPerHour: number;
-        maxConcurrentCpu: number;
-        maxConcurrentGpu: number;
-        maxProjects: number;
-        maxSecretsPerProject: number;
-        maxFileSizeMB: number;
-      };
-    }>('/billing/subscription');
-  }
-
-  // Create Stripe checkout session
-  async createCheckoutSession(tier: 'pro' | 'team') {
-    return this.request<{ url: string }>('/billing/checkout', {
-      method: 'POST',
-      body: JSON.stringify({ tier, success_url: window.location.origin, cancel_url: window.location.origin }),
-    });
-  }
-
-  // Create Stripe customer portal session
-  async createPortalSession() {
-    return this.request<{ url: string }>('/billing/portal', {
       method: 'POST',
     });
   }

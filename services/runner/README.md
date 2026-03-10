@@ -1,6 +1,6 @@
 # Runner
 
-Modal-based Python execution runtime for Runtime AI.
+Modal-based Python execution runtime for RunIt.
 
 ## Features
 

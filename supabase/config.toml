@@ -1,7 +1,7 @@
 # Supabase Configuration for Runtime
 # See: https://supabase.com/docs/guides/cli/config
 
-project_id = "runtime-ai"
+project_id = "runit"
 
 [api]
 enabled = true

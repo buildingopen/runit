@@ -19,8 +19,8 @@ test.describe('Homepage', () => {
     // Wait for initial loading to complete (max 10s)
     await page.waitForFunction(() => !document.body.textContent?.includes('Loading...'), { timeout: 10000 }).catch(() => {});
 
-    // Should display Runtime branding
-    const runtimeText = page.locator('text=Runtime');
+    // Should display RunIt branding
+    const runtimeText = page.locator('text=RunIt');
     const visibleCount = await runtimeText.filter({ visible: true }).count();
     expect(visibleCount).toBeGreaterThan(0);
 

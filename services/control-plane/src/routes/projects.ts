@@ -15,7 +15,7 @@ import type {
   CreateProjectResponse,
   ListProjectsResponse,
   GetProjectResponse
-} from '@runtime-ai/shared';
+} from '@runit/shared';
 import { extractOpenAPIFromZip } from '../lib/openapi/zip-extractor.js';
 import {
   validateProjectName,

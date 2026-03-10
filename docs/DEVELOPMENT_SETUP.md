@@ -27,8 +27,8 @@
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/federicodeponte/runtime-ai.git
-cd runtime-ai
+git clone https://github.com/buildingopen/runit.git
+cd runit
 ```
 
 ### 2. Install Dependencies
@@ -63,10 +63,10 @@ NEXT_PUBLIC_ENABLE_MOCK_AUTH=true
 **services/control-plane/.env.local:**
 ```bash
 PORT=3001
-DATABASE_URL=postgresql://user:pass@localhost:5432/execution_layer
+DATABASE_URL=postgresql://user:pass@localhost:5432/runit
 SUPABASE_URL=your-supabase-url
 SUPABASE_SERVICE_KEY=your-service-key
-AWS_S3_BUCKET=runtime-ai-artifacts
+AWS_S3_BUCKET=runit-artifacts
 ```
 
 **services/runner/.env.local:**
@@ -155,7 +155,7 @@ ruff src/
 **Using Docker:**
 ```bash
 docker run -d \
-  --name runtime-ai-db \
+  --name runit-db \
   -e POSTGRES_PASSWORD=password \
   -e POSTGRES_DB=runtime_ai \
   -p 5432:5432 \

@@ -1,5 +1,5 @@
 """
-Context access utilities for Runtime.
+Context access utilities for RunIt.
 
 Provides access to:
 - Secrets (environment variables prefixed with SECRET_)
@@ -17,7 +17,7 @@ class Context:
     Access execution context data (secrets, uploaded context).
 
     Examples:
-        >>> from execution_layer import context
+        >>> from runit import context
         >>>
         >>> # Get a secret
         >>> api_key = context.get_secret("OPENAI_API_KEY")

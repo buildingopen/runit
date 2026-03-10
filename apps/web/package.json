@@ -1,5 +1,5 @@
 {
-  "name": "@runtime-ai/web",
+  "name": "@runit/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,17 +15,13 @@
     "@next/swc-darwin-arm64": "^15.5.4",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^2.5.0",
-    "@runtime-ai/openapi-form": "*",
-    "@runtime-ai/shared": "*",
-    "@runtime-ai/ui": "*",
-    "@sentry/nextjs": "^10.38.0",
-    "@supabase/ssr": "^0.5.0",
-    "@supabase/supabase-js": "^2.38.0",
+    "@runit/openapi-form": "*",
+    "@runit/shared": "*",
+    "@runit/ui": "*",
     "@tanstack/react-query": "^5.0.0",
     "fflate": "0.8.2",
     "hono": "^4.12.4",
     "next": "^15.5.12",
-    "posthog-js": "^1.352.0",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
