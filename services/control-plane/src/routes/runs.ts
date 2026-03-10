@@ -11,7 +11,6 @@ import type {
   CreateRunResponse,
   GetRunStatusResponse,
 } from '@runit/shared';
-import { getProject } from './projects.js';
 import { getComputeBackend } from '../lib/compute/index.js';
 import { getDecryptedSecretsForRun } from './secrets.js';
 import { encryptSecretsBundle } from '../encryption/kms.js';

@@ -169,7 +169,14 @@ export async function createProjectAtomic(
 
   if (error) throw new Error(`Failed to create project: ${error.message}`);
   if (data === false) return null;
-  return getProject(id);
+
+  // Fetch the project we just created. Retry once if replication delay causes null.
+  let project = await getProject(id);
+  if (!project) {
+    await new Promise((r) => setTimeout(r, 200));
+    project = await getProject(id);
+  }
+  return project;
 }
 
 export async function getProject(projectId: string): Promise<Project | null> {

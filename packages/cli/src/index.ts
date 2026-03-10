@@ -648,7 +648,7 @@ program
     console.log(`Opening ${url}...`);
 
     const openCmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
-    exec(`${openCmd} ${url}`, (err) => {
+    exec(`${openCmd} "${url}"`, (err) => {
       if (err) {
         console.error(`Could not open browser: ${err.message}`);
         console.log(`Open manually: ${url}`);

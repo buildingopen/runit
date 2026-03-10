@@ -4,6 +4,7 @@
 import type { Context, Next } from 'hono';
 import { getSupabaseClient, isSupabaseConfigured } from '../db/supabase.js';
 import { features } from '../config/features.js';
+import { logger } from '../lib/logger.js';
 
 export interface AuthUser {
   id: string;
@@ -159,7 +160,7 @@ export async function authMiddleware(c: Context, next: Next) {
     // Dev mode bypass
     if (process.env.DEV_MODE === 'true' && process.env.DEV_USER_ID) {
       const devUserId = process.env.DEV_USER_ID;
-      console.warn(`[DEV_MODE AUDIT] Mock user request: ${c.req.method} ${c.req.path} | User: ${devUserId}`);
+      logger.warn(`[DEV_MODE AUDIT] Mock user request: ${c.req.method} ${c.req.path} | User: ${devUserId}`);
       c.set(AUTH_CONTEXT_KEY, {
         user: { id: devUserId, email: 'dev@localhost', role: 'authenticated' },
         isAuthenticated: true,
