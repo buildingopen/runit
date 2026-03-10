@@ -30,7 +30,7 @@ STATS_FILE=/tmp/cleanup-stats.json npm run cleanup
 Run daily at 2 AM:
 
 ```cron
-0 2 * * * cd /path/to/runtime-ai && npm run cleanup >> /var/log/cleanup.log 2>&1
+0 2 * * * cd /path/to/runit && npm run cleanup >> /var/log/cleanup.log 2>&1
 ```
 
 ### Configuration

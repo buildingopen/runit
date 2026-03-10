@@ -19,7 +19,6 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, pbkdf2Sync } from 'crypto';
-import { KMSClient, EncryptCommand, DecryptCommand } from '@aws-sdk/client-kms';
 import { withSecretsSpan } from '../lib/tracing.js';
 
 // ============================================================================
@@ -154,8 +153,9 @@ export class AWSKMSProvider implements KMSProvider {
   readonly name = 'AWSKMS';
   readonly isProductionReady = true;
 
-  private readonly client: KMSClient;
+  private client: any;
   private readonly keyId: string;
+  private initialized = false;
 
   constructor() {
     const keyId = process.env.AWS_KMS_KEY_ID;
@@ -168,14 +168,21 @@ export class AWSKMSProvider implements KMSProvider {
     }
 
     this.keyId = keyId;
+  }
 
-    // AWS SDK will use standard credential chain (env vars, IAM role, etc.)
+  private async ensureClient(): Promise<void> {
+    if (this.initialized) return;
+    // Dynamic import: @aws-sdk/client-kms is optional (not needed in OSS mode)
+    const { KMSClient } = await import('@aws-sdk/client-kms');
     this.client = new KMSClient({
       region: process.env.AWS_REGION || 'us-east-1',
     });
+    this.initialized = true;
   }
 
   async encryptDEK(dek: Buffer): Promise<Buffer> {
+    await this.ensureClient();
+    const { EncryptCommand } = await import('@aws-sdk/client-kms');
     const command = new EncryptCommand({
       KeyId: this.keyId,
       Plaintext: dek,
@@ -191,6 +198,8 @@ export class AWSKMSProvider implements KMSProvider {
   }
 
   async decryptDEK(encryptedDEK: Buffer): Promise<Buffer> {
+    await this.ensureClient();
+    const { DecryptCommand } = await import('@aws-sdk/client-kms');
     const command = new DecryptCommand({
       KeyId: this.keyId,
       CiphertextBlob: encryptedDEK,

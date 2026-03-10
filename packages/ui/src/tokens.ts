@@ -1,4 +1,4 @@
-// ABOUTME: Design tokens for Runtime v0 - spacing, typography, colors, radius
+// ABOUTME: Design tokens for RunIt - spacing, typography, colors, radius
 // ABOUTME: Linear × Cursor × Colab aesthetic - calm, minimal, outcome-first
 
 export const tokens = {

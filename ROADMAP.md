@@ -16,7 +16,7 @@
 | Control Plane API | **100%** | ✓ | Full CRUD, Modal integration complete |
 | Runner/Executor | **100%** | ✓ | Full execution flow verified |
 | SDK | ~90% | ✓ | Core functionality works |
-| Modal App | **100%** | ✓ | Deployed as `execution-layer-runtime` |
+| Modal App | **100%** | ✓ | Deployed as `runit-runtime` |
 | OpenAPI Bridge | **100%** | ✓ | FastAPI extraction with timeout protection |
 | OpenAPI Extractor | **100%** | ✓ | Subprocess-based, env var detection |
 | E2E Tests | **100%** | ✓ | 5 golden-path tests passing |
@@ -26,7 +26,7 @@
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Modal Deployment | ✅ Complete | `execution-layer-runtime` deployed with `runner-secrets` |
+| Modal Deployment | ✅ Complete | `runit-runtime` deployed with `runner-secrets` |
 | E2E Tests | ✅ Complete | 5 golden-path tests passing (upload, deploy, run) |
 | Artifact Storage | ✅ Complete | Base64 inline storage implemented |
 | Auth Bypass | ✅ Complete | DEV_MODE middleware for local development |
@@ -64,7 +64,7 @@ Modal Execution Logs:
 **Status:** Deployed and verified
 
 **Deployment:**
-- App Name: `execution-layer-runtime`
+- App Name: `runit-runtime`
 - Secret: `runner-secrets` (MASTER_ENCRYPTION_KEY configured)
 
 **Files:**
@@ -180,11 +180,11 @@ Modal Execution Logs:
 **Status:** 128 tests passing across all packages
 
 ```
-@runtime-ai/shared:       23 tests passing
-@runtime-ai/ui:           20 tests passing
-@runtime-ai/openapi-form: 21 tests passing
-@runtime-ai/control-plane: 63 tests passing
-@runtime-ai/web:           1 test passing
+@runit/shared:       23 tests passing
+@runit/ui:           20 tests passing
+@runit/openapi-form: 21 tests passing
+@runit/control-plane: 63 tests passing
+@runit/web:           1 test passing
 ```
 
 **Runner Tests (Python):**
@@ -228,7 +228,7 @@ Modal Execution Logs:
 
 ### 4.1 Modal Deployment ✅ COMPLETE
 
-- [x] Modal app deployed: `execution-layer-runtime`
+- [x] Modal app deployed: `runit-runtime`
 - [x] Modal secret created: `runner-secrets`
 - [x] Functions callable from control plane (verified via E2E tests)
 
@@ -248,7 +248,7 @@ Modal Execution Logs:
 | Artifact Storage | ✅ Base64 inline storage |
 | Control Plane API | ✅ Full CRUD + run execution |
 | Web UI | ✅ Form generation from OpenAPI |
-| Modal Deployment | ✅ `execution-layer-runtime` deployed |
+| Modal Deployment | ✅ `runit-runtime` deployed |
 | Unit Tests | ✅ 128 passing |
 | E2E Tests | ✅ 5 passing |
 

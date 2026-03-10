@@ -19,32 +19,29 @@ Developer docs can use technical terms. User-facing text uses the friendly terms
 
 ## Architecture
 Monorepo with:
-- `services/control-plane/` - Hono.js API server, SQLite, deployment orchestration
-- `services/runner/` - Python executor, runit SDK, storage, Modal/Docker backends
+- `services/control-plane/` - Hono.js API server, SQLite/Supabase, deployment orchestration
+  - Exports `createApp()` factory for cloud-plane to extend
+- `services/runner/` - Python executor, runit SDK (`@app.action`, `remember()`), Docker sandbox
 - `packages/cli/` - CLI tool (`runit deploy`, `runit run`, etc.)
 - `packages/client/` - JavaScript/TypeScript client SDK
 - `packages/mcp-server/` - MCP server for AI agent integration
 - `packages/openapi-form/` - Auto-generates web forms from OpenAPI schemas
-- `apps/web/` - Next.js web app (landing, upload, run, share pages)
+- `packages/shared/` - TypeScript types and contracts
+- `packages/ui/` - Shared React components
+- `apps/web/` - Next.js web app (landing, paste code, run, share pages)
 
-## Deployment (AX41, free-only)
-- **Compute backend**: Docker on AX41 (not Modal). Set `COMPUTE_BACKEND=docker`.
-- **Stripe/billing**: Optional. Env vars (`STRIPE_*`, `FRONTEND_URL`) are `required: 'optional'` in `env.ts`. Billing routes return 503 when no Stripe keys. Everyone defaults to `free` tier.
-- **Runner image**: `docker build -t runtime-runner:latest services/runner/`
-- **Control plane image**: Built via `infra/deploy.sh` or `docker-compose -f infra/docker-compose.yml up -d`
-- **Infra files**: `infra/docker-compose.yml` (docker.sock mounted), `infra/Caddyfile` (reverse proxy), `infra/.env.example` (template), `infra/deploy.sh`
-- **Dockerfile** includes `docker-cli` so control-plane container can spawn runner containers via the mounted socket.
-- **Supabase**: Free tier for auth + data. Federico sets up separately, provides URL + keys.
-- **Status (Mar 2026)**: Code changes done, build passes, 404 tests pass, runner image built. Waiting on Supabase project creation before deploying.
+## Two-Repo Strategy
+- **OSS repo** (`buildingopen/runit`, public): Self-hosted, SQLite, Docker sandbox, API-key auth
+- **Cloud repo** (`federicodeponte/runit-cloud`, private): Imports @runit/control-plane, adds Supabase auth, Stripe billing, quotas
 
 ## Key Commands
 - Build all: `npm run build`
-- Build control plane: `npx turbo run build --filter=@runtime-ai/control-plane`
+- Build control plane: `npx turbo run build --filter=@runit/control-plane`
 - Test control plane: `npm test --workspace=services/control-plane`
 - Control plane dev: `cd services/control-plane && npm run dev`
 - Web app: `cd apps/web && npm run dev`
 - CLI: `node packages/cli/dist/index.js`
-- Deploy to AX41: `./infra/deploy.sh` (from repo root)
+- Docker: `docker-compose up --build`
 
 ## Style
 - Never use em dashes

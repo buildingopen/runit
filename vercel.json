@@ -1,6 +1,6 @@
 {
   "framework": "nextjs",
   "installCommand": "npm ci",
-  "buildCommand": "npx turbo run build --filter=@runtime-ai/web",
+  "buildCommand": "npx turbo run build --filter=@runit/web",
   "outputDirectory": "apps/web/.next"
 }

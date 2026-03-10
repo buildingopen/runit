@@ -3,7 +3,7 @@
  * ABOUTME: Extracts metadata from URLs using static HTML parsing
  */
 
-import { FetchContextResponse } from '@runtime-ai/shared/contracts';
+import { FetchContextResponse } from '@runit/shared/contracts';
 import { lookup } from 'node:dns/promises';
 import { isIPv4 } from 'node:net';
 
@@ -132,7 +132,7 @@ export async function fetchContextFromURL(url: string, name: string): Promise<Fe
     const response = await fetch(fetchUrl.toString(), {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'ExecutionLayer/1.0 (+https://executionlayer.com/bot)',
+        'User-Agent': 'ExecutionLayer/1.0 (+https://runit.dev/bot)',
         'Host': originalHostname,
       },
       redirect: 'error',  // Block redirects to prevent SSRF via DNS rebinding

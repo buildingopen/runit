@@ -15,7 +15,7 @@ pip install -e .
 
 ```python
 from fastapi import FastAPI
-from execution_layer import context, save_artifact, save_dataframe
+from runit import context, save_artifact, save_dataframe
 
 app = FastAPI()
 
@@ -44,7 +44,7 @@ Access execution environment data:
 Secrets are injected as environment variables prefixed with `SECRET_`:
 
 ```python
-from execution_layer import context
+from runit import context
 
 # Get a secret
 api_key = context.get_secret("OPENAI_API_KEY")
@@ -68,7 +68,7 @@ else:
 Context files are JSON documents mounted at `/context/`:
 
 ```python
-from execution_layer import context
+from runit import context
 
 # Get context by name
 company = context.get_context("company")
@@ -103,7 +103,7 @@ Save outputs that users can download:
 #### Basic File Saving
 
 ```python
-from execution_layer import save_artifact
+from runit import save_artifact
 
 # Save text file
 save_artifact("output.txt", "Hello World")
@@ -124,7 +124,7 @@ save_artifact("data.csv", csv_content)
 #### JSON Convenience Helper
 
 ```python
-from execution_layer import save_json
+from runit import save_json
 
 # Automatically formats and saves JSON
 save_json("result.json", {
@@ -136,7 +136,7 @@ save_json("result.json", {
 #### DataFrame Export
 
 ```python
-from execution_layer import save_dataframe
+from runit import save_dataframe
 import pandas as pd
 
 df = pd.DataFrame({
@@ -185,7 +185,7 @@ The platform provides these environment variables:
 from fastapi import FastAPI
 from pydantic import BaseModel
 import httpx
-from execution_layer import context, save_json, save_dataframe
+from runit import context, save_json, save_dataframe
 
 app = FastAPI()
 
@@ -223,7 +223,7 @@ async def enrich_company(req: EnrichRequest):
 
 ```python
 from fastapi import FastAPI
-from execution_layer import save_dataframe, save_json
+from runit import save_dataframe, save_json
 import pandas as pd
 import re
 
@@ -265,7 +265,7 @@ async def validate_emails(emails: list[str]):
 
 ```python
 from fastapi import FastAPI, UploadFile
-from execution_layer import context, save_artifact
+from runit import context, save_artifact
 from PIL import Image
 import io
 
@@ -339,7 +339,7 @@ ls -lh test_artifacts/
 ### Pattern 1: External API Integration
 
 ```python
-from execution_layer import context, save_json
+from runit import context, save_json
 
 @app.post("/fetch_data")
 async def fetch_data(query: str):
@@ -360,7 +360,7 @@ async def fetch_data(query: str):
 ### Pattern 2: Multi-Format Export
 
 ```python
-from execution_layer import save_json, save_dataframe
+from runit import save_json, save_dataframe
 import pandas as pd
 
 def export_results(data: list[dict]):
@@ -378,7 +378,7 @@ def export_results(data: list[dict]):
 ### Pattern 3: Progressive Enhancement
 
 ```python
-from execution_layer import context
+from runit import context
 
 @app.post("/process")
 async def process(data: dict):

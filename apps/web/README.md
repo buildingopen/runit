@@ -1,6 +1,6 @@
 # Web
 
-Next.js frontend for Runtime AI.
+Next.js frontend for RunIt.
 
 ## Features
 

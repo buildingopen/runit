@@ -194,7 +194,7 @@ Errors are automatically classified with actionable suggestions:
 
 ### Custom Entrypoint
 
-Create `executionlayer.toml` in project root:
+Create `runit.toml` in project root:
 
 ```toml
 entrypoint = "mymodule:application"
@@ -289,7 +289,7 @@ Check:
 3. FastAPI instantiation: `app = FastAPI()`
 
 If using custom:
-- Create `executionlayer.toml` with entrypoint
+- Create `runit.toml` with entrypoint
 - Or pass via API: `entrypoint: "module:variable"`
 
 ## Future Enhancements

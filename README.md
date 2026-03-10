@@ -4,53 +4,53 @@
 
 ### AI writes code. RunIt makes it real.
 
-Paste any Python function. Get a live web app with a shareable link.
+Auto-generated UI from type hints. Shareable link. Built-in storage. Self-hosted with Docker.
 
-[Try It](https://runit.dev) · [Examples](#examples) · [For Developers](#for-developers)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
 </div>
 
 ---
 
-## How It Works
+## Quick Start
 
-1. **Get code from AI.** Ask ChatGPT, Claude, or Cursor for a Python function.
-2. **Paste it on [runit.dev](https://runit.dev).** Hit "Go Live."
-3. **Share the link.** Anyone can use your app immediately.
+```bash
+docker run -p 3000:3000 ghcr.io/buildingopen/runit
+```
 
-Your function gets a web interface automatically. No accounts, no setup, no servers.
-
-## What You Get
-
-- **A live web app.** Your function becomes a form anyone can fill out and run.
-- **A shareable link.** Send it to anyone. They see a clean UI, not code.
-- **Built-in memory.** Your app can remember data between uses.
-- **No setup.** No servers, no databases, no hosting, no command line.
-
-## Try It
-
-Go to [runit.dev](https://runit.dev) and paste this:
+Open [localhost:3000](http://localhost:3000). Paste this:
 
 ```python
-def greet(name):
+from runit import app
+
+@app.action
+def greet(name: str) -> dict:
     return {"message": f"Hello, {name}!"}
 ```
 
-That's it. You now have a live web app with a form and a shareable link.
+Hit "Go Live." Share the link. That's it.
 
-### Your App Can Remember Things
+## How It Works
+
+1. You write a Python function with type hints
+2. RunIt extracts the schema (OpenAPI)
+3. RunIt generates a web form from the schema
+4. RunIt runs the function in a Docker sandbox
+5. Anyone with the link can use it
+
+## Your App Can Remember Things
 
 ```python
-from runit import remember
+from runit import app, remember
 
-def count_visits(name):
-    visits = remember("visits") or 0
-    visits = visits + 1
+@app.action
+def count_visits(name: str) -> dict:
+    visits = (remember("visits") or 0) + 1
     remember("visits", visits)
     return {"message": f"Hello {name}! Visit #{visits}"}
 ```
 
-Every time someone runs this, the counter goes up. Your app remembers data between uses, no database required.
+No database setup. Built-in key-value storage.
 
 ## Examples
 
@@ -62,7 +62,63 @@ Every time someone runs this, the counter goes up. Your app remembers data betwe
 
 ---
 
+## Self-Hosting
+
+```bash
+git clone https://github.com/buildingopen/runit
+cd runit
+docker-compose up --build
+```
+
+That's it. SQLite database, Docker sandbox, zero cloud dependencies.
+
+<details>
+<summary><strong>Environment Variables</strong></summary>
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MASTER_ENCRYPTION_KEY` | Yes | | 32-byte base64 key for secrets encryption |
+| `COMPUTE_BACKEND` | No | `docker` | `docker` for self-hosted |
+| `PORT` | No | `3001` | Server port |
+| `API_KEY` | No | | Bearer token to protect API |
+| `RUNNER_IMAGE` | No | `runtime-runner:latest` | Docker image for code execution |
+| `RUNNER_MEMORY` | No | `512m` | Memory limit per container |
+| `RUNNER_CPUS` | No | `1` | CPU limit per container |
+| `RUNNER_NETWORK` | No | `none` | Network mode (`none` for isolation) |
+
+See `.env.example` for the full list.
+
+</details>
+
+---
+
 ## For Developers
+
+<details>
+<summary><strong>Python SDK</strong></summary>
+
+```python
+from runit import app, remember, forget, storage
+
+# Mark functions as actions
+@app.action
+def my_func(x: int) -> dict:
+    return {"result": x * 2}
+
+# Custom action name
+@app.action(name="custom_name")
+def another_func(y: str) -> dict:
+    return {"greeting": f"Hello, {y}!"}
+
+# Full storage API
+storage.set("config", {"theme": "dark"})
+data = storage.get("config")        # {"theme": "dark"}
+storage.get("missing", default=0)   # 0
+storage.list()                       # ["config"]
+storage.delete("config")
+```
+
+</details>
 
 <details>
 <summary><strong>CLI</strong></summary>
@@ -83,64 +139,6 @@ runit run <project-id> greet --name "World"
 </details>
 
 <details>
-<summary><strong>Storage SDK</strong></summary>
-
-The full storage API for developers:
-
-```python
-from runit import storage
-
-storage.set("config", {"theme": "dark"})
-data = storage.get("config")        # {"theme": "dark"}
-storage.get("missing", default=0)   # 0
-storage.list()                       # ["config"]
-storage.delete("config")
-```
-
-- Persists across runs (mounted volume)
-- 10MB per value, 100MB per project
-- Atomic writes
-- Also accessible via HTTP API, CLI (`runit storage list`), and MCP tools
-
-</details>
-
-<details>
-<summary><strong>Self-Hosting</strong></summary>
-
-Requires Docker with Docker Compose.
-
-```bash
-git clone https://github.com/federicodeponte/runtime-ai.git
-cd runtime-ai
-
-# Generate encryption key
-export MASTER_ENCRYPTION_KEY=$(openssl rand -base64 32)
-
-# Build and start
-docker-compose up --build -d
-
-# Verify
-curl http://localhost:3001/health
-```
-
-#### Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `MASTER_ENCRYPTION_KEY` | Yes | | 32-byte base64 key for secrets encryption |
-| `COMPUTE_BACKEND` | No | `docker` | `docker` for self-hosted, `modal` for cloud |
-| `PORT` | No | `3001` | Server port |
-| `API_KEY` | No | | Bearer token to protect API |
-| `RUNNER_IMAGE` | No | `runtime-runner:latest` | Docker image for code execution |
-| `RUNNER_MEMORY` | No | `512m` | Memory limit per container |
-| `RUNNER_CPUS` | No | `1` | CPU limit per container |
-| `RUNNER_NETWORK` | No | `none` | Network mode (`none` for isolation) |
-
-See `.env.example` for the full list.
-
-</details>
-
-<details>
 <summary><strong>MCP Server (for AI agents)</strong></summary>
 
 ```bash
@@ -156,20 +154,28 @@ Gives AI agents (Claude, Cursor, etc.) tools to deploy code, run actions, and ma
 
 All routes are under `/v1/`. Full OpenAPI spec at `/v1/openapi.json`.
 
-**Apps:** `GET /v1/projects`, `POST /v1/projects`, `GET /v1/projects/:id`, `DELETE /v1/projects/:id`, `POST /v1/deploy`
+**Apps:** `GET /v1/projects`, `POST /v1/projects`, `GET /v1/projects/:id`, `DELETE /v1/projects/:id`
 
-**Versions:** `GET /v1/projects/:id/versions`, `POST /v1/projects/:id/versions/:vid/promote`, `POST /v1/projects/:id/deploy`
+**Deploy:** `POST /v1/projects/:id/deploy`, `GET /v1/projects/:id/deploy/status`
 
 **Runs:** `POST /v1/runs`, `GET /v1/runs/:id`
 
-**API Keys:** `POST /v1/projects/:id/secrets`, `GET /v1/projects/:id/secrets`, `PUT /v1/projects/:id/secrets/:key`, `DELETE /v1/projects/:id/secrets/:key`
+**Secrets:** `POST /v1/projects/:id/secrets`, `GET /v1/projects/:id/secrets`
 
-**Storage:** `GET /v1/projects/:id/storage`, `PUT /v1/projects/:id/storage/:key`, `GET /v1/projects/:id/storage/:key`, `DELETE /v1/projects/:id/storage/:key`
+**Storage:** `GET /v1/projects/:id/storage`, `PUT /v1/projects/:id/storage/:key`, `GET /v1/projects/:id/storage/:key`
 
 </details>
 
 <details>
 <summary><strong>Architecture</strong></summary>
+
+```
+Function (type hints) -> OpenAPI Schema -> Auto-generated Form -> Shareable Link
+                              |
+                         Docker Sandbox
+                              |
+                           SQLite
+```
 
 ```
 runit/
@@ -179,9 +185,11 @@ runit/
 |   +-- client/                # TypeScript API client
 |   +-- mcp-server/            # MCP tools for AI agents
 |   +-- openapi-form/          # Auto-generates web forms from functions
+|   +-- shared/                # TypeScript types and contracts
+|   +-- ui/                    # Shared React components
 +-- services/
 |   +-- control-plane/         # Hono.js API server
-|   +-- runner/                # Python execution runtime
+|   +-- runner/                # Python execution runtime + SDK
 ```
 
 </details>
@@ -193,7 +201,6 @@ runit/
 npm install
 npm run build   # Build all packages
 npm test        # Run all tests
-npm run lint
 ```
 
 </details>
@@ -205,3 +212,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+</div>

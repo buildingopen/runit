@@ -1,21 +1,18 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import type { User, Session } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
-import { getSupabaseBrowserClient } from '../../lib/supabase/client';
+import { createContext, useContext, type ReactNode } from 'react';
 
 interface AuthState {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
+  user: null;
+  session: null;
+  loading: false;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>({
   user: null,
   session: null,
-  loading: true,
+  loading: false,
   signOut: async () => {},
 });
 
@@ -24,69 +21,8 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const [authState, setAuthState] = useState<Omit<AuthState, 'signOut'>>({
-    user: null,
-    session: null,
-    loading: true,
-  });
-
-  const signOut = useCallback(async () => {
-    try {
-      const supabase = getSupabaseBrowserClient();
-      await supabase?.auth.signOut();
-    } catch {
-      // Ignore signOut errors in dev mode
-    }
-    router.push('/login');
-  }, [router]);
-
-  useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
-
-    // If Supabase is not configured, skip auth entirely
-    if (!supabase?.auth) {
-      setAuthState({ user: null, session: null, loading: false });
-      return;
-    }
-
-    // Get initial session
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setAuthState({
-          user: session?.user ?? null,
-          session,
-          loading: false,
-        });
-      })
-      .catch(() => {
-        setAuthState({ user: null, session: null, loading: false });
-      });
-
-    // Listen for auth changes
-    let subscription: { unsubscribe: () => void } | undefined;
-    try {
-      const { data } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          setAuthState({
-            user: session?.user ?? null,
-            session,
-            loading: false,
-          });
-        }
-      );
-      subscription = data.subscription;
-    } catch {
-      setAuthState({ user: null, session: null, loading: false });
-    }
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, []);
-
   return (
-    <AuthContext.Provider value={{ ...authState, signOut }}>
+    <AuthContext.Provider value={{ user: null, session: null, loading: false, signOut: async () => {} }}>
       {children}
     </AuthContext.Provider>
   );

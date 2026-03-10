@@ -1,4 +1,4 @@
-# @runtime-ai/openapi-form
+# @runit/openapi-form
 
 React hooks and utilities for generating dynamic forms from OpenAPI schemas.
 
@@ -12,13 +12,13 @@ React hooks and utilities for generating dynamic forms from OpenAPI schemas.
 ## Installation
 
 ```bash
-npm install @runtime-ai/openapi-form
+npm install @runit/openapi-form
 ```
 
 ## Usage
 
 ```tsx
-import { useSchemaAnalysis, useFormState } from '@runtime-ai/openapi-form';
+import { useSchemaAnalysis, useFormState } from '@runit/openapi-form';
 
 function EndpointForm({ schema }) {
   const analysis = useSchemaAnalysis(schema);

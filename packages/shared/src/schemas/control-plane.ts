@@ -3,7 +3,7 @@
 /**
  * Zod Schemas for Control Plane API
  *
- * Runtime validation schemas for all control plane contracts
+ * RunIt validation schemas for all control plane contracts
  */
 
 import { z } from 'zod';

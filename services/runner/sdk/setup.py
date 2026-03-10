@@ -1,4 +1,4 @@
-"""Setup script for Runtime SDK."""
+"""Setup script for RunIt SDK."""
 
 from pathlib import Path
 
@@ -9,14 +9,14 @@ readme_file = Path(__file__).parent / "README.md"
 long_description = readme_file.read_text() if readme_file.exists() else ""
 
 setup(
-    name="execution-layer",
+    name="runit",
     version="0.1.0",
-    description="SDK for building apps on Runtime",
+    description="SDK for building apps on RunIt",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Runtime AI",
-    author_email="support@runtime.ai",
-    url="https://github.com/federicodeponte/execution-layer",
+    author="RunIt",
+    author_email="hello@buildingopen.org",
+    url="https://github.com/buildingopen/runit",
     packages=find_packages(exclude=["tests", "tests.*"]),
     python_requires=">=3.11",
     install_requires=[
@@ -45,10 +45,10 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
     ],
-    keywords="fastapi runtime sdk serverless",
+    keywords="runit python sdk serverless",
     project_urls={
-        "Documentation": "https://docs.runtime.ai",
-        "Source": "https://github.com/federicodeponte/execution-layer",
-        "Tracker": "https://github.com/federicodeponte/execution-layer/issues",
+        "Documentation": "https://docs.runit.dev",
+        "Source": "https://github.com/buildingopen/runit",
+        "Tracker": "https://github.com/buildingopen/runit/issues",
     },
 )

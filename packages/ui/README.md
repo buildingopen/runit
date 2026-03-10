@@ -1,6 +1,6 @@
-# @runtime-ai/ui
+# @runit/ui
 
-React component library for Runtime AI.
+React component library for RunIt.
 
 ## Features
 
@@ -12,13 +12,13 @@ React component library for Runtime AI.
 ## Installation
 
 ```bash
-npm install @runtime-ai/ui
+npm install @runit/ui
 ```
 
 ## Usage
 
 ```tsx
-import { Button, Card, Input } from '@runtime-ai/ui';
+import { Button, Card, Input } from '@runit/ui';
 
 function MyComponent() {
   return (

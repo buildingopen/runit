@@ -22,7 +22,7 @@ body:
     attributes:
       label: Proposed Solution
       description: How would you like this to work?
-      placeholder: "It would be great if Runtime AI could..."
+      placeholder: "It would be great if RunIt could..."
     validations:
       required: true
 
@@ -38,7 +38,7 @@ body:
     id: component
     attributes:
       label: Component
-      description: Which part of Runtime AI would this affect?
+      description: Which part of RunIt would this affect?
       options:
         - Web UI
         - Control Plane API

@@ -2,7 +2,6 @@
 // ABOUTME: Webhook endpoint is excluded from auth middleware and verified by Stripe signature.
 
 import { Hono } from 'hono';
-import Stripe from 'stripe';
 import { getAuthContext } from '../middleware/auth.js';
 import * as billingStore from '../db/billing-store.js';
 import * as projectsStore from '../db/projects-store.js';
@@ -11,11 +10,18 @@ import { logger } from '../lib/logger.js';
 
 const billing = new Hono();
 
-let stripeInstance: Stripe | null | undefined;
-function getStripe(): Stripe | null {
+// Dynamic import: stripe is optional (not needed in OSS mode)
+let stripeInstance: any | null | undefined;
+async function getStripe(): Promise<any | null> {
   if (stripeInstance !== undefined) return stripeInstance;
   const key = process.env.STRIPE_SECRET_KEY;
-  stripeInstance = key ? new Stripe(key) : null;
+  if (!key) { stripeInstance = null; return null; }
+  try {
+    const { default: Stripe } = await import('stripe');
+    stripeInstance = new Stripe(key);
+  } catch {
+    stripeInstance = null;
+  }
   return stripeInstance;
 }
 
@@ -63,7 +69,7 @@ billing.post('/checkout', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   if (!stripe) {
     return c.json({ error: 'Billing not configured' }, 503);
   }
@@ -97,7 +103,7 @@ billing.post('/checkout', async (c) => {
     });
   }
 
-  // Always use configured FRONTEND_URL — never accept user-supplied redirect URLs (open redirect risk)
+  // Always use configured FRONTEND_URL, never accept user-supplied redirect URLs (open redirect risk)
   const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
 
   const session = await stripe.checkout.sessions.create({
@@ -121,7 +127,7 @@ billing.post('/portal', async (c) => {
     return c.json({ error: 'Authentication required' }, 401);
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   if (!stripe) {
     return c.json({ error: 'Billing not configured' }, 503);
   }
@@ -145,7 +151,7 @@ billing.post('/portal', async (c) => {
  * Excluded from auth middleware; verified by Stripe signature.
  */
 billing.post('/webhook', async (c) => {
-  const stripe = getStripe();
+  const stripe = await getStripe();
   if (!stripe) {
     return c.json({ error: 'Billing not configured' }, 503);
   }
@@ -160,7 +166,7 @@ billing.post('/webhook', async (c) => {
     return c.json({ error: 'Missing stripe-signature header' }, 400);
   }
 
-  let event: Stripe.Event;
+  let event: any;
   try {
     const body = await c.req.text();
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
@@ -171,7 +177,7 @@ billing.post('/webhook', async (c) => {
 
   switch (event.type) {
     case 'checkout.session.completed': {
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session = event.data.object;
       const userId = session.metadata?.user_id;
       const tier = session.metadata?.tier as Tier;
       if (userId && tier) {
@@ -186,26 +192,26 @@ billing.post('/webhook', async (c) => {
     }
 
     case 'customer.subscription.updated': {
-      const subscription = event.data.object as Stripe.Subscription;
+      const subscription = event.data.object;
       const sub = await billingStore.getSubscriptionByCustomerId(subscription.customer as string);
       if (sub) {
-        const periodStart = (subscription as any).current_period_start;
-        const periodEnd = (subscription as any).current_period_end;
+        const periodStart = subscription.current_period_start;
+        const periodEnd = subscription.current_period_end;
 
-        // Resolve tier from price ID — always set an explicit tier to prevent stale state
+        // Resolve tier from price ID
         const priceId = subscription.items?.data?.[0]?.price?.id;
-        let tier: Tier = 'free'; // default: if we can't resolve, downgrade to free (safe default)
+        let tier: Tier = 'free';
         if (priceId) {
           if (priceId === process.env.STRIPE_PRO_PRICE_ID) tier = 'pro';
           else if (priceId === process.env.STRIPE_TEAM_PRICE_ID) tier = 'team';
           else {
-            logger.error('Unknown Stripe price ID in subscription update — defaulting to free', {
+            logger.error('Unknown Stripe price ID in subscription update, defaulting to free', {
               userId: sub.user_id, priceId,
               knownPrices: { pro: process.env.STRIPE_PRO_PRICE_ID, team: process.env.STRIPE_TEAM_PRICE_ID },
             });
           }
         } else {
-          logger.warn('No price ID in subscription update — defaulting tier to free', { userId: sub.user_id });
+          logger.warn('No price ID in subscription update, defaulting tier to free', { userId: sub.user_id });
         }
 
         await billingStore.updateSubscription(sub.user_id, {
@@ -220,7 +226,7 @@ billing.post('/webhook', async (c) => {
     }
 
     case 'customer.subscription.deleted': {
-      const subscription = event.data.object as Stripe.Subscription;
+      const subscription = event.data.object;
       const sub = await billingStore.getSubscriptionByCustomerId(subscription.customer as string);
       if (sub) {
         await billingStore.updateSubscription(sub.user_id, {

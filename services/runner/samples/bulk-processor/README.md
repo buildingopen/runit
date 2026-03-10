@@ -1,6 +1,6 @@
 # Bulk Processor - Array Processing Sample
 
-Demonstrates bulk/batch processing of multiple items on Runtime.
+Demonstrates bulk/batch processing of multiple items on RunIt.
 
 ## What it does
 

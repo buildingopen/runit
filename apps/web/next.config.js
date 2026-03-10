@@ -6,9 +6,9 @@ const nextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: path.join(__dirname, '../..'),
   transpilePackages: [
-    '@runtime-ai/shared',
-    '@runtime-ai/ui',
-    '@runtime-ai/openapi-form',
+    '@runit/shared',
+    '@runit/ui',
+    '@runit/openapi-form',
   ],
   async redirects() {
     return [
@@ -28,11 +28,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://eu.posthog.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               "font-src 'self'",
-              "connect-src 'self' https://*.supabase.co https://eu.posthog.com " + (process.env.NEXT_PUBLIC_API_URL || '') + ' ' + (process.env.NEXT_PUBLIC_SUPABASE_URL || ''),
+              "connect-src 'self' " + (process.env.NEXT_PUBLIC_API_URL || ''),
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
@@ -41,22 +41,6 @@ const nextConfig = {
         ],
       },
     ];
-  },
-  webpack(config) {
-    config.ignoreWarnings = config.ignoreWarnings || [];
-    config.ignoreWarnings.push({
-      module: /@prisma\/instrumentation\/node_modules\/@opentelemetry\/instrumentation/,
-      message: /Critical dependency: the request of a dependency is an expression/,
-    });
-    config.ignoreWarnings.push({
-      module: /@supabase\/realtime-js\/dist\/module\/lib\/websocket-factory\.js/,
-      message: /A Node\.js API is used .* Edge Runtime/,
-    });
-    config.ignoreWarnings.push({
-      module: /@supabase\/supabase-js\/dist\/index\.mjs/,
-      message: /A Node\.js API is used .* Edge Runtime/,
-    });
-    return config;
   },
 }
 

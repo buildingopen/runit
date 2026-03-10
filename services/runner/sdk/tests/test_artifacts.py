@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from execution_layer import save_artifact, save_json
+from runit import save_artifact, save_json
 
 
 @pytest.fixture
@@ -16,9 +16,9 @@ def temp_artifacts_dir(monkeypatch):
         # Reload module to pick up new env var
         import importlib
 
-        import execution_layer.artifacts
+        import runit.artifacts
 
-        importlib.reload(execution_layer.artifacts)
+        importlib.reload(runit.artifacts)
         yield Path(tmpdir)
 
 
@@ -59,9 +59,9 @@ def test_save_artifact_creates_directory(monkeypatch):
         # Reload module
         import importlib
 
-        import execution_layer.artifacts
+        import runit.artifacts
 
-        importlib.reload(execution_layer.artifacts)
+        importlib.reload(runit.artifacts)
 
         assert not artifacts_dir.exists()
 
@@ -75,7 +75,7 @@ def test_save_dataframe_csv(temp_artifacts_dir):
     """Test saving DataFrame as CSV."""
     pytest.importorskip("pandas")
     import pandas as pd
-    from execution_layer import save_dataframe
+    from runit import save_dataframe
 
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     path = save_dataframe(df, "data.csv", format="csv")
@@ -91,7 +91,7 @@ def test_save_dataframe_json(temp_artifacts_dir):
     """Test saving DataFrame as JSON."""
     pytest.importorskip("pandas")
     import pandas as pd
-    from execution_layer import save_dataframe
+    from runit import save_dataframe
 
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     path = save_dataframe(df, "data.json", format="json")
@@ -108,7 +108,7 @@ def test_save_dataframe_parquet(temp_artifacts_dir):
     pytest.importorskip("pandas")
     pytest.importorskip("pyarrow")
     import pandas as pd
-    from execution_layer import save_dataframe
+    from runit import save_dataframe
 
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     path = save_dataframe(df, "data.parquet", format="parquet")
@@ -124,7 +124,7 @@ def test_save_dataframe_invalid_format(temp_artifacts_dir):
     """Test that invalid format raises ValueError."""
     pytest.importorskip("pandas")
     import pandas as pd
-    from execution_layer import save_dataframe
+    from runit import save_dataframe
 
     df = pd.DataFrame({"a": [1, 2, 3]})
 
@@ -134,7 +134,7 @@ def test_save_dataframe_invalid_format(temp_artifacts_dir):
 
 def test_save_dataframe_unsupported_type(temp_artifacts_dir):
     """Test that unsupported DataFrame type raises TypeError."""
-    from execution_layer import save_dataframe
+    from runit import save_dataframe
 
     # Try to save a dict (not a DataFrame)
     with pytest.raises(TypeError):

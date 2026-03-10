@@ -1,17 +1,5 @@
-// ABOUTME: Hono-based API server entry point: wires up all middleware (auth, CORS, rate-limit, quota, metrics, security) and routes.
-// ABOUTME: Runs startup health checks, boot migrations, graceful shutdown, and serves both /v1/* (versioned) and /* (legacy) APIs.
-/**
- * Control Plane API
- *
- * Source of truth for projects, versions, runs, secrets, and sharing.
- * Includes:
- * - Request timeouts
- * - HTTPS redirect
- * - Circuit breakers
- * - Prometheus metrics
- * - CSP violation reporting
- * - OpenTelemetry distributed tracing
- */
+// ABOUTME: Thin entrypoint that boots the control-plane server using createApp().
+// ABOUTME: Handles env loading, Sentry init, startup health checks, graceful shutdown, and process error capture.
 
 // IMPORTANT: Tracing must be imported BEFORE any other imports
 // to ensure proper instrumentation of HTTP clients and servers
@@ -26,43 +14,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
-import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { cors } from 'hono/cors';
-import { bodyLimit } from 'hono/body-limit';
-import projects from './routes/projects.js';
-import endpoints from './routes/endpoints.js';
-import runs from './routes/runs.js';
-import openapi from './routes/openapi.js';
-import secrets from './routes/secrets.js';
-import storageRoutes from './routes/storage.js';
-import contextRoutes from './routes/context.js';
-import { projectShare, shareLinks } from './routes/share.js';
-import deploy from './routes/deploy.js';
-import oneClickDeploy from './routes/one-click-deploy.js';
-import billing from './routes/billing.js';
-import templates from './routes/templates.js';
-import metrics from './routes/metrics.js';
-import versionsRoutes from './routes/versions.js';
-import { rateLimitMiddleware, shutdownRateLimit } from './middleware/rate-limit.js';
-import { quotaMiddleware } from './middleware/quota.js';
-import { cloudIPFilterMiddleware } from './middleware/ip-filter.js';
-import { bodySizeLimitMiddleware, contentTypeMiddleware } from './middleware/request-validation.js';
-import { VALIDATION_LIMITS } from './config/validation.js';
-import { authMiddleware } from './middleware/auth.js';
-import { loggerMiddleware, devLoggerMiddleware } from './middleware/logger.js';
-import { securityHeadersMiddleware } from './middleware/security-headers.js';
-import { requestTimeoutMiddleware } from './middleware/request-timeout.js';
-import { httpsRedirectMiddleware } from './middleware/https-redirect.js';
-import { metricsMiddleware } from './middleware/metrics.js';
+import { createApp } from './app.js';
 import { validateEnv } from './lib/env.js';
 import { initSentry, captureException, isSentryInitialized } from './lib/sentry.js';
 import { logger } from './lib/logger.js';
 import { testSupabaseConnection, isSupabaseConfigured } from './db/supabase.js';
-import { getCircuitBreakerStats, hasOpenCircuit } from './lib/circuit-breaker.js';
-import { openAPISpec } from './lib/openapi-spec.js';
-import { isDraining, setDraining } from './lib/server-state.js';
+import { setDraining } from './lib/server-state.js';
 import { activeConnections } from './lib/metrics.js';
+import { shutdownRateLimit } from './middleware/rate-limit.js';
 import { features } from './config/features.js';
 import { closeSQLiteDB } from './db/sqlite.js';
 
@@ -83,7 +43,6 @@ if (isProduction) {
 async function startupHealthCheck(): Promise<void> {
   logger.info('[Startup] Running health checks...');
 
-  // Check Supabase connectivity
   if (isSupabaseConfigured()) {
     const supabaseCheck = await testSupabaseConnection();
     if (!supabaseCheck.connected) {
@@ -97,7 +56,6 @@ async function startupHealthCheck(): Promise<void> {
     logger.warn('[Startup] Supabase not configured');
   }
 
-  // Check Modal credentials
   const hasModal = !!(process.env.MODAL_TOKEN_ID && process.env.MODAL_TOKEN_SECRET);
   if (hasModal) {
     logger.info('[Startup] Modal credentials configured');
@@ -105,7 +63,6 @@ async function startupHealthCheck(): Promise<void> {
     logger.warn('[Startup] Modal credentials not configured (deployments will fail)');
   }
 
-  // Check Sentry
   if (isSentryInitialized()) {
     logger.info('[Startup] Sentry initialized');
   } else {
@@ -115,274 +72,15 @@ async function startupHealthCheck(): Promise<void> {
   logger.info('[Startup] Health checks complete');
 }
 
-// Run startup health checks
 await startupHealthCheck();
 
-// Run database migrations (async, non-blocking — app starts regardless)
+// Run database migrations (async, non-blocking)
 import('./db/migrate-boot.js').catch((err) => {
   logger.error('Boot migration failed', err instanceof Error ? err : new Error(String(err)));
 });
 
-const app = new Hono();
-
-// Global error handler for JSON parse errors and other exceptions
-app.onError((err, c) => {
-  // Handle JSON parse errors specifically
-  if (err instanceof SyntaxError && err.message.includes('JSON')) {
-    return c.json({
-      error: 'Invalid JSON in request body',
-      ...(isProduction ? {} : { details: err.message }),
-    }, 400);
-  }
-
-  // Log and track unexpected errors
-  logger.error('Unhandled error', err);
-  captureException(err instanceof Error ? err : new Error(String(err)));
-  return c.json({
-    error: 'Internal server error',
-  }, 500);
-});
-
-// HTTPS redirect (production only)
-app.use('/*', httpsRedirectMiddleware);
-
-// Request timeout (30s default)
-app.use('/*', requestTimeoutMiddleware(30_000));
-
-// CORS - production-aware origin allowlist
-const allowedOrigins = (() => {
-  const envOrigins = process.env.CORS_ORIGINS;
-  if (envOrigins) {
-    return envOrigins.split(',').map((o) => o.trim()).filter(Boolean);
-  }
-  return []; // No explicit origins configured
-})();
-
-app.use('/*', cors({
-  origin: (origin) => {
-    // In production, reject requests with no origin (blocks arbitrary server-to-server)
-    // In development, allow for curl/Postman convenience
-    if (!origin) return isProduction ? null : '*';
-
-    // Check explicit allowlist first
-    if (allowedOrigins.includes(origin)) return origin;
-
-    // In development, allow localhost
-    if (!isProduction) {
-      if (origin.startsWith('http://localhost:')) return origin;
-      if (origin.startsWith('http://127.0.0.1:')) return origin;
-    }
-
-    return null;
-  },
-  credentials: true,
-}));
-
-// Security headers
-app.use('/*', securityHeadersMiddleware);
-
-// Request logging - use dev logger in development, structured logger in production
-app.use('/*', isProduction ? loggerMiddleware : devLoggerMiddleware);
-
-// Request metrics tracking (records duration, count, and active connections)
-app.use('/*', metricsMiddleware);
-
-// Body size limit — header check (fast reject) + stream-level enforcement (prevents spoofed Content-Length)
-app.use('/*', bodySizeLimitMiddleware);
-app.use('/*', bodyLimit({
-  maxSize: VALIDATION_LIMITS.MAX_BODY_SIZE_BYTES,
-  onError: (c) => c.json({ error: 'Request body exceeds maximum allowed size' }, 413),
-}));
-
-// Content-Type validation for POST/PUT/PATCH requests
-app.use('/*', contentTypeMiddleware);
-
-// Authentication middleware - validates JWT and attaches user to context
-// Excluded: /metrics (Prometheus scraping), /health (load balancer probes), /openapi.json (docs)
-// Exact-match paths excluded from auth (no prefix matching — /health does NOT exclude /health/deep)
-const AUTH_EXCLUDED_EXACT = ['/health', '/openapi.json', '/v1/openapi.json', '/v1/billing/webhook', '/billing/webhook'];
-// Prefix-match paths excluded from auth (path + '/' prefix matching)
-const AUTH_EXCLUDED_PREFIXES = ['/metrics'];
-app.use('/*', async (c, next) => {
-  if (AUTH_EXCLUDED_EXACT.includes(c.req.path)) return next();
-  if (AUTH_EXCLUDED_PREFIXES.some(prefix => c.req.path === prefix || c.req.path.startsWith(prefix + '/'))) return next();
-  // Templates: only GET is public (list + detail), POST /create requires auth
-  if (c.req.method === 'GET' && (c.req.path.startsWith('/templates') || c.req.path.startsWith('/v1/templates'))) return next();
-  return authMiddleware(c, next);
-});
-
-// Apply rate limiting (120/min auth, 60/min anon) - cloud mode only
-if (features.rateLimiting) {
-  app.use('/*', async (c, next) => {
-    if (c.req.path === '/metrics' || c.req.path.startsWith('/metrics/')) {
-      return next();
-    }
-    return rateLimitMiddleware(c, next);
-  });
-}
-
-// Block cloud/datacenter IPs from executing runs (before quota check) - cloud mode only
-if (features.ipFiltering) {
-  app.use('/runs/*', cloudIPFilterMiddleware);
-  app.use('/v1/runs/*', cloudIPFilterMiddleware);
-}
-
-// Apply quota enforcement on run endpoints - cloud mode only
-if (features.quotas) {
-  app.use('/runs/*', quotaMiddleware);
-  app.use('/v1/runs/*', quotaMiddleware);
-}
-
-// Health check
-app.get('/', (c) => {
-  return c.json({
-    name: 'Runtime Control Plane',
-    version: '0.1.0',
-    status: 'operational',
-    features: ['projects', 'runs', 'secrets', 'context', 'rate-limiting', 'quotas', 'metrics'],
-    endpoints: {
-      projects: '/projects',
-      runs: '/runs',
-      health: '/health',
-      metrics: '/metrics',
-    },
-  });
-});
-
-app.get('/health', (c) => {
-  if (isDraining()) {
-    return c.json({
-      status: 'draining',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-    }, 503);
-  }
-  const tunnelUrl = process.env.TUNNEL_URL || null;
-  return c.json({
-    status: 'healthy',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    ...(tunnelUrl ? { tunnel_url: tunnelUrl } : {}),
-  });
-});
-
-// Deep health check — verifies external dependencies
-app.get('/health/deep', async (c) => {
-  const checks: Record<string, { status: string; latency_ms?: number; error?: string }> = {};
-
-  // Check Supabase
-  if (isSupabaseConfigured()) {
-    const supabaseCheck = await testSupabaseConnection();
-    checks.supabase = supabaseCheck.connected
-      ? { status: 'healthy', latency_ms: supabaseCheck.latencyMs }
-      : { status: 'unhealthy', latency_ms: supabaseCheck.latencyMs, error: supabaseCheck.error };
-  } else {
-    checks.supabase = { status: 'not_configured' };
-  }
-
-  // Check Modal
-  const hasModal = !!(process.env.MODAL_TOKEN_ID && process.env.MODAL_TOKEN_SECRET);
-  checks.modal = hasModal
-    ? { status: 'configured' }
-    : { status: 'not_configured' };
-
-  // Check Sentry
-  checks.sentry = isSentryInitialized()
-    ? { status: 'healthy' }
-    : { status: 'not_configured' };
-
-  // Check circuit breakers
-  const circuitStats = getCircuitBreakerStats();
-  checks.circuit_breakers = hasOpenCircuit()
-    ? { status: 'degraded', error: 'One or more services are temporarily unavailable' }
-    : { status: 'healthy' };
-
-  const overall = Object.values(checks).every((ch) => ch.status === 'healthy' || ch.status === 'configured' || ch.status === 'not_configured')
-    ? 'healthy'
-    : Object.values(checks).some((ch) => ch.status === 'unhealthy')
-      ? 'unhealthy'
-      : 'degraded';
-
-  return c.json({
-    status: overall,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    checks,
-    serviceHealth: circuitStats,
-  }, overall === 'unhealthy' ? 503 : 200);
-});
-
-// OpenAPI specification for this API (full spec from docs/openapi.yaml)
-// Available at both /openapi.json (legacy) and /v1/openapi.json (recommended)
-app.get('/openapi.json', (c) => c.json(openAPISpec));
-app.get('/v1/openapi.json', (c) => c.json(openAPISpec));
-
-// =============================================================================
-// API Routes
-// =============================================================================
-// All routes available at both /v1/* (versioned) and /* (legacy, deprecated)
-// New integrations should use /v1/* prefix for forward compatibility
-
-const apiRouter = new Hono();
-apiRouter.route('/projects', projects);
-apiRouter.route('/projects', endpoints);     // /projects/:id/endpoints
-apiRouter.route('/projects', openapi);       // /projects/:id/versions/:vid/extract-openapi
-apiRouter.route('/projects', secrets);       // /projects/:id/secrets
-apiRouter.route('/projects', storageRoutes); // /projects/:id/storage
-apiRouter.route('/projects', contextRoutes); // /projects/:id/context
-apiRouter.route('/projects', projectShare);  // /projects/:id/share
-apiRouter.route('/projects', deploy);        // /projects/:id/deploy, /projects/:id/deploy/stream
-apiRouter.route('/projects', versionsRoutes); // /projects/:id/versions, promote, rollback
-apiRouter.route('/share', shareLinks);       // /share/:share_id
-apiRouter.route('/deploy', oneClickDeploy);   // POST /deploy (one-call deploy)
-apiRouter.route('/runs', runs);
-if (features.billing) {
-  apiRouter.route('/billing', billing);      // /billing/subscription, /billing/checkout, etc.
-}
-apiRouter.route('/templates', templates);   // /templates (list), /templates/:id (details)
-
-// Mount v1 API (recommended)
-app.route('/v1', apiRouter);
-
-// Mount legacy routes (deprecated - will be removed in v2)
-// Adds Deprecation header so consumers know to migrate to /v1
-app.use('/projects/*', async (c, next) => {
-  await next();
-  c.header('Deprecation', 'true');
-  c.header('Sunset', '2026-12-31');
-  c.header('Link', '</v1/projects>; rel="successor-version"');
-});
-app.route('/projects', projects);
-app.route('/projects', endpoints);
-app.route('/projects', openapi);
-app.route('/projects', secrets);
-app.route('/projects', storageRoutes);
-app.route('/projects', contextRoutes);
-app.route('/projects', projectShare);
-app.route('/projects', deploy);
-app.route('/projects', versionsRoutes);
-app.use('/share/*', async (c, next) => {
-  await next();
-  c.header('Deprecation', 'true');
-  c.header('Sunset', '2026-12-31');
-  c.header('Link', '</v1/share>; rel="successor-version"');
-});
-app.route('/share', shareLinks);
-app.use('/runs/*', async (c, next) => {
-  await next();
-  c.header('Deprecation', 'true');
-  c.header('Sunset', '2026-12-31');
-  c.header('Link', '</v1/runs>; rel="successor-version"');
-});
-app.route('/deploy', oneClickDeploy);
-app.route('/runs', runs);
-if (features.billing) {
-  app.route('/billing', billing);
-}
-app.route('/templates', templates);
-
-// Metrics always at root (Prometheus convention)
-app.route('/metrics', metrics);
+// Create the app using the factory
+const app = createApp();
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
 
@@ -447,21 +145,14 @@ const server = serve({
 // Graceful shutdown handler
 let isShuttingDown = false;
 async function shutdown(signal: string) {
-  if (isShuttingDown) return; // Prevent double-shutdown from multiple signals
+  if (isShuttingDown) return;
   isShuttingDown = true;
 
   console.log(`\n[${signal}] Shutting down gracefully...`);
 
-  // Signal draining so health endpoint returns 503 (load balancer stops sending traffic)
   setDraining(true);
-
-  // Shutdown rate limit (close Redis connection)
   await shutdownRateLimit();
-
-  // Close SQLite database
   closeSQLiteDB();
-
-  // Shutdown OpenTelemetry (flush remaining spans)
   await shutdownTracing();
 
   let exited = false;
@@ -472,12 +163,10 @@ async function shutdown(signal: string) {
     process.exit(code);
   }
 
-  // Stop accepting new connections
   server.close(() => {
     exitOnce(0, 'Server closed. Exiting.');
   });
 
-  // Poll active connections, exit early when drained
   const drainInterval = setInterval(() => {
     const current = (activeConnections as any).hashMap?.get('')?.value ?? 0;
     if (current <= 0) {
@@ -486,7 +175,6 @@ async function shutdown(signal: string) {
     }
   }, 1000);
 
-  // Force exit after 10s if connections don't drain
   setTimeout(() => {
     clearInterval(drainInterval);
     exitOnce(1, 'Forced shutdown after timeout');
@@ -496,7 +184,6 @@ async function shutdown(signal: string) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-// Capture unhandled errors
 process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled rejection', reason instanceof Error ? reason : new Error(String(reason)));
   captureException(reason instanceof Error ? reason : new Error(String(reason)));
@@ -505,6 +192,5 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught exception', error);
   captureException(error);
-  // Exit on uncaught exception - let the process manager restart
   process.exit(1);
 });

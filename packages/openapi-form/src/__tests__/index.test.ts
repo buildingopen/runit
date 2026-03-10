@@ -1,5 +1,5 @@
 /**
- * @runtime-ai/openapi-form tests
+ * @runit/openapi-form tests
  */
 
 import { describe, it, expect } from 'vitest';

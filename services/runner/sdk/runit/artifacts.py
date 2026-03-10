@@ -1,5 +1,5 @@
 """
-Artifact writing utilities for Runtime.
+Artifact writing utilities for RunIt.
 
 Provides helpers to save outputs that users can download:
 - save_artifact(): Save any file (text, binary, JSON)
@@ -29,7 +29,7 @@ def save_artifact(filename: str, data: bytes | str) -> str:
         Absolute path to saved file
 
     Examples:
-        >>> from execution_layer import save_artifact
+        >>> from runit import save_artifact
         >>>
         >>> # Save text file
         >>> save_artifact("output.txt", "Hello World")
@@ -72,7 +72,7 @@ def save_dataframe(
 
     Examples:
         >>> import pandas as pd
-        >>> from execution_layer import save_dataframe
+        >>> from runit import save_dataframe
         >>>
         >>> df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
         >>>
@@ -138,7 +138,7 @@ def save_json(filename: str, data: Any) -> str:
         Absolute path to saved file
 
     Examples:
-        >>> from execution_layer import save_json
+        >>> from runit import save_json
         >>>
         >>> save_json("result.json", {"status": "success", "count": 42})
     """

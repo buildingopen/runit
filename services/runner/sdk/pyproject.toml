@@ -3,14 +3,14 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "execution-layer"
+name = "runit"
 version = "0.1.0"
 description = "SDK for building apps on Runtime"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
-    {name = "Runtime AI", email = "support@runtime.ai"}
+    {name = "RunIt", email = "hello@buildingopen.org"}
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-keywords = ["fastapi", "execution-layer", "sdk", "runtime", "serverless"]
+keywords = ["fastapi", "runit", "sdk", "runtime", "serverless"]
 
 [project.optional-dependencies]
 dataframe = [
@@ -41,9 +41,9 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://docs.executionlayer.com"
-Source = "https://github.com/executionlayer/execution-layer"
-Tracker = "https://github.com/executionlayer/execution-layer/issues"
+Documentation = "https://docs.runit.dev"
+Source = "https://github.com/buildingopen/runit"
+Tracker = "https://github.com/buildingopen/runit/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -53,7 +53,7 @@ python_functions = ["test_*"]
 addopts = "-v --strict-markers"
 
 [tool.coverage.run]
-source = ["execution_layer"]
+source = ["runit"]
 omit = ["tests/*"]
 
 [tool.coverage.report]

@@ -1,9 +1,9 @@
-// ABOUTME: Barrel export for the @runtime-ai/openapi-form package.
+// ABOUTME: Barrel export for the @runit/openapi-form package.
 // ABOUTME: Exports form components, hooks, schema utilities, example generators, and types for OpenAPI-driven forms.
 /**
- * @runtime-ai/openapi-form
+ * @runit/openapi-form
  *
- * OpenAPI-driven form generation for Runtime.
+ * OpenAPI-driven form generation for RunIt.
  * Renders forms from OpenAPI schemas with automatic field rendering,
  * file uploads, and JSON editor fallback for complex schemas.
  */

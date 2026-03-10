@@ -1,6 +1,6 @@
 # Control Plane
 
-Hono-based API backend for Runtime AI.
+Hono-based API backend for RunIt.
 
 ## Features
 

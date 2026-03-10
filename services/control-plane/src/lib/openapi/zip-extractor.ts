@@ -15,7 +15,7 @@ import { join } from 'path';
 import { randomUUID } from 'crypto';
 import AdmZip from 'adm-zip';
 
-import type { OpenAPIPathItem } from '@runtime-ai/shared';
+import type { OpenAPIPathItem } from '@runit/shared';
 import { parseRunitYaml, matchEndpoint, type RunitConfig } from '../runit-yaml.js';
 
 interface ExtractedOpenAPI {

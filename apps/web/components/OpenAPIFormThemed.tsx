@@ -1,10 +1,10 @@
-// ABOUTME: Themed wrapper for @runtime-ai/openapi-form package
+// ABOUTME: Themed wrapper for @runit/openapi-form package
 // ABOUTME: Overrides Tailwind colors with CSS custom properties to match app theme
 
 'use client';
 
-import { OpenAPIForm } from '@runtime-ai/openapi-form';
-import type { OpenAPIFormProps } from '@runtime-ai/openapi-form';
+import { OpenAPIForm } from '@runit/openapi-form';
+import type { OpenAPIFormProps } from '@runit/openapi-form';
 
 export function OpenAPIFormThemed(props: OpenAPIFormProps) {
   return (

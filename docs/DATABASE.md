@@ -1,10 +1,10 @@
 # Database Schema
 
-> Supabase PostgreSQL schema for Runtime AI
+> Supabase PostgreSQL schema for RunIt
 
 ## Overview
 
-Runtime AI uses **Supabase PostgreSQL** with Row Level Security (RLS) policies. The backend uses a service role key to bypass RLS for operations.
+RunIt uses **Supabase PostgreSQL** with Row Level Security (RLS) policies. The backend uses a service role key to bypass RLS for operations.
 
 ## Entity Relationship Diagram
 

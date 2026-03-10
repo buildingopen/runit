@@ -12,7 +12,7 @@ import modal
 
 # Get the deployed function
 run_endpoint_cpu = modal.Function.from_name(
-    "execution-layer-runtime", "run_endpoint_cpu", environment_name="main"
+    "runit-runtime", "run_endpoint_cpu", environment_name="main"
 )
 
 

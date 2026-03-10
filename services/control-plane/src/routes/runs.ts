@@ -10,7 +10,7 @@ import type {
   CreateRunRequest,
   CreateRunResponse,
   GetRunStatusResponse,
-} from '@runtime-ai/shared';
+} from '@runit/shared';
 import { getProject } from './projects.js';
 import { getComputeBackend } from '../lib/compute/index.js';
 import { getDecryptedSecretsForRun } from './secrets.js';

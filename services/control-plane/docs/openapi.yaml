@@ -1,29 +1,27 @@
 openapi: 3.0.3
 info:
-  title: Runtime API
+  title: RunIt API
   description: |
-    API for managing projects, runs, secrets, and deployments in the Runtime platform.
+    API for managing projects, runs, secrets, and deployments in RunIt.
 
     ## Authentication
     All endpoints (except health checks and metrics) require a valid Bearer token in the Authorization header.
-    Tokens are JWT tokens issued by Supabase Auth.
+    Use an API key or JWT token.
 
     ## Rate Limiting
     - Authenticated users: 120 requests per minute
     - Anonymous users: 60 requests per minute
-
-    ## Versioning
-    All endpoints are available at both `/v1/*` (recommended) and `/*` (legacy, deprecated).
   version: 0.1.0
   contact:
-    name: Runtime AI
+    name: RunIt
+    url: https://runit.dev
   license:
-    name: Proprietary
+    name: MIT
 
 servers:
   - url: http://localhost:3001
     description: Local development
-  - url: https://api.runtime.ai
+  - url: https://api.runit.dev
     description: Production
 
 tags:

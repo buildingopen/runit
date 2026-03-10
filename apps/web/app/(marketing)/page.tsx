@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+
 
 export default function MarketingPage() {
   const [stickyVisible, setStickyVisible] = useState(false);
@@ -42,8 +42,8 @@ export default function MarketingPage() {
             <span className="font-semibold text-[var(--text-primary)] text-[15px]">RunIt</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Sign in</Link>
-            <Link href="/signup" className="cta-primary px-5 py-2 text-[13px] font-medium text-white rounded-lg transition-all">Go live for free</Link>
+            <Link href="/dashboard" className="px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Sign in</Link>
+            <Link href="/new" className="cta-primary px-5 py-2 text-[13px] font-medium text-white rounded-lg transition-all">Go live for free</Link>
           </div>
         </div>
       </nav>
@@ -74,7 +74,7 @@ export default function MarketingPage() {
 
             {/* CTA + Waitlist */}
             <div className="flex flex-col items-center gap-5">
-              <Link href="/signup" className="cta-primary px-10 py-4 text-[16px] font-semibold text-white rounded-xl transition-all">
+              <Link href="/new" className="cta-primary px-10 py-4 text-[16px] font-semibold text-white rounded-xl transition-all">
                 Go live for free
               </Link>
               <WaitlistForm source="hero" />
@@ -351,7 +351,7 @@ export default function MarketingPage() {
           <p className="text-[var(--text-secondary)] text-[17px] mb-9 leading-relaxed">
             Stop sharing terminal screenshots. Ship a link in 60 seconds.
           </p>
-          <Link href="/signup" className="cta-primary inline-flex px-10 py-4 text-[16px] font-semibold text-white rounded-xl transition-all">
+          <Link href="/new" className="cta-primary inline-flex px-10 py-4 text-[16px] font-semibold text-white rounded-xl transition-all">
             Go live for free
           </Link>
           <div className="mt-7">
@@ -379,9 +379,9 @@ export default function MarketingPage() {
               <span className="text-[12px] text-[var(--text-tertiary)]">RunIt</span>
             </div>
             <div className="flex items-center gap-6 text-[12px] text-[var(--text-tertiary)]">
-              <a href="https://github.com/federicodeponte/execution-layer" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--text-secondary)] transition-colors">GitHub</a>
-              <Link href="/login" className="hover:text-[var(--text-secondary)] transition-colors">Sign in</Link>
-              <Link href="/signup" className="hover:text-[var(--text-secondary)] transition-colors">Get started</Link>
+              <a href="https://github.com/buildingopen/runit" target="_blank" rel="noopener noreferrer" className="hover:text-[var(--text-secondary)] transition-colors">GitHub</a>
+              <Link href="/dashboard" className="hover:text-[var(--text-secondary)] transition-colors">Sign in</Link>
+              <Link href="/new" className="hover:text-[var(--text-secondary)] transition-colors">Get started</Link>
               <a href="mailto:fede@scaile.tech" className="hover:text-[var(--text-secondary)] transition-colors">Contact</a>
             </div>
           </div>
@@ -391,7 +391,7 @@ export default function MarketingPage() {
 
       {/* Sticky mobile CTA */}
       <div className={`sticky-mobile-cta ${stickyVisible ? 'visible' : ''}`}>
-        <Link href="/signup" className="cta-primary block w-full py-3 text-[14px] font-semibold text-white rounded-lg text-center transition-all">
+        <Link href="/new" className="cta-primary block w-full py-3 text-[14px] font-semibold text-white rounded-lg text-center transition-all">
           Go live for free
         </Link>
       </div>
@@ -402,68 +402,16 @@ export default function MarketingPage() {
 /* ═══════════ COMPONENTS ═══════════ */
 
 function WaitlistForm({ source }: { source: string }) {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || status === 'loading') return;
-    setStatus('loading');
-    setErrorMsg('');
-
-    try {
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) {
-        setStatus('error');
-        setErrorMsg('Service unavailable. Try signing up instead.');
-        return;
-      }
-      const { error } = await supabase.from('waitlist').insert({ email: email.toLowerCase().trim(), source });
-      if (error) {
-        if (error.code === '23505') setStatus('success');
-        else { setStatus('error'); setErrorMsg('Something went wrong. Try again.'); }
-      } else {
-        setStatus('success');
-      }
-    } catch {
-      setStatus('error');
-      setErrorMsg('Something went wrong. Try again.');
-    }
-  };
-
-  if (status === 'success') {
-    return (
-      <div className="flex items-center justify-center gap-2 text-[14px] text-[var(--accent)] font-medium py-2">
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-        </svg>
-        You&apos;re on the list!
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="waitlist-form flex items-center gap-2 max-w-[440px] mx-auto">
-      <input
-        type="email"
-        placeholder="you@email.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        className="waitlist-input flex-1 min-w-0 px-4 py-2.5 text-[14px] rounded-lg"
-      />
-      <button
-        type="submit"
-        disabled={status === 'loading'}
-        className="waitlist-submit px-5 py-2.5 text-[13px] font-semibold text-white rounded-lg transition-all disabled:opacity-50"
-      >
-        {status === 'loading' ? 'Joining...' : 'Get early access'}
-      </button>
-      {status === 'error' && (
-        <p className="absolute -bottom-6 left-0 text-[12px] text-[var(--error)]">{errorMsg}</p>
-      )}
-    </form>
+    <a
+      href="/new"
+      className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[14px] font-medium rounded-lg shadow-sm transition-all"
+    >
+      Get Started
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+      </svg>
+    </a>
   );
 }
 

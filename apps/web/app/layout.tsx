@@ -8,18 +8,17 @@ import { Sidebar } from '../components/layout/Sidebar';
 import { MainContent } from '../components/layout/MainContent';
 import { AuthProvider } from '../components/providers/AuthProvider';
 import { QueryProvider } from '../components/providers/QueryProvider';
-import { PostHogProvider } from '../components/providers/PostHogProvider';
 
 export const metadata: Metadata = {
   title: 'RunIt - AI writes code. RunIt makes it real.',
   description:
     'Turn any Python script into a live app with a shareable link. No servers, no Docker, no devops.',
-  metadataBase: new URL('https://runtime.dev'),
+  metadataBase: new URL('https://runit.dev'),
   openGraph: {
     title: 'RunIt - AI writes code. RunIt makes it real.',
     description:
       'Turn any Python script into a live app with a shareable link. No servers, no Docker, no devops.',
-    url: 'https://runtime.dev',
+    url: 'https://runit.dev',
     siteName: 'RunIt',
     locale: 'en_US',
     type: 'website',
@@ -48,10 +47,8 @@ export default function RootLayout({
       <body className="antialiased">
         <QueryProvider>
           <AuthProvider>
-            <PostHogProvider>
-              <Sidebar />
-              <MainContent>{children}</MainContent>
-            </PostHogProvider>
+            <Sidebar />
+            <MainContent>{children}</MainContent>
           </AuthProvider>
         </QueryProvider>
       </body>
