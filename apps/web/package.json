@@ -14,16 +14,16 @@
   "dependencies": {
     "@next/swc-darwin-arm64": "^15.5.4",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/context-async-hooks": "^2.5.0",
+    "@opentelemetry/context-async-hooks": "^2.6.0",
     "@runit/openapi-form": "*",
     "@runit/shared": "*",
     "@runit/ui": "*",
-    "@tanstack/react-query": "^5.0.0",
+    "@tanstack/react-query": "^5.90.21",
     "fflate": "0.8.2",
-    "hono": "^4.12.4",
+    "hono": "^4.12.7",
     "next": "^15.5.12",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
@@ -31,8 +31,8 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^14.0.0",
     "@types/node": "^20.10.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.0",
     "jsdom": "^27.4.0",

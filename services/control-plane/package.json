@@ -28,19 +28,19 @@
     "test:load:mixed": "k6 run tests/load/scenarios/mixed-workload.js"
   },
   "dependencies": {
-    "@hono/node-server": "^1.4.0",
+    "@hono/node-server": "^1.19.11",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/auto-instrumentations-node": "^0.69.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.211.0",
-    "@opentelemetry/sdk-node": "^0.211.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.71.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.213.0",
+    "@opentelemetry/sdk-node": "^0.213.0",
     "@runit/shared": "*",
-    "@sentry/node": "^10.38.0",
-    "@supabase/supabase-js": "^2.38.0",
+    "@sentry/node": "^10.43.0",
+    "@supabase/supabase-js": "^2.99.0",
     "@types/opossum": "^8.1.9",
     "adm-zip": "^0.5.10",
     "better-sqlite3": "^11.8.1",
-    "dotenv": "^17.2.3",
-    "hono": "^4.11.8",
+    "dotenv": "^17.3.1",
+    "hono": "^4.12.7",
     "jose": "^5.1.0",
     "js-yaml": "^4.1.0",
     "opossum": "^8.5.0",
@@ -49,9 +49,9 @@
     "zod": "^3.22.0"
   },
   "optionalDependencies": {
-    "@aws-sdk/client-kms": "^3.500.0",
-    "ioredis": "^5.9.2",
-    "stripe": "^20.3.1"
+    "@aws-sdk/client-kms": "^3.1006.0",
+    "ioredis": "^5.10.0",
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.5",
