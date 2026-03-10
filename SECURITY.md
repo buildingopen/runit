@@ -25,7 +25,7 @@ We will respond within 48 hours and work with you to understand and resolve the 
 - Master encryption keys are never exposed to user code
 
 ### Execution Isolation
-- User code runs in isolated Modal containers
+- User code runs in isolated Docker containers
 - Each execution gets a fresh environment
 - No persistent state between runs
 - Network access is controlled

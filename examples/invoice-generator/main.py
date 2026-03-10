@@ -1,6 +1,8 @@
-import os
 from datetime import datetime
+from runit import app
 
+
+@app.action
 def generate_invoice(client_name: str, amount: float, currency: str = "USD") -> dict:
     """Generate an invoice for a client."""
     invoice_id = f"INV-{datetime.now().strftime('%Y%m%d%H%M%S')}"
@@ -15,6 +17,8 @@ def generate_invoice(client_name: str, amount: float, currency: str = "USD") -> 
         "created_at": datetime.now().isoformat(),
     }
 
+
+@app.action
 def list_invoices(limit: int = 10) -> dict:
     """List recent invoices."""
     return {"invoices": [], "total": 0, "limit": limit}

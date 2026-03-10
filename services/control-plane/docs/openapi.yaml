@@ -55,7 +55,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Supabase Auth JWT token
+      description: API key or Bearer token for authentication
 
   schemas:
     # ==================== Projects ====================
@@ -105,7 +105,7 @@ components:
           format: uri
           nullable: true
           description: URL where the deployed project is accessible
-          example: "https://my-project.modal.run"
+          example: "https://my-app.runit.dev"
         detected_env_vars:
           type: array
           items:
@@ -1533,7 +1533,7 @@ paths:
       tags: [Deploy]
       summary: Deploy a project
       description: |
-        Starts deployment of the project's latest version to Modal.
+        Starts deployment of the project's latest version.
         Returns a stream URL for real-time deployment progress.
       operationId: deployProject
       responses:
@@ -2601,7 +2601,7 @@ paths:
     get:
       tags: [Health]
       summary: Deep health check
-      description: Health check including external dependencies (Supabase, Modal, Sentry)
+      description: Health check including external dependencies (database, compute backend)
       operationId: deepHealthCheck
       security: []
       responses:
@@ -2622,13 +2622,11 @@ paths:
                 uptime: 3600.5
                 timestamp: "2024-01-15T10:30:00Z"
                 checks:
-                  supabase:
+                  database:
                     status: "unhealthy"
                     error: "Connection timeout"
-                  modal:
+                  compute:
                     status: "configured"
-                  sentry:
-                    status: "healthy"
 
   /metrics:
     get:

@@ -134,7 +134,7 @@ npm run format
 ### Key Principles
 
 - Keep the runner minimal and secure
-- All user code runs in Modal containers
+- All user code runs in Docker containers (isolated sandbox)
 - Secrets never leave the control plane unencrypted
 - API responses follow consistent patterns
 

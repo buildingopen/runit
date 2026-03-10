@@ -1,6 +1,9 @@
 import re
 from collections import Counter
+from runit import app
 
+
+@app.action
 def word_count(text: str) -> dict:
     """Count words, sentences, and characters in text."""
     words = text.split()
@@ -13,6 +16,8 @@ def word_count(text: str) -> dict:
         "avg_word_length": round(sum(len(w) for w in words) / max(len(words), 1), 1),
     }
 
+
+@app.action
 def top_words(text: str, n: int = 5) -> dict:
     """Find the most common words in text."""
     words = re.findall(r'\b\w+\b', text.lower())
@@ -23,6 +28,8 @@ def top_words(text: str, n: int = 5) -> dict:
         "total_words": len(words),
     }
 
+
+@app.action
 def sentiment(text: str) -> dict:
     """Simple keyword-based sentiment analysis."""
     positive = {"good", "great", "excellent", "amazing", "love", "happy", "best", "wonderful"}

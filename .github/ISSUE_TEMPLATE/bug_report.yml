@@ -53,7 +53,7 @@ body:
       options:
         - Web UI
         - Control Plane API
-        - Modal Runner
+        - Runner (Docker)
         - SDK
         - Documentation
         - Other

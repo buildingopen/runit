@@ -1,89 +1,40 @@
-# Render Blueprint - Runtime
+# Render Blueprint - RunIt
 # https://render.com/docs/blueprint-spec
+#
+# Deploy RunIt to Render with: render blueprint apply
 
 services:
-  # Next.js Web Frontend
-  - type: web
-    name: runit-web
-    runtime: node
-    region: oregon
-    plan: starter
-    buildCommand: npm ci && npx turbo run build --filter=@runit/web
-    startCommand: cd apps/web && npm start
-    healthCheckPath: /
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        fromGroup: supabase
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        fromGroup: supabase
-      - key: NEXT_PUBLIC_API_URL
-        fromService:
-          name: runit-api
-          type: web
-          property: url
-    autoDeploy: true
-    branch: main
-
   # Hono Control Plane API
   - type: web
     name: runit-api
-    runtime: node
+    runtime: docker
     region: oregon
     plan: starter
-    buildCommand: npm ci && npx turbo run build --filter=@runit/control-plane
-    startCommand: cd services/control-plane && npm start
+    dockerfilePath: Dockerfile
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: "3001"
-      - key: SUPABASE_URL
-        fromGroup: supabase
-      - key: SUPABASE_ANON_KEY
-        fromGroup: supabase
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        fromGroup: supabase
+        value: "3000"
+      - key: COMPUTE_BACKEND
+        value: docker
+      - key: RUNIT_MODE
+        value: oss
       - key: MASTER_ENCRYPTION_KEY
         fromGroup: encryption
-      - key: MODAL_TOKEN_ID
-        fromGroup: modal
-      - key: MODAL_TOKEN_SECRET
-        fromGroup: modal
-      - key: CORS_ORIGINS
-        fromGroup: cors
+      - key: API_KEY
+        fromGroup: auth
     autoDeploy: true
     branch: main
 
 envVarGroups:
-  - name: supabase
-    envVars:
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        sync: false
-
   - name: encryption
     envVars:
       - key: MASTER_ENCRYPTION_KEY
         generateValue: true
 
-  - name: modal
+  - name: auth
     envVars:
-      - key: MODAL_TOKEN_ID
-        sync: false
-      - key: MODAL_TOKEN_SECRET
-        sync: false
-
-  - name: cors
-    envVars:
-      - key: CORS_ORIGINS
+      - key: API_KEY
         sync: false

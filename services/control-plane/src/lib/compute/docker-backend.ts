@@ -1,5 +1,5 @@
 // ABOUTME: Docker compute backend - executes user code in isolated Docker containers.
-// ABOUTME: Runs the runtime-runner image with payload JSON, captures stdout as result.
+// ABOUTME: Runs the runit-runner image with payload JSON, captures stdout as result.
 
 import { spawn } from 'child_process';
 import { writeFileSync, mkdirSync, rmSync, existsSync, chmodSync } from 'fs';
@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto';
 import { logger } from '../logger.js';
 import type { ComputeBackend, ExecutionRequest, ExecutionResult } from './types.js';
 
-const RUNNER_IMAGE = process.env.RUNNER_IMAGE || 'runtime-runner:latest';
+const RUNNER_IMAGE = process.env.RUNNER_IMAGE || 'runit-runner:latest';
 const DEFAULT_MEMORY = process.env.RUNNER_MEMORY || '512m';
 const DEFAULT_CPUS = process.env.RUNNER_CPUS || '1';
 // Workspace directory for run payloads. Must be a path visible to the Docker daemon (host path)

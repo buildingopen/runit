@@ -6,18 +6,17 @@
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| **Node.js** | >= 18.0.0 | TypeScript/JavaScript runtime |
+| **Node.js** | >= 20.0.0 | TypeScript/JavaScript runtime |
 | **npm** | >= 9.0.0 | Package manager |
 | **Python** | >= 3.11 | Python runtime for Runner |
 | **Git** | >= 2.30 | Version control |
-| **Modal** | Latest | Execution platform (optional for local dev) |
+| **Docker** | Latest | Container execution backend |
 
 ### Optional Tools
 
 | Tool | Purpose |
 |------|---------|
 | **VS Code** | Recommended IDE |
-| **Docker** | Local database testing |
 | **Postman/Insomnia** | API testing |
 
 ---
@@ -57,22 +56,15 @@ cp .env.example .env
 **apps/web/.env.local:**
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_ENABLE_MOCK_AUTH=true
+NEXT_PUBLIC_API_KEY=your-api-key
 ```
 
 **services/control-plane/.env.local:**
 ```bash
 PORT=3001
-DATABASE_URL=postgresql://user:pass@localhost:5432/runit
-SUPABASE_URL=your-supabase-url
-SUPABASE_SERVICE_KEY=your-service-key
-AWS_S3_BUCKET=runit-artifacts
-```
-
-**services/runner/.env.local:**
-```bash
-MODAL_TOKEN_ID=your-modal-token-id
-MODAL_TOKEN_SECRET=your-modal-token-secret
+MASTER_ENCRYPTION_KEY=$(openssl rand -base64 32)
+COMPUTE_BACKEND=docker
+API_KEY=your-api-key
 ```
 
 **Never commit `.env.local` files.**
@@ -83,9 +75,6 @@ MODAL_TOKEN_SECRET=your-modal-token-secret
 # TypeScript compilation
 npx tsc --noEmit
 
-# Python syntax
-cd services/runner && python -m py_compile src/modal_app.py
-
 # Tests
 npm run test
 cd services/runner && pytest
@@ -95,18 +84,25 @@ cd services/runner && pytest
 
 ## Start All Services
 
+### Option A: Docker (recommended)
+
+```bash
+docker-compose up --build
+```
+
+Open [http://localhost:3001](http://localhost:3001) to access the API.
+
+### Option B: Manual
+
 ```bash
 # Terminal 1: Web UI
 cd apps/web && npm run dev
 
 # Terminal 2: Control Plane API
 cd services/control-plane && npm run dev
-
-# Terminal 3: Modal Runner (optional)
-cd services/runner && source venv/bin/activate && modal serve src/modal_app.py
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to access the web interface.
+Open [http://localhost:3000](http://localhost:3000) for the web UI.
 
 ---
 
@@ -128,9 +124,6 @@ cd services/runner && pytest
 ```bash
 # Build all TypeScript packages
 npm run build
-
-# Build Python packages
-cd services/runner && pip install -e .
 ```
 
 ### Lint & Format
@@ -143,51 +136,7 @@ npm run format
 # Python
 cd services/runner
 black src/
-ruff src/
-```
-
----
-
-## Database Setup
-
-### Local PostgreSQL (Optional)
-
-**Using Docker:**
-```bash
-docker run -d \
-  --name runit-db \
-  -e POSTGRES_PASSWORD=password \
-  -e POSTGRES_DB=runtime_ai \
-  -p 5432:5432 \
-  postgres:16
-```
-
-### Supabase (Recommended)
-
-1. Create project at https://supabase.com
-2. Copy connection string
-3. Add to `.env.local`
-4. Apply schema via Supabase dashboard SQL editor
-
----
-
-## Modal Setup
-
-```bash
-# Install Modal CLI
-pip install modal
-
-# Authenticate
-modal token new
-
-# Test connection
-modal run services/runner/src/modal_app.py
-
-# Local development server
-modal serve services/runner/src/modal_app.py
-
-# Deploy to Modal
-modal deploy services/runner/src/modal_app.py
+ruff check src/
 ```
 
 ---
@@ -200,7 +149,6 @@ modal deploy services/runner/src/modal_app.py
 - Python (`ms-python.python`)
 - Pylance (`ms-python.vscode-pylance`)
 - Tailwind CSS IntelliSense (`bradlc.vscode-tailwindcss`)
-- Playwright (`ms-playwright.playwright`)
 
 **Settings (`.vscode/settings.json`):**
 ```json
@@ -217,16 +165,13 @@ modal deploy services/runner/src/modal_app.py
 ## Troubleshooting
 
 ### npm install fails
-Node version mismatch. Ensure Node >= 18 and npm >= 9.
+Node version mismatch. Ensure Node >= 20 and npm >= 9.
 
 ### Python module not found
 Virtual environment not activated. Run `source venv/bin/activate`.
 
-### Modal authentication fails
-Run `modal token new` and follow prompts.
-
-### Database connection fails
-Check `.env.local` exists with correct connection string.
+### Docker socket permission denied
+Add your user to the docker group: `sudo usermod -aG docker $USER`
 
 ### TypeScript errors in IDE but builds fine
-In VS Code: Cmd+Shift+P → "TypeScript: Select TypeScript Version" → "Use Workspace Version"
+In VS Code: Cmd+Shift+P > "TypeScript: Select TypeScript Version" > "Use Workspace Version"

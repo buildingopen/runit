@@ -1,3 +1,7 @@
+from runit import app
+
+
+@app.action
 def convert_temperature(value: float, from_unit: str, to_unit: str) -> dict:
     """Convert temperature between Celsius, Fahrenheit, and Kelvin."""
     converters = {
@@ -16,6 +20,8 @@ def convert_temperature(value: float, from_unit: str, to_unit: str) -> dict:
         return {"error": f"Cannot convert {from_unit} to {to_unit}"}
     return {"result": round(fn(value), 2), "from": from_unit, "to": to_unit}
 
+
+@app.action
 def convert_distance(value: float, from_unit: str, to_unit: str) -> dict:
     """Convert distance between common units."""
     to_meters = {

@@ -149,7 +149,7 @@ async function executeDeploySteps(
       throw new Error('Modal runtime not configured — MODAL_TOKEN_ID and MODAL_TOKEN_SECRET required');
     }
   }
-  // Docker backend: no credentials needed, just needs runtime-runner image
+  // Docker backend: no credentials needed, just needs runit-runner image
 
   deployState.updateDeployProgress(projectId, 'starting', 75, 'Runtime available.');
 

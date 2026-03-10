@@ -5,24 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-02-06
+## [0.1.0] - 2026-03-10
 
 ### Added
 
-- **ZIP Upload** — Upload FastAPI projects as ZIP files for instant deployment
-- **OpenAPI Detection** — Automatic form generation from OpenAPI/Swagger schemas
-- **Secrets Management** — Encrypted storage for API keys and sensitive configuration
-- **Artifact Storage** — Persist files generated during execution with download links
-- **Share Links** — Public URLs for sharing API endpoints
-- **Context System** — Mount external data sources to execution environments
-- **Modal Integration** — Serverless execution on Modal infrastructure
-- **Run History** — Track execution history with logs and outputs
-- **Cost Monitoring** — Basic usage tracking and cost estimation
+- **Python SDK** with `@app.action` decorator and `remember()` storage
+- **ZIP Upload** for instant deployment of Python projects
+- **Auto-generated UI** from Python type hints via OpenAPI schema extraction
+- **Secrets Management** with encrypted storage for API keys
+- **Share Links** for public URLs to share apps
+- **Context System** for mounting external data to execution environments
+- **Docker Sandbox** for isolated code execution
+- **CLI** (`runit deploy`, `runit list`, `runit storage`, etc.)
+- **MCP Server** for AI agent integration
 
 ### Infrastructure
 
-- Next.js 14 web application
-- Hono API backend (control-plane)
-- Modal-based Python runner
-- Supabase for database and auth
+- Next.js web application
+- Hono API backend (control-plane) with SQLite
+- Docker-based Python runner
 - Turborepo monorepo structure
+- Self-hostable via `docker-compose up --build`

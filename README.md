@@ -81,7 +81,7 @@ That's it. SQLite database, Docker sandbox, zero cloud dependencies.
 | `COMPUTE_BACKEND` | No | `docker` | `docker` for self-hosted |
 | `PORT` | No | `3001` | Server port |
 | `API_KEY` | No | | Bearer token to protect API |
-| `RUNNER_IMAGE` | No | `runtime-runner:latest` | Docker image for code execution |
+| `RUNNER_IMAGE` | No | `runit-runner:latest` | Docker image for code execution |
 | `RUNNER_MEMORY` | No | `512m` | Memory limit per container |
 | `RUNNER_CPUS` | No | `1` | CPU limit per container |
 | `RUNNER_NETWORK` | No | `none` | Network mode (`none` for isolation) |
@@ -130,10 +130,18 @@ npm install -g @runit/cli
 runit deploy my-app.py --name "My App"
 
 # List your apps
-runit projects list
+runit list
 
-# Run an action
-runit run <project-id> greet --name "World"
+# View logs
+runit logs
+
+# Manage storage
+runit storage list
+runit storage get <key>
+runit storage set <key> <value>
+
+# Share your app
+runit share create <endpoint_id>
 ```
 
 </details>

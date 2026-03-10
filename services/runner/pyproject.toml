@@ -1,10 +1,9 @@
 [project]
 name = "runit-runner"
 version = "0.1.0"
-description = "Modal-based execution kernel for Runtime"
+description = "Docker-based execution kernel for RunIt"
 requires-python = ">=3.11"
 dependencies = [
-    "modal>=0.60.0",
     "fastapi>=0.109.0",
     "uvicorn>=0.27.0",
     "httpx>=0.26.0",

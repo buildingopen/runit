@@ -1,21 +1,22 @@
 # Runner
 
-Modal-based Python execution runtime for RunIt.
+Docker-based Python execution runtime for RunIt.
 
 ## Features
 
-- Execute FastAPI applications in isolated containers
+- Execute Python functions in isolated Docker containers
 - Automatic dependency installation from requirements.txt
-- OpenAPI schema extraction
+- OpenAPI schema extraction from type hints
 - Entrypoint detection
 - Secret injection at runtime
 - Artifact persistence
+- Built-in SDK with `@app.action` decorator and `remember()` storage
 
 ## Tech Stack
 
-- [Modal](https://modal.com) — Serverless infrastructure
-- [FastAPI](https://fastapi.tiangolo.com) — Target framework
-- [uvicorn](https://www.uvicorn.org) — ASGI server
+- [FastAPI](https://fastapi.tiangolo.com) - Target framework
+- [uvicorn](https://www.uvicorn.org) - ASGI server
+- Docker - Container isolation
 
 ## Development
 
@@ -29,26 +30,12 @@ pip install -e ".[dev]"
 
 # Run tests
 pytest
-
-# Start local Modal server
-modal serve src/modal_app.py
-
-# Deploy to Modal
-modal deploy src/modal_app.py
-```
-
-## Environment Variables
-
-```bash
-MODAL_TOKEN_ID=...
-MODAL_TOKEN_SECRET=...
 ```
 
 ## Architecture
 
 ```
 src/
-├── modal_app.py      # Modal app definition
 ├── build/            # Dependency installation
 ├── execute/          # Request execution
 ├── openapi/          # Schema extraction
@@ -57,14 +44,15 @@ src/
 └── errors/           # Error taxonomy
 
 sdk/                  # Python SDK for user apps
-samples/              # Example FastAPI applications
+  └── runit/          # @app.action, remember(), storage
+samples/              # Example applications
 tests/                # Unit and integration tests
 ```
 
 ## How It Works
 
-1. **Upload** — ZIP file received from control-plane
-2. **Build** — Dependencies installed in container
-3. **Extract** — OpenAPI schema parsed from FastAPI app
-4. **Execute** — Requests routed to user endpoints
-5. **Collect** — Logs and artifacts returned to control-plane
+1. **Upload** - ZIP file received from control-plane
+2. **Build** - Dependencies installed in container
+3. **Extract** - OpenAPI schema parsed from type hints
+4. **Execute** - Requests routed to user functions
+5. **Collect** - Logs and artifacts returned to control-plane

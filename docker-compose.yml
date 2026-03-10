@@ -19,7 +19,7 @@ services:
     build:
       context: services/runner
       dockerfile: Dockerfile
-    image: runtime-runner:latest
+    image: runit-runner:latest
     entrypoint: ["echo", "Runner image ready"]
 
   server:
@@ -36,7 +36,7 @@ services:
       - COMPUTE_BACKEND=docker
       - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY}
       - API_KEY=${API_KEY:-}
-      - RUNNER_IMAGE=${RUNNER_IMAGE:-runtime-runner:latest}
+      - RUNNER_IMAGE=${RUNNER_IMAGE:-runit-runner:latest}
       - RUNNER_MEMORY=${RUNNER_MEMORY:-512m}
       - RUNNER_CPUS=${RUNNER_CPUS:-1}
       - RUNNER_NETWORK=${RUNNER_NETWORK:-none}
