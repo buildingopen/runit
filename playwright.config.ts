@@ -63,7 +63,8 @@ export default defineConfig({
   /* Run both services before starting the tests */
   webServer: [
     {
-      command: 'cd services/control-plane && npm run dev',
+      command:
+        'cd services/control-plane && NODE_ENV=test RUNIT_DATA_DIR=.runit-e2e-data npm run dev',
       url: 'http://localhost:3001/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,

@@ -48,7 +48,8 @@ pip install -e ".[dev]"
 
 ### 3. Environment Variables
 
-If you used `npm run setup:local`, `.env` is already created with a generated encryption key.
+If you used `npm run setup:local`, `.env` is already created with a generated encryption key,
+and `apps/web/.env.local` is created with `NEXT_PUBLIC_API_URL=http://localhost:3001`.
 You can still customize values manually as needed.
 
 Copy the example file and fill in your values:
@@ -109,12 +110,17 @@ Open [http://localhost:3001](http://localhost:3001) to access the API.
 ### Option B: Manual
 
 ```bash
-# Terminal 1: Web UI
-cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:3001 npm run dev -- -p 3000
-
-# Terminal 2: Control Plane API
+# Terminal 1: Control Plane API
 cd services/control-plane && npm run dev
+
+# Terminal 2: Web UI
+npm run dev:local
 ```
+
+Expected local URLs:
+
+- Web UI: `http://localhost:3000`
+- API health: `http://localhost:3001/health`
 
 Open [http://localhost:3000](http://localhost:3000) for the web UI.
 

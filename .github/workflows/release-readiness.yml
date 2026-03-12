@@ -34,6 +34,7 @@ jobs:
         env:
           NODE_ENV: test
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+          RUNIT_DATA_DIR: ${{ runner.temp }}/runit-release-data
 
       - name: Golden path E2E
         run: npx playwright test tests/e2e/golden-path.spec.ts
@@ -41,12 +42,14 @@ jobs:
           CI: true
           NEXT_PUBLIC_API_URL: http://localhost:3001
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+          RUNIT_DATA_DIR: ${{ runner.temp }}/runit-release-data
 
       - name: Smoke checks (web + api contracts)
         run: npm run smoke:golden
         env:
           API_BASE_URL: http://localhost:3001
           WEB_BASE_URL: http://localhost:3000
+          RUNIT_DATA_DIR: ${{ runner.temp }}/runit-release-data
 
       - name: Verify PRR artifacts
         run: npm run verify:prr-artifacts

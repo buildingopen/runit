@@ -9,8 +9,8 @@
  * 5. See result
  *
  * Prerequisites (auto-started by playwright):
- * - Control plane on port 3002
- * - Web app on port 3001
+ * - Control plane on port 3001
+ * - Web app on port 3000
  */
 
 import { test, expect } from '@playwright/test';
@@ -27,6 +27,19 @@ async function waitForPageReady(page: import('@playwright/test').Page) {
     },
     { timeout: 15000 }
   ).catch(() => {});
+}
+
+async function uploadHelloWorldZip(page: import('@playwright/test').Page) {
+  const fixturesPath = path.resolve(__dirname, '../fixtures/hello-world.zip');
+  const fileInput = page.locator('input[type="file"]');
+  const uploadButton = page.locator('button:has-text("Upload")');
+
+  await expect(fileInput).toBeAttached({ timeout: 5000 });
+  await fileInput.setInputFiles(fixturesPath);
+  await expect(uploadButton).toBeVisible({ timeout: 10000 });
+  await expect(uploadButton).toBeEnabled({ timeout: 10000 });
+
+  return uploadButton;
 }
 
 test.describe('Golden Path', () => {
@@ -59,18 +72,7 @@ test.describe('Golden Path', () => {
     await page.goto('/new');
     await waitForPageReady(page);
 
-    // Find file input and upload
-    const fixturesPath = path.resolve(__dirname, '../fixtures/hello-world.zip');
-    const fileInput = page.locator('input[type="file"]');
-
-    await expect(fileInput).toBeAttached({ timeout: 5000 });
-    await fileInput.setInputFiles(fixturesPath);
-
-    // Wait for file processing
-    await page.waitForTimeout(1000);
-
-    // Should see upload button enabled
-    const uploadButton = page.locator('button:has-text("Upload")');
+    const uploadButton = await uploadHelloWorldZip(page);
     await expect(uploadButton).toBeVisible({ timeout: 5000 });
   });
 
@@ -78,14 +80,7 @@ test.describe('Golden Path', () => {
     await page.goto('/new');
     await waitForPageReady(page);
 
-    // Upload file
-    const fixturesPath = path.resolve(__dirname, '../fixtures/hello-world.zip');
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles(fixturesPath);
-    await page.waitForTimeout(1000);
-
-    // Click upload
-    const uploadButton = page.locator('button:has-text("Upload")');
+    const uploadButton = await uploadHelloWorldZip(page);
     await uploadButton.click();
 
     // Wait for redirect (either to configure or directly to run page)
@@ -108,10 +103,8 @@ test.describe('Golden Path', () => {
     await page.goto('/new');
     await waitForPageReady(page);
 
-    const fixturesPath = path.resolve(__dirname, '../fixtures/hello-world.zip');
-    await page.locator('input[type="file"]').setInputFiles(fixturesPath);
-    await page.waitForTimeout(1000);
-    await page.locator('button:has-text("Upload")').click();
+    const uploadButton = await uploadHelloWorldZip(page);
+    await uploadButton.click();
 
     // Wait for configure page
     await page.waitForURL(

@@ -209,7 +209,8 @@ export function Sidebar() {
           </div>
           {apiStatus === 'disconnected' && (
             <p className="mt-2 text-[10px] text-[var(--text-tertiary)] leading-snug">
-              Tip: run control-plane on <span className="text-[var(--text-secondary)]">3001</span> and set
+              Tip: use `docker-compose up --build` for the quick path, or run control-plane on
+              <span className="text-[var(--text-secondary)]"> 3001</span> and keep
               <span className="text-[var(--text-secondary)]"> NEXT_PUBLIC_API_URL</span>.
             </p>
           )}

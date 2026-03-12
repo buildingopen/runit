@@ -138,6 +138,10 @@ export default function HomePage() {
             <p className="text-[14px] text-[var(--text-secondary)] mb-6">
               Import your Python code and go live in seconds
             </p>
+            <p className="text-[12px] text-[var(--text-tertiary)] mb-4">
+              Fastest path: paste one Python function on the new app page, or run the local stack
+              with `npm run setup:local` and `docker-compose up --build`.
+            </p>
             <Link
               href="/new"
               className="inline-flex items-center gap-2 px-6 py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[15px] font-semibold rounded-[10px] transition-colors"

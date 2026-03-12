@@ -22,6 +22,13 @@ require_cmd "python3" "Install Python 3.11+"
 require_cmd "docker" "Install Docker Desktop / Docker Engine"
 require_cmd "openssl" "Install OpenSSL (required for encryption key generation)"
 
+if docker info >/dev/null 2>&1; then
+  echo "OK  docker daemon reachable"
+else
+  echo "WARN  docker daemon not reachable yet"
+  echo "      Start Docker before running docker-compose or local executions"
+fi
+
 if [[ ! -f ".env" ]]; then
   if [[ ! -f ".env.example" ]]; then
     echo "FAIL  .env.example not found in repo root"
@@ -37,11 +44,28 @@ else
   echo "OK  .env already exists"
 fi
 
+if [[ ! -f "apps/web/.env.local" ]]; then
+  mkdir -p apps/web
+  cat > apps/web/.env.local <<'EOF'
+NEXT_PUBLIC_API_URL=http://localhost:3001
+EOF
+  echo "OK  Created apps/web/.env.local with local API URL"
+else
+  echo "OK  apps/web/.env.local already exists"
+fi
+
 echo ""
-echo "Next steps:"
-echo "  1) npm install"
-echo "  2) docker-compose up --build"
-echo "  3) Open web UI: http://localhost:3000 (if using all-in-one container)"
-echo "     or API: http://localhost:3001/health (compose control-plane)"
+echo "Choose one path:"
+echo ""
+echo "  Quick self-host path"
+echo "    1) npm install"
+echo "    2) docker-compose up --build"
+echo "    3) Open API health: http://localhost:3001/health"
+echo ""
+echo "  Manual local dev path"
+echo "    1) npm install"
+echo "    2) cd services/control-plane && npm run dev"
+echo "    3) In a second terminal: npm run dev:local"
+echo "    4) Open web UI: http://localhost:3000"
 echo ""
 echo "Tip: run 'runit doctor' after installing the CLI."

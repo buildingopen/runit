@@ -52,14 +52,25 @@ git clone https://github.com/buildingopen/runit
 cd runit
 npm run setup:local
 npm install
+```
+
+Self-host path:
+
+```bash
 docker-compose up --build
 ```
 
-For manual local UI development:
+Manual local dev path:
 
 ```bash
+# Terminal 1
+cd services/control-plane && npm run dev
+
+# Terminal 2
 npm run dev:local
 ```
+
+Open `http://localhost:3000`. The local API should answer on `http://localhost:3001/health`.
 
 ## Three Copy-Paste Apps
 
