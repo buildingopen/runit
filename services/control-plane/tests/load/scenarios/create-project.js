@@ -21,9 +21,9 @@ const projectsCreated = new Counter('projects_created');
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3001';
 const AUTH_TOKEN = __ENV.AUTH_TOKEN || '';
 
-// Minimal valid ZIP file (base64 encoded) - empty FastAPI app
-// This is a minimal ZIP containing a simple Python file
-const MINIMAL_ZIP_BASE64 = __ENV.TEST_ZIP_DATA || 'UEsDBBQAAAAIAAAAAACPT0YfKwAAAC8AAAAHABwAbWFpbi5weVVUCQADAAAAAAAAAAAAdXgLAAEE6AMAAAToAwAAKypKTc7PS8nMS1eyUCguSUzKSizJzM+zAgBQSwECHgMUAAAACAAAAAAEj09GHysAAAAvAAAABwAYAAAAAAAAAQAAAKSBAAAAAG1haW4ucHlVVAUAAwAAAAB1eAsAAQToAwAABOgDAABQSwUGAAAAAAEAAQBNAAAAZgAAAAAA';
+// Minimal valid ZIP file (base64 encoded) containing a simple FastAPI app.
+// Keep this in sync with current ZIP validation rules by using a real archive.
+const MINIMAL_ZIP_BASE64 = __ENV.TEST_ZIP_DATA || 'UEsDBBQAAAAIANoDbVycDgoZZwAAAHUAAAAHAAAAbWFpbi5weUsrys9VSEssLkksyFTIzC3ILypRcANyHQM8ubgSCwoUbGFcDU0uLgegiF56aomGkn5Gak5OvpImV0pqmgKYraFpxaUABEWpJaVFeQrVSrmpxcWJ6alKVgpKHiAFCuH5RTkpikq1XABQSwECFAMUAAAACADaA21cnA4KGWcAAAB1AAAABwAAAAAAAAAAAAAAgAEAAAAAbWFpbi5weVBLBQYAAAAAAQABADUAAACMAAAAAAA=';
 
 // Scenario options
 export const options = {

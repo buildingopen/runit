@@ -38,8 +38,9 @@ const TRAFFIC_WEIGHTS = {
   secretsOps: 5,        // 5%  - Secrets operations
 };
 
-// Minimal ZIP for project creation
-const MINIMAL_ZIP_BASE64 = __ENV.TEST_ZIP_DATA || 'UEsDBBQAAAAIAAAAAACPT0YfKwAAAC8AAAAHABwAbWFpbi5weVVUCQADAAAAAAAAAAAAdXgLAAEE6AMAAAToAwAAKypKTc7PS8nMS1eyUCguSUzKSizJzM+zAgBQSwECHgMUAAAACAAAAAAEj09GHysAAAAvAAAABwAYAAAAAAAAAQAAAKSBAAAAAG1haW4ucHlVVAUAAwAAAAB1eAsAAQToAwAABOgDAABQSwUGAAAAAAEAAQBNAAAAZgAAAAAA';
+// Minimal ZIP for project creation. This must remain a real archive so
+// project creation load tests exercise the full validation and extraction flow.
+const MINIMAL_ZIP_BASE64 = __ENV.TEST_ZIP_DATA || 'UEsDBBQAAAAIANoDbVycDgoZZwAAAHUAAAAHAAAAbWFpbi5weUsrys9VSEssLkksyFTIzC3ILypRcANyHQM8ubgSCwoUbGFcDU0uLgegiF56aomGkn5Gak5OvpImV0pqmgKYraFpxaUABEWpJaVFeQrVSrmpxcWJ6alKVgpKHiAFCuH5RTkpikq1XABQSwECFAMUAAAACADaA21cnA4KGWcAAAB1AAAABwAAAAAAAAAAAAAAgAEAAAAAbWFpbi5weVBLBQYAAAAAAQABADUAAACMAAAAAAA=';
 
 // Scenario options
 export const options = {
