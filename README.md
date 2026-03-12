@@ -279,6 +279,23 @@ npm test        # Run all tests
 - Keep state simple with built-in `remember()` storage
 - Share links instantly for demos, internal tools, and experiments
 
+## Standards-compatible workflows
+
+RunIt works with standard API and browser tooling:
+
+- OpenAPI contract at `GET /v1/openapi.json`
+- Docs landing at `GET /docs`
+- Browser automation friendly routes (`/new`, `/p/:id`, `/s/:id`)
+- CLI + API parity for scripting and CI
+
+Common pairings:
+
+- Postman/Insomnia for API exploration
+- Playwright/browser-use style flows for UI automation
+- cURL scripts for smoke checks and CI gates
+
+See [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) for concrete examples.
+
 ## Launch Kit
 
 - 2-minute onboarding guide: [docs/LAUNCH_FIRST_APP.md](docs/LAUNCH_FIRST_APP.md)

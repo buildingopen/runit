@@ -7,6 +7,7 @@
 - [SDK Guide](SDK_GUIDE.md) — Using the Python SDK in your FastAPI apps
 - [First App in 2 Minutes](LAUNCH_FIRST_APP.md) — Fast onboarding path
 - [Launch Kit](LAUNCH_KIT.md) — Distribution copy and launch checklist
+- [Integrations and Standards](INTEGRATIONS.md) — OpenAPI, CLI, browser automation usage
 - [PRR Scorecard](PRR_SCORECARD.md) — Launch-readiness scoring rubric
 - [Release Checklist](RELEASE_CHECKLIST.md) — Go/no-go and rollback runbook
 

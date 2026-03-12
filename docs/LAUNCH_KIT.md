@@ -6,6 +6,7 @@ Use this file to launch RunIt across channels with consistent messaging.
 
 - Tagline: **AI writes code. RunIt makes it real.**
 - One-liner: **Turn Python functions into live apps with auto-generated UI and share links.**
+- Standards note: **OpenAPI contract available at `/v1/openapi.json` for standard API tooling.**
 
 ## Audience Angles
 
