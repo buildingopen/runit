@@ -1,4 +1,5 @@
 import ipaddress
+import os
 import socket
 from urllib.parse import urlparse
 
@@ -11,17 +12,18 @@ app = FastAPI()
 
 
 class ScrapeRequest(BaseModel):
-    url: str
+    path: str = "/"
 
 
-def validate_public_url(raw_url: str) -> str:
+def get_base_url() -> str:
+    raw_url = os.getenv("SCRAPER_BASE_URL", "https://example.com")
     parsed = urlparse(raw_url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise HTTPException(status_code=400, detail="Use a valid http or https URL")
+        raise HTTPException(status_code=500, detail="SCRAPER_BASE_URL must be a valid http or https URL")
 
     host = parsed.hostname.lower()
     if host == "localhost":
-        raise HTTPException(status_code=400, detail="Localhost URLs are not allowed")
+        raise HTTPException(status_code=500, detail="SCRAPER_BASE_URL cannot target localhost")
 
     try:
         addresses = {
@@ -33,7 +35,7 @@ def validate_public_url(raw_url: str) -> str:
             )
         }
     except socket.gaierror as exc:
-        raise HTTPException(status_code=400, detail="Could not resolve host") from exc
+        raise HTTPException(status_code=500, detail="Could not resolve SCRAPER_BASE_URL") from exc
 
     for address in addresses:
         ip = ipaddress.ip_address(address)
@@ -46,18 +48,26 @@ def validate_public_url(raw_url: str) -> str:
             or ip.is_unspecified
         ):
             raise HTTPException(
-                status_code=400,
-                detail="Private, local, and metadata network targets are not allowed",
+                status_code=500,
+                detail="SCRAPER_BASE_URL cannot target private, local, or metadata networks",
             )
 
-    return raw_url
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def normalize_path(path: str) -> str:
+    cleaned = path.strip() or "/"
+    if not cleaned.startswith("/"):
+        raise HTTPException(status_code=400, detail="Path must start with /")
+    return cleaned
 
 
 @app.post("/scrape")
 async def scrape(request: ScrapeRequest):
-    """Scrape a web page and extract title, text, and links."""
+    """Scrape a page from the configured public site and extract title, text, and links."""
+    target_url = get_base_url().rstrip("/") + normalize_path(request.path)
     response = requests.get(
-        validate_public_url(request.url),
+        target_url,
         timeout=15,
         headers={"User-Agent": "RuntimeAI-Scraper/1.0"},
     )
@@ -80,7 +90,7 @@ async def scrape(request: ScrapeRequest):
     ]  # Limit to 50 links
 
     return {
-        "url": request.url,
+        "url": target_url,
         "title": title,
         "text": text[:5000],  # Limit text length
         "links": links,
