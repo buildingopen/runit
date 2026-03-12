@@ -123,7 +123,7 @@ export function createApp(config?: AppConfig): Hono {
   app.use('/*', contentTypeMiddleware);
 
   // Authentication middleware (replaceable by cloud)
-  const AUTH_EXCLUDED_EXACT = ['/health', '/openapi.json', '/v1/openapi.json', '/v1/billing/webhook', '/billing/webhook'];
+  const AUTH_EXCLUDED_EXACT = ['/', '/docs', '/health', '/openapi.json', '/v1/openapi.json', '/v1/billing/webhook', '/billing/webhook'];
   const AUTH_EXCLUDED_PREFIXES = ['/metrics'];
   const auth = config?.authMiddleware ?? authMiddleware;
 
@@ -168,8 +168,45 @@ export function createApp(config?: AppConfig): Hono {
         runs: '/runs',
         health: '/health',
         metrics: '/metrics',
+        openapi: '/v1/openapi.json',
+        docs: '/docs',
       },
     });
+  });
+
+  // Human-friendly API docs landing
+  app.get('/docs', (c) => {
+    return c.html(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RunIt API Docs</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin: 0; padding: 24px; background: #0b1020; color: #f4f7ff; }
+      .card { max-width: 820px; margin: 0 auto; background: #121a33; border: 1px solid #2a365d; border-radius: 12px; padding: 20px; }
+      h1 { margin: 0 0 12px; font-size: 28px; }
+      p { color: #b7c3e5; line-height: 1.6; }
+      a { color: #7dd3fc; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code { background: #0f152b; border: 1px solid #2a365d; border-radius: 6px; padding: 2px 6px; color: #c7d2fe; }
+      ul { color: #c7d2fe; line-height: 1.8; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>RunIt Control Plane API</h1>
+      <p>Use the versioned API under <code>/v1/*</code>. These links are the fastest entry points for standard tooling.</p>
+      <ul>
+        <li>OpenAPI schema: <a href="/v1/openapi.json">/v1/openapi.json</a></li>
+        <li>Health check: <a href="/health">/health</a></li>
+        <li>Deep health: <a href="/health/deep">/health/deep</a></li>
+        <li>API root metadata: <a href="/">/</a></li>
+      </ul>
+      <p>Tip: import <code>/v1/openapi.json</code> into Postman, Insomnia, or your client generator.</p>
+    </main>
+  </body>
+</html>`);
   });
 
   // Health check

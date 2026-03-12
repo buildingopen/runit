@@ -203,6 +203,7 @@ Gives AI agents (Claude, Cursor, etc.) tools to deploy code, run actions, and ma
 <summary><strong>API Reference</strong></summary>
 
 All routes are under `/v1/`. Full OpenAPI spec at `/v1/openapi.json`.
+Human-friendly API docs landing: `/docs`.
 
 **Apps:** `GET /v1/projects`, `POST /v1/projects`, `GET /v1/projects/:id`, `DELETE /v1/projects/:id`
 

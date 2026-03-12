@@ -7,6 +7,7 @@ import { apiClient, type Project, type ProjectStatus } from '../../lib/api/clien
 import { getProjectEmoji } from '../../lib/utils';
 
 export default function HomePage() {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +76,30 @@ export default function HomePage() {
         <div className="text-center mb-10">
           <h1 className="text-[28px] font-bold text-[var(--text-primary)] mb-1.5">Your Apps</h1>
           <p className="text-[var(--text-secondary)]">Create, run, and share</p>
+        </div>
+
+        <div className="mb-6 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl px-4 py-3">
+          <div className="text-[12px] text-[var(--text-secondary)]">
+            API-first workflow:
+            {' '}
+            <a
+              href={`${apiBaseUrl}/v1/openapi.json`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--accent)] hover:underline"
+            >
+              OpenAPI
+            </a>
+            {' · '}
+            <a
+              href={`${apiBaseUrl}/docs`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--accent)] hover:underline"
+            >
+              API docs landing
+            </a>
+          </div>
         </div>
 
         {/* Error Banner */}
