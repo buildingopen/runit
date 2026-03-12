@@ -163,7 +163,7 @@ export class DockerBackend implements ComputeBackend {
 
       // Mount persistent storage volume
       if (projectId && projectId !== 'local') {
-        const storageDir = join(STORAGE_BASE_DIR, projectId);
+        const storageDir = join(getStorageBaseDir(), projectId);
         args.push('-v', `${storageDir}:/storage:rw`);
         args.push('-e', 'RUNIT_STORAGE_DIR=/storage');
         args.push('-e', `EL_PROJECT_ID=${projectId}`);
@@ -171,7 +171,7 @@ export class DockerBackend implements ComputeBackend {
 
       // Mount pip dep cache volume
       if (depsHash && depsHash !== 'no-deps') {
-        const depsCacheDir = join(STORAGE_BASE_DIR, '..', 'deps-cache', depsHash);
+        const depsCacheDir = join(getStorageBaseDir(), '..', 'deps-cache', depsHash);
         args.push('-v', `${depsCacheDir}:/root/.cache/pip:rw`);
       }
 
