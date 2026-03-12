@@ -48,6 +48,9 @@ jobs:
           API_BASE_URL: http://localhost:3001
           WEB_BASE_URL: http://localhost:3000
 
+      - name: Verify PRR artifacts
+        run: npm run verify:prr-artifacts
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -63,3 +66,4 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Complete docs/RELEASE_CHECKLIST.md before shipping." >> $GITHUB_STEP_SUMMARY
           echo "Attach completed PRR scorecard from docs/PRR_SCORECARD.md." >> $GITHUB_STEP_SUMMARY
+          echo "Artifact verification (`npm run verify:prr-artifacts`) has already run in this workflow." >> $GITHUB_STEP_SUMMARY

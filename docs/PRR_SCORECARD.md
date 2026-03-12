@@ -60,8 +60,9 @@ Score guidance:
 
 1. Run `npm run verify`.
 2. Run `npx playwright test tests/e2e/golden-path.spec.ts`.
-3. Fill this scorecard with links to CI runs and local outputs.
-4. Decide go/no-go using `docs/RELEASE_CHECKLIST.md`.
+3. Run `npm run verify:prr-artifacts`.
+4. Fill this scorecard with links to CI runs and local outputs.
+5. Decide go/no-go using `docs/RELEASE_CHECKLIST.md`.
 
 ## Launch Decision
 
