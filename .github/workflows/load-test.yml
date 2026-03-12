@@ -65,6 +65,7 @@ jobs:
         env:
           NODE_ENV: test
           PORT: 3001
+          API_KEY: test-load-key
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
           RUNIT_DATA_DIR: ${{ runner.temp }}/runit-smoke-data
 
@@ -74,7 +75,10 @@ jobs:
       - name: Run smoke test
         working-directory: services/control-plane
         run: |
-          k6 run tests/load/k6-config.js --env SCENARIO=smoke --env BASE_URL=http://localhost:3001
+          k6 run tests/load/k6-config.js \
+            --env SCENARIO=smoke \
+            --env BASE_URL=http://localhost:3001 \
+            --env AUTH_TOKEN=test-load-key
         env:
           K6_OUT: json=tests/load/results/smoke-test-results.json
 
@@ -120,6 +124,7 @@ jobs:
         env:
           NODE_ENV: test
           PORT: 3001
+          API_KEY: test-load-key
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
           RUNIT_DATA_DIR: ${{ runner.temp }}/runit-load-data
 
@@ -151,6 +156,7 @@ jobs:
           k6 run tests/load/k6-config.js \
             --env SCENARIO=${SCENARIO} \
             --env BASE_URL=${BASE_URL} \
+            --env AUTH_TOKEN=test-load-key \
             ${EXTRA_ARGS}
         env:
           K6_OUT: json=tests/load/results/${{ github.event.inputs.scenario }}-results.json
