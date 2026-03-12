@@ -1,8 +1,8 @@
 """Tests for artifacts module."""
 
 import json
-import tempfile
 from pathlib import Path
+import tempfile
 
 import pytest
 from runit import save_artifact, save_dataframe, save_json

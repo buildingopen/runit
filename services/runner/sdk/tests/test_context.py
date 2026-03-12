@@ -1,8 +1,8 @@
 """Tests for context module."""
 
 import json
-import tempfile
 from pathlib import Path
+import tempfile
 
 import pytest
 from runit import context
