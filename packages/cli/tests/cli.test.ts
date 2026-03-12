@@ -25,6 +25,7 @@ const mockExistsSync = vi.fn().mockReturnValue(true);
 const mockReadFileSync = vi.fn().mockReturnValue('def hello(): pass');
 const mockWriteFileSync = vi.fn();
 const mockMkdirSync = vi.fn();
+const mockExecSync = vi.fn();
 
 vi.mock('@runit/client', () => ({
   RunitClient: vi.fn().mockImplementation(function () {
@@ -45,6 +46,7 @@ vi.mock('fs', async () => {
 
 vi.mock('child_process', () => ({
   exec: vi.fn(),
+  execSync: (...args: unknown[]) => mockExecSync(...args),
 }));
 
 // Capture console output
@@ -94,6 +96,7 @@ beforeEach(() => {
   mockReadFileSync.mockReset().mockReturnValue('def hello(): pass');
   mockWriteFileSync.mockReset();
   mockMkdirSync.mockReset();
+  mockExecSync.mockReset();
 });
 
 afterEach(() => {
@@ -577,6 +580,53 @@ describe('status command', () => {
     await runCLI(['status']);
 
     expect(errorOutput.join('\n')).toContain("Can't reach RunIt server");
+    expect(exitCode).toBe(1);
+  });
+});
+
+// ---- doctor ----
+
+describe('doctor command', () => {
+  it('passes when local setup checks are healthy', async () => {
+    mockClient.health.mockResolvedValue({ status: 'ok' });
+    mockExecSync.mockImplementation((cmd: string) => {
+      if (cmd.startsWith('docker --version')) return 'Docker version 25.0.0';
+      if (cmd.startsWith('docker info')) return '25.0.0';
+      return '';
+    });
+    mockExistsSync.mockImplementation((filePath: unknown) => String(filePath).includes('.runit/project.json'));
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        project_id: 'proj-1',
+        name: 'demo',
+        slug: 'demo',
+        deployed_at: new Date().toISOString(),
+        actions: [],
+        base_url: 'http://localhost:3001',
+      })
+    );
+
+    await runCLI(['doctor']);
+
+    const output = logOutput.join('\n');
+    expect(output).toContain('RunIt Doctor');
+    expect(output).toContain('All checks passed');
+    expect(exitCode).toBeUndefined();
+  });
+
+  it('fails with actionable fixes when setup is broken', async () => {
+    mockClient.health.mockRejectedValue(new Error('ECONNREFUSED'));
+    mockExecSync.mockImplementation(() => {
+      throw new Error('docker missing');
+    });
+    mockExistsSync.mockReturnValue(false);
+
+    await runCLI(['doctor']);
+
+    const output = logOutput.join('\n');
+    expect(output).toContain('FAIL');
+    expect(output).toContain('Fix:');
+    expect(output).toContain('check(s) need attention');
     expect(exitCode).toBe(1);
   });
 });

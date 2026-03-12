@@ -1,0 +1,17 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0b1020"/>
+  <rect x="38" y="38" width="1124" height="554" rx="20" fill="#121a33" stroke="#2a365d"/>
+  <text x="86" y="170" fill="#f4f7ff" font-family="Arial, sans-serif" font-size="76" font-weight="700">RunIt</text>
+  <text x="86" y="230" fill="#9fb0df" font-family="Arial, sans-serif" font-size="36">AI writes code. RunIt makes it real.</text>
+  <text x="86" y="330" fill="#c7d2fe" font-family="Arial, sans-serif" font-size="30">Auto UI from type hints</text>
+  <text x="86" y="382" fill="#c7d2fe" font-family="Arial, sans-serif" font-size="30">Run in Docker sandbox</text>
+  <text x="86" y="434" fill="#c7d2fe" font-family="Arial, sans-serif" font-size="30">Shareable app links</text>
+  <rect x="720" y="140" width="390" height="340" rx="16" fill="#0f152b" stroke="#2a365d"/>
+  <text x="748" y="192" fill="#7dd3fc" font-family="monospace" font-size="20">@app.action</text>
+  <text x="748" y="228" fill="#7dd3fc" font-family="monospace" font-size="20">def hello(name: str):</text>
+  <text x="748" y="264" fill="#7dd3fc" font-family="monospace" font-size="20">  return {"ok": True}</text>
+  <rect x="748" y="310" width="320" height="56" rx="10" fill="#182248"/>
+  <text x="768" y="345" fill="#9fb0df" font-family="Arial, sans-serif" font-size="21">name: builder</text>
+  <rect x="748" y="388" width="130" height="50" rx="8" fill="#22c55e"/>
+  <text x="784" y="420" fill="#0b1020" font-family="Arial, sans-serif" font-size="22" font-weight="700">Run</text>
+</svg>

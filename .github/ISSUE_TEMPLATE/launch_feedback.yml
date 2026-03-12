@@ -1,0 +1,61 @@
+name: Launch Feedback
+description: Share onboarding friction and first-run feedback
+title: "[Launch Feedback]: "
+labels: ["feedback", "launch"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying RunIt. This template helps us improve first-run success.
+
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup path used
+      description: Which path did you try?
+      placeholder: "Quick Start Docker command" or "docker-compose self-host"
+    validations:
+      required: true
+
+  - type: textarea
+    id: friction
+    attributes:
+      label: Where did you get stuck?
+      description: Tell us the exact step and error if possible.
+      placeholder: "Step 2 in README failed with..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expectation
+    attributes:
+      label: What did you expect?
+      description: What did you think should happen?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: confidence
+    attributes:
+      label: Launch readiness perception
+      description: After trying it, how launch-ready does RunIt feel?
+      options:
+        - 0-25%
+        - 26-50%
+        - 51-75%
+        - 76-90%
+        - 91-100%
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        - OS:
+        - Docker version:
+        - Node version (if relevant):
+        - Browser:
+    validations:
+      required: false

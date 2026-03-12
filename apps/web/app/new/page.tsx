@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { zipSync, strToU8 } from 'fflate';
@@ -38,6 +38,7 @@ export default function NewProjectPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittingStep, setSubmittingStep] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [apiReady, setApiReady] = useState<'checking' | 'ready' | 'offline'>('checking');
 
   // GitHub state
   const [githubUrl, setGithubUrl] = useState('');
@@ -51,6 +52,22 @@ export default function NewProjectPage() {
 
   // Paste code state
   const [pastedCode, setPastedCode] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    const checkApi = async () => {
+      try {
+        await apiClient.health();
+        if (mounted) setApiReady('ready');
+      } catch {
+        if (mounted) setApiReady('offline');
+      }
+    };
+    checkApi();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleFileSelect = async (file: File) => {
     const isPy = file.name.endsWith('.py');
@@ -307,6 +324,44 @@ export default function NewProjectPage() {
         <div className="text-center mb-8">
           <h1 className="text-[24px] font-bold text-[var(--text-primary)] mb-1.5">Create an app</h1>
           <p className="text-[14px] text-[var(--text-secondary)]">Import your code</p>
+        </div>
+
+        {/* First-run guide */}
+        <div className="mb-6 px-4 py-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl">
+          <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-2">First run checklist</div>
+          <ol className="text-[12px] text-[var(--text-secondary)] space-y-1.5 list-decimal pl-4">
+            <li>Import Python code from GitHub, ZIP, or paste.</li>
+            <li>Click <span className="font-semibold">Go Live</span> on the next screen.</li>
+            <li>Run your action and share the link.</li>
+          </ol>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="text-[12px] text-[var(--text-tertiary)]">
+              API status:{' '}
+              <span className={`font-medium ${
+                apiReady === 'ready'
+                  ? 'text-[var(--success)]'
+                  : apiReady === 'offline'
+                  ? 'text-[var(--error)]'
+                  : 'text-[var(--text-secondary)]'
+              }`}>
+                {apiReady === 'ready' ? 'Connected' : apiReady === 'offline' ? 'Disconnected' : 'Checking...'}
+              </span>
+            </div>
+            <Link
+              href="https://github.com/buildingopen/runit/blob/main/docs/DEVELOPMENT_SETUP.md"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[12px] text-[var(--accent)] hover:underline"
+            >
+              Setup docs
+            </Link>
+          </div>
+          {apiReady === 'offline' && (
+            <div className="mt-3 px-3 py-2 rounded-lg bg-[var(--error-subtle)] border border-[var(--error)]/20 text-[11px] text-[var(--error)]">
+              Can&apos;t reach the API. For local setup, run the server on port `3001` and set
+              `NEXT_PUBLIC_API_URL=http://localhost:3001`.
+            </div>
+          )}
         </div>
 
         {/* Error Banner */}

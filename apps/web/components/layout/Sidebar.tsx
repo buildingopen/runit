@@ -207,6 +207,12 @@ export function Sidebar() {
                 : 'Connecting...'}
             </span>
           </div>
+          {apiStatus === 'disconnected' && (
+            <p className="mt-2 text-[10px] text-[var(--text-tertiary)] leading-snug">
+              Tip: run control-plane on <span className="text-[var(--text-secondary)]">3001</span> and set
+              <span className="text-[var(--text-secondary)]"> NEXT_PUBLIC_API_URL</span>.
+            </p>
+          )}
         </div>
       </aside>
 

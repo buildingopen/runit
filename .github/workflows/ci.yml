@@ -100,14 +100,11 @@ jobs:
       - name: Test with pytest
         run: PYTHONPATH=. pytest tests/ -v --tb=short --cov=runit --cov-report=term-missing --cov-report=xml --cov-fail-under=77
 
-  # E2E Tests (main branch only, non-blocking)
-  # Requires running servers + Docker; expected to fail without infrastructure
+  # Golden path E2E tests (blocking)
   e2e:
-    name: E2E Tests
+    name: Golden Path E2E
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     needs: [typescript, python-runner]
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,15 +124,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Run E2E tests
-        run: npm run test:e2e --workspace=apps/web
+      - name: Run golden path E2E test
+        run: npx playwright test tests/e2e/golden-path.spec.ts
         env:
           CI: true
+          MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+          NEXT_PUBLIC_API_URL: http://localhost:3001
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
-          path: apps/web/playwright-report/
+          path: playwright-report/
           retention-days: 7

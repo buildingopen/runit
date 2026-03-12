@@ -21,6 +21,7 @@ on:
           - load
           - stress
           - spike
+          - custom
       base_url:
         description: 'Target URL (leave empty for local)'
         required: false

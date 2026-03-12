@@ -2,7 +2,7 @@
 
 ## Current Status
 
-RunIt is functional and self-hostable via Docker. The core flow works: paste Python code, get a live web app with auto-generated UI, share the link.
+RunIt is functional and self-hostable via Docker. The core flow works: paste Python code, get a live web app with auto-generated UI, and share the link.
 
 ## What Works Today
 
@@ -14,13 +14,14 @@ RunIt is functional and self-hostable via Docker. The core flow works: paste Pyt
 - MCP Server (AI agent integration)
 - Secret management (encrypted at rest)
 - Share links (public URLs for apps)
+- Pre-built container publishing via GitHub Actions
 
 ## Planned
 
 ### Developer Experience
 - [ ] `pip install runit` (publish SDK to PyPI)
 - [ ] `runit serve` CLI command (local dev with hot reload)
-- [ ] Pre-built Docker image on GHCR
+- [x] Pre-built Docker image on GHCR
 - [ ] One-click deploy buttons (Railway, Render, Fly.io)
 
 ### Platform
@@ -40,3 +41,8 @@ RunIt is functional and self-hostable via Docker. The core flow works: paste Pyt
 - [ ] GitHub Actions for CI/CD deploy
 - [ ] VS Code extension
 - [ ] Slack notifications on run completion
+
+### Launch Readiness
+- [ ] Golden-path onboarding polish
+- [ ] Storefront media pack (demo GIF + screenshots)
+- [ ] Public launch checklist and go/no-go sign-off

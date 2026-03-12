@@ -1,0 +1,22 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0b1020"/>
+  <text x="70" y="90" fill="#f4f7ff" font-family="Arial, sans-serif" font-size="38" font-weight="700">RunIt Deploy Flow</text>
+  <text x="70" y="125" fill="#9fb0df" font-family="Arial, sans-serif" font-size="20">From upload to shareable app in minutes</text>
+  <rect x="70" y="170" width="360" height="460" rx="14" fill="#121a33" stroke="#2a365d"/>
+  <rect x="460" y="170" width="360" height="460" rx="14" fill="#121a33" stroke="#2a365d"/>
+  <rect x="850" y="170" width="360" height="460" rx="14" fill="#121a33" stroke="#2a365d"/>
+  <circle cx="130" cy="250" r="18" fill="#22c55e"/><text x="124" y="256" fill="#0b1020" font-family="Arial, sans-serif" font-size="16" font-weight="700">1</text>
+  <text x="165" y="258" fill="#f4f7ff" font-family="Arial, sans-serif" font-size="28" font-weight="700">Upload ZIP</text>
+  <text x="130" y="310" fill="#9fb0df" font-family="Arial, sans-serif" font-size="18">Project files are parsed and endpoints</text>
+  <text x="130" y="338" fill="#9fb0df" font-family="Arial, sans-serif" font-size="18">are auto-detected from Python code.</text>
+  <circle cx="520" cy="250" r="18" fill="#22c55e"/><text x="514" y="256" fill="#0b1020" font-family="Arial, sans-serif" font-size="16" font-weight="700">2</text>
+  <text x="555" y="258" fill="#f4f7ff" font-family="Arial, sans-serif" font-size="28" font-weight="700">Go Live</text>
+  <text x="520" y="310" fill="#9fb0df" font-family="Arial, sans-serif" font-size="18">RunIt deploys with Docker sandbox,</text>
+  <text x="520" y="338" fill="#9fb0df" font-family="Arial, sans-serif" font-size="18">storage, and generated forms.</text>
+  <circle cx="910" cy="250" r="18" fill="#22c55e"/><text x="904" y="256" fill="#0b1020" font-family="Arial, sans-serif" font-size="16" font-weight="700">3</text>
+  <text x="945" y="258" fill="#f4f7ff" font-family="Arial, sans-serif" font-size="28" font-weight="700">Share</text>
+  <text x="910" y="310" fill="#9fb0df" font-family="Arial, sans-serif" font-size="18">Share a public link so anyone can run</text>
+  <text x="910" y="338" fill="#9fb0df" font-family="Arial, sans-serif" font-size="18">your app with no local setup.</text>
+  <line x1="430" y1="390" x2="460" y2="390" stroke="#475a93" stroke-width="4"/>
+  <line x1="820" y1="390" x2="850" y2="390" stroke="#475a93" stroke-width="4"/>
+</svg>

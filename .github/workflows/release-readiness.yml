@@ -1,0 +1,59 @@
+name: Release Readiness
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release-gates:
+    name: Release Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify workspace gates
+        run: npm run verify
+        env:
+          NODE_ENV: test
+          MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+
+      - name: Golden path E2E
+        run: npx playwright test tests/e2e/golden-path.spec.ts
+        env:
+          CI: true
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Manual checklist reminder
+        if: always()
+        run: |
+          echo "## Manual Release Checklist Required" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Complete docs/RELEASE_CHECKLIST.md before shipping." >> $GITHUB_STEP_SUMMARY
+          echo "Attach completed PRR scorecard from docs/PRR_SCORECARD.md." >> $GITHUB_STEP_SUMMARY

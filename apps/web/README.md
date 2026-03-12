@@ -24,7 +24,7 @@ Next.js frontend for RunIt.
 npm install
 
 # Start development server
-npm run dev
+NEXT_PUBLIC_API_URL=http://localhost:3001 npm run dev -- -p 3000
 
 # Build for production
 npm run build

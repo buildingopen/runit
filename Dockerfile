@@ -1,5 +1,5 @@
 # RunIt - Self-hosted Python API platform
-# Usage: docker build -t runit . && docker run -p 3000:3000 runit
+# Usage: docker build -t runit . && docker run -p 3000:3000 -p 3001:3001 runit
 #
 # For docker-compose (builds runner image too):
 #   docker-compose up --build
@@ -55,16 +55,17 @@ COPY --from=builder /app/services/control-plane/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 3000
+EXPOSE 3001
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=3001
 ENV COMPUTE_BACKEND=docker
 ENV RUNIT_MODE=oss
 ENV RUNIT_DATA_DIR=/data
 ENV HOSTNAME=0.0.0.0
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["sh", "-c", "HOSTNAME=0.0.0.0 PORT=3001 node web/apps/web/server.js & node services/control-plane/dist/main.js"]
+CMD ["sh", "-c", "HOSTNAME=0.0.0.0 PORT=3000 node web/apps/web/server.js & HOSTNAME=0.0.0.0 PORT=3001 node services/control-plane/dist/main.js"]

@@ -7,18 +7,33 @@
 Auto-generated UI from type hints. Shareable link. Built-in storage. Self-hosted with Docker.
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![CI](https://github.com/buildingopen/runit/actions/workflows/ci.yml/badge.svg)
+![Security](https://github.com/buildingopen/runit/actions/workflows/security.yml/badge.svg)
 
 </div>
 
 ---
 
+## Demo
+
+![RunIt quick start UI](docs/assets/demo-quickstart.svg)
+![RunIt deploy flow](docs/assets/demo-deploy-flow.svg)
+
+## Try in 60 seconds
+
 ## Quick Start
 
 ```bash
-docker run -p 3000:3000 ghcr.io/buildingopen/runit
+docker run \
+  -p 3000:3000 \
+  -p 3001:3001 \
+  -e NEXT_PUBLIC_API_URL=http://localhost:3001 \
+  -e MASTER_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+  ghcr.io/buildingopen/runit
 ```
 
-Open [localhost:3000](http://localhost:3000). Paste this:
+Open [localhost:3000](http://localhost:3000). The API runs on [localhost:3001](http://localhost:3001).
+Paste this:
 
 ```python
 from runit import app
@@ -29,6 +44,14 @@ def greet(name: str) -> dict:
 ```
 
 Hit "Go Live." Share the link. That's it.
+
+## Three Copy-Paste Apps
+
+- **Greeting app:** start with the snippet in Quick Start
+- **Visit counter with memory:** [examples/visit-counter/main.py](examples/visit-counter/main.py)
+- **Invoice generator:** [examples/invoice-generator/main.py](examples/invoice-generator/main.py)
+
+See all examples in [examples/README.md](examples/README.md).
 
 ## How It Works
 
@@ -71,7 +94,22 @@ cd runit
 docker-compose up --build
 ```
 
-That's it. SQLite database, Docker sandbox, zero cloud dependencies.
+That starts the control plane API on `localhost:3001` with SQLite and Docker sandboxing.
+For the all-in-one web + API container, use the Quick Start command above.
+
+### Runtime defaults
+
+- Web UI: `http://localhost:3000`
+- Control plane API: `http://localhost:3001`
+- Health check: `http://localhost:3001/health`
+
+### Validated on fresh machine
+
+- [ ] Quick Start container opens web on `3000` and API on `3001`
+- [ ] `docker-compose up --build` serves `/health` on `3001`
+- [ ] `npm run verify` passes
+- [ ] `npx playwright test tests/e2e/golden-path.spec.ts` passes
+- [ ] README commands match real behavior
 
 <details>
 <summary><strong>Environment Variables</strong></summary>
@@ -135,6 +173,9 @@ runit list
 
 # View logs
 runit logs
+
+# Check local setup
+runit doctor
 
 # Manage storage
 runit storage list
@@ -213,6 +254,19 @@ npm test        # Run all tests
 ```
 
 </details>
+
+## Why teams pick RunIt
+
+- Turn Python functions into usable apps without building frontend forms by hand
+- Keep execution isolated with Docker sandboxing
+- Keep state simple with built-in `remember()` storage
+- Share links instantly for demos, internal tools, and experiments
+
+## Launch Kit
+
+- 2-minute onboarding guide: [docs/LAUNCH_FIRST_APP.md](docs/LAUNCH_FIRST_APP.md)
+- Distribution copy for launch channels: [docs/LAUNCH_KIT.md](docs/LAUNCH_KIT.md)
+- PRR scorecard and go/no-go checks: [docs/PRR_SCORECARD.md](docs/PRR_SCORECARD.md)
 
 ## Contributing
 

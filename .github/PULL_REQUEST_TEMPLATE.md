@@ -27,6 +27,12 @@
 
 <!-- How did you test these changes? -->
 
+## Launch Readiness Impact (if applicable)
+
+- [ ] Quick Start path still works end-to-end
+- [ ] Runtime ports/URLs in docs remain correct (`3000` web, `3001` API)
+- [ ] Golden-path E2E behavior remains intact
+
 ## Screenshots (if applicable)
 
 <!-- Add screenshots for UI changes -->

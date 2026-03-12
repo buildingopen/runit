@@ -1,0 +1,21 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0b1020"/>
+  <rect x="40" y="40" width="1200" height="640" rx="18" fill="#121a33" stroke="#2a365d"/>
+  <text x="80" y="110" fill="#f4f7ff" font-family="Arial, sans-serif" font-size="34" font-weight="700">RunIt Quick Start</text>
+  <text x="80" y="150" fill="#9fb0df" font-family="Arial, sans-serif" font-size="20">Paste Python. Go Live. Share link.</text>
+  <rect x="80" y="190" width="520" height="430" rx="12" fill="#0f152b" stroke="#2a365d"/>
+  <text x="104" y="230" fill="#7dd3fc" font-family="monospace" font-size="18">from runit import app</text>
+  <text x="104" y="260" fill="#7dd3fc" font-family="monospace" font-size="18">@app.action</text>
+  <text x="104" y="290" fill="#7dd3fc" font-family="monospace" font-size="18">def greet(name: str) -&gt; dict:</text>
+  <text x="104" y="320" fill="#7dd3fc" font-family="monospace" font-size="18">    return {"message": f"Hello {name}"}</text>
+  <rect x="640" y="190" width="560" height="430" rx="12" fill="#0f152b" stroke="#2a365d"/>
+  <text x="664" y="230" fill="#c7d2fe" font-family="Arial, sans-serif" font-size="22" font-weight="700">Generated Form</text>
+  <rect x="664" y="260" width="512" height="52" rx="8" fill="#182248"/>
+  <text x="682" y="293" fill="#9fb0df" font-family="Arial, sans-serif" font-size="18">name: Federico</text>
+  <rect x="664" y="330" width="180" height="52" rx="8" fill="#22c55e"/>
+  <text x="706" y="363" fill="#0b1020" font-family="Arial, sans-serif" font-size="20" font-weight="700">Run</text>
+  <rect x="664" y="410" width="512" height="190" rx="8" fill="#111b39"/>
+  <text x="682" y="448" fill="#86efac" font-family="monospace" font-size="18">{</text>
+  <text x="702" y="476" fill="#86efac" font-family="monospace" font-size="18">"message": "Hello Federico"</text>
+  <text x="682" y="504" fill="#86efac" font-family="monospace" font-size="18">}</text>
+</svg>

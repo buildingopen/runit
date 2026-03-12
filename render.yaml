@@ -10,13 +10,13 @@ services:
     runtime: docker
     region: oregon
     plan: starter
-    dockerfilePath: Dockerfile
+    dockerfilePath: services/control-plane/Dockerfile
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: "3000"
+        value: "3001"
       - key: COMPUTE_BACKEND
         value: docker
       - key: RUNIT_MODE

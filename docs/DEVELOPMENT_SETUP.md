@@ -69,6 +69,16 @@ API_KEY=your-api-key
 
 **Never commit `.env.local` files.**
 
+### Runtime Defaults (Single Source of Truth)
+
+Use these defaults everywhere in docs, scripts, and local testing:
+
+| Component | Port | Notes |
+|-----------|------|-------|
+| Web app (Next.js) | `3000` | User-facing UI |
+| Control plane API | `3001` | `/health`, `/v1/*`, OpenAPI |
+| Runner containers | dynamic | Started on demand by control plane |
+
 ### 4. Verify Setup
 
 ```bash
@@ -96,7 +106,7 @@ Open [http://localhost:3001](http://localhost:3001) to access the API.
 
 ```bash
 # Terminal 1: Web UI
-cd apps/web && npm run dev
+cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:3001 npm run dev -- -p 3000
 
 # Terminal 2: Control Plane API
 cd services/control-plane && npm run dev

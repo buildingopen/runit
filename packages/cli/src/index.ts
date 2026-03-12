@@ -6,7 +6,7 @@ import { Command } from 'commander';
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { basename, resolve, join } from 'path';
 import { fileURLToPath } from 'url';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { RunitClient } from '@runit/client';
 
 const RUNIT_URL = process.env.RUNIT_URL || 'http://localhost:3001';
@@ -75,6 +75,40 @@ function getClient(): RunitClient {
     baseUrl: RUNIT_URL,
     apiKey: RUNIT_API_KEY || undefined,
   });
+}
+
+async function checkHealthEndpoint(url: string): Promise<{ ok: boolean; detail: string }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(`${url}/health`, { signal: controller.signal });
+    if (!res.ok) return { ok: false, detail: `HTTP ${res.status}` };
+    return { ok: true, detail: 'ok' };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, detail: message };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function hasDockerCli(): { ok: boolean; detail: string } {
+  try {
+    const version = execSync('docker --version', { encoding: 'utf-8' }).trim();
+    return { ok: true, detail: version };
+  } catch {
+    return { ok: false, detail: 'docker command not found' };
+  }
+}
+
+function canAccessDockerDaemon(): { ok: boolean; detail: string } {
+  try {
+    const output = execSync('docker info --format "{{.ServerVersion}}"', { encoding: 'utf-8' }).trim();
+    return { ok: true, detail: `server ${output}` };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, detail: message.split('\n')[0] || 'cannot reach docker daemon' };
+  }
 }
 
 export const program = new Command();
@@ -657,6 +691,77 @@ program
   });
 
 // ---- status ----
+program
+  .command('doctor')
+  .description('Check local setup and give fix steps')
+  .action(async () => {
+    console.log('RunIt Doctor');
+    console.log(`Server: ${RUNIT_URL}`);
+    console.log('');
+
+    const checks: Array<{ name: string; ok: boolean; detail: string; fix?: string }> = [];
+
+    const health = await checkHealthEndpoint(RUNIT_URL);
+    checks.push({
+      name: 'API health endpoint',
+      ok: health.ok,
+      detail: health.detail,
+      fix: `Start the API and verify ${RUNIT_URL}/health`,
+    });
+
+    checks.push({
+      name: 'RUNIT_API_KEY set',
+      ok: Boolean(RUNIT_API_KEY),
+      detail: RUNIT_API_KEY ? 'present' : 'missing',
+      fix: 'Set it with: export RUNIT_API_KEY=your-key',
+    });
+
+    const dockerCli = hasDockerCli();
+    checks.push({
+      name: 'Docker CLI',
+      ok: dockerCli.ok,
+      detail: dockerCli.detail,
+      fix: 'Install Docker Desktop or Docker Engine',
+    });
+
+    if (dockerCli.ok) {
+      const dockerDaemon = canAccessDockerDaemon();
+      checks.push({
+        name: 'Docker daemon access',
+        ok: dockerDaemon.ok,
+        detail: dockerDaemon.detail,
+        fix: 'Start Docker and confirm your user can access the daemon',
+      });
+    }
+
+    const hasProjectContext = Boolean(loadProjectContext());
+    checks.push({
+      name: 'Local app context (.runit/project.json)',
+      ok: hasProjectContext,
+      detail: hasProjectContext ? 'present' : 'missing',
+      fix: "Run 'runit deploy main.py' once in this folder",
+    });
+
+    let failed = 0;
+    for (const check of checks) {
+      const icon = check.ok ? 'OK' : 'FAIL';
+      console.log(`${icon}  ${check.name}: ${check.detail}`);
+      if (!check.ok && check.fix) {
+        failed++;
+        console.log(`    Fix: ${check.fix}`);
+      }
+    }
+
+    console.log('');
+    if (failed === 0) {
+      console.log('All checks passed. You are ready to deploy and run apps.');
+      return;
+    }
+
+    console.log(`${failed} check(s) need attention before a smooth first run.`);
+    process.exit(1);
+  });
+
 program
   .command('status')
   .description('Check RunIt server health')
