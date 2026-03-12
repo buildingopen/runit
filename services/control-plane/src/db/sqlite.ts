@@ -6,20 +6,34 @@ import { join } from 'path';
 import { mkdirSync, existsSync } from 'fs';
 import { logger } from '../lib/logger.js';
 
-const DB_DIR = process.env.RUNIT_DATA_DIR || '/data';
-const DB_PATH = join(DB_DIR, 'runit.db');
-
 let db: Database.Database | null = null;
+let currentDBPath: string | null = null;
+
+function getDBDir(): string {
+  return process.env.RUNIT_DATA_DIR || '/data';
+}
+
+function getDBPath(): string {
+  return join(getDBDir(), 'runit.db');
+}
 
 export function getSQLiteDB(): Database.Database {
-  if (db) return db;
+  const dbDir = getDBDir();
+  const dbPath = getDBPath();
 
-  // Ensure directory exists
-  if (!existsSync(DB_DIR)) {
-    mkdirSync(DB_DIR, { recursive: true });
+  if (db && currentDBPath === dbPath) return db;
+  if (db && currentDBPath !== dbPath) {
+    db.close();
+    db = null;
   }
 
-  db = new Database(DB_PATH);
+  // Ensure directory exists
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+
+  db = new Database(dbPath);
+  currentDBPath = dbPath;
 
   // WAL mode for better concurrent read performance
   db.pragma('journal_mode = WAL');
@@ -28,7 +42,7 @@ export function getSQLiteDB(): Database.Database {
 
   runMigrations(db);
 
-  logger.info(`[SQLite] Database initialized at ${DB_PATH}`);
+  logger.info(`[SQLite] Database initialized at ${dbPath}`);
   return db;
 }
 
@@ -191,5 +205,6 @@ export function closeSQLiteDB(): void {
   if (db) {
     db.close();
     db = null;
+    currentDBPath = null;
   }
 }

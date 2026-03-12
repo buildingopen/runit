@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from runit import save_artifact, save_json
+from runit import save_artifact, save_dataframe, save_json
 
 
 @pytest.fixture
@@ -73,9 +73,7 @@ def test_save_artifact_creates_directory(monkeypatch):
 
 def test_save_dataframe_csv(temp_artifacts_dir):
     """Test saving DataFrame as CSV."""
-    pytest.importorskip("pandas")
-    import pandas as pd
-    from runit import save_dataframe
+    pd = pytest.importorskip("pandas")
 
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     path = save_dataframe(df, "data.csv", format="csv")
@@ -89,9 +87,7 @@ def test_save_dataframe_csv(temp_artifacts_dir):
 
 def test_save_dataframe_json(temp_artifacts_dir):
     """Test saving DataFrame as JSON."""
-    pytest.importorskip("pandas")
-    import pandas as pd
-    from runit import save_dataframe
+    pd = pytest.importorskip("pandas")
 
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     path = save_dataframe(df, "data.json", format="json")
@@ -105,10 +101,8 @@ def test_save_dataframe_json(temp_artifacts_dir):
 
 def test_save_dataframe_parquet(temp_artifacts_dir):
     """Test saving DataFrame as Parquet."""
-    pytest.importorskip("pandas")
+    pd = pytest.importorskip("pandas")
     pytest.importorskip("pyarrow")
-    import pandas as pd
-    from runit import save_dataframe
 
     df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
     path = save_dataframe(df, "data.parquet", format="parquet")
@@ -122,9 +116,7 @@ def test_save_dataframe_parquet(temp_artifacts_dir):
 
 def test_save_dataframe_invalid_format(temp_artifacts_dir):
     """Test that invalid format raises ValueError."""
-    pytest.importorskip("pandas")
-    import pandas as pd
-    from runit import save_dataframe
+    pd = pytest.importorskip("pandas")
 
     df = pd.DataFrame({"a": [1, 2, 3]})
 

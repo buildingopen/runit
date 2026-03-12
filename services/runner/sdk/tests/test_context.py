@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from runit import context
 from runit.context import Context
 
 
@@ -94,9 +95,6 @@ def test_has_context(context_with_temp_dir, temp_context_dir):
 
 def test_singleton_instance():
     """Test that context is a singleton instance."""
-    from runit import context
-    from runit.context import Context
-
     assert isinstance(context, Context)
 
 

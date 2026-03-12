@@ -1,5 +1,6 @@
 # ABOUTME: StorageClient for persistent key-value storage inside runner containers.
-# ABOUTME: Reads/writes files at RUNIT_STORAGE_DIR (/storage). Atomic writes via rename. 10MB/value, 100MB/project.
+# ABOUTME: Reads/writes files at RUNIT_STORAGE_DIR (/storage).
+# ABOUTME: Atomic writes via rename. 10MB/value, 100MB/project.
 
 import json
 import os
@@ -32,7 +33,9 @@ class StorageClient:
         if len(key) > MAX_KEY_LENGTH:
             raise ValueError(f'Key exceeds maximum length of {MAX_KEY_LENGTH} characters')
         if not KEY_PATTERN.match(key):
-            raise ValueError('Key must contain only alphanumeric characters, dots, underscores, and hyphens')
+            raise ValueError(
+                'Key must contain only alphanumeric characters, dots, underscores, and hyphens'
+            )
         if '..' in key or key.startswith('.') or key.endswith('.'):
             raise ValueError('Key must not start/end with dots or contain consecutive dots')
 

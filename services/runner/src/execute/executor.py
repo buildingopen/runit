@@ -211,7 +211,7 @@ def _read_runit_yaml(workspace: Path, log: Any) -> Optional[dict]:
                     # Fallback: JSON is valid YAML, try that
                     return json.loads(content)
                 except Exception:
-                    log(f"runit.yaml found but cannot parse (PyYAML not installed)")
+                    log("runit.yaml found but cannot parse (PyYAML not installed)")
                     return None
 
             try:
@@ -515,7 +515,10 @@ def execute_endpoint(payload: dict, max_timeout: int, max_memory_mb: int, lane: 
             if ep_overrides.get("timeout_seconds"):
                 override_timeout = int(ep_overrides["timeout_seconds"])
                 if override_timeout < max_timeout:
-                    log(f"runit.yaml: timeout override {max_timeout}s -> {override_timeout}s for {method} {path}")
+                    log(
+                        f"runit.yaml: timeout override {max_timeout}s -> "
+                        f"{override_timeout}s for {method} {path}"
+                    )
                     max_timeout = override_timeout
             if ep_overrides.get("lane") and ep_overrides["lane"] != lane:
                 log(f"runit.yaml: lane preference is '{ep_overrides['lane']}' (current: {lane})")

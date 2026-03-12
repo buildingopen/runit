@@ -4,13 +4,14 @@ Reads /workspace/payload.json, calls execute_endpoint(), prints JSON result to s
 """
 
 import json
-import sys
 import os
+import sys
 
 # Add /app to path so execution modules are importable
 sys.path.insert(0, "/app")
 
 from execute.executor import execute_endpoint
+
 
 def main():
     payload_path = "/workspace/payload.json"
@@ -53,8 +54,13 @@ def main():
             "response_body": None,
             "duration_ms": 0,
             "error_class": "GPU_NOT_SUPPORTED",
-            "error_message": "GPU execution is not available on the Docker backend. Use CPU lane instead.",
-            "suggested_fix": "Change the lane to 'cpu' or use the Modal backend for GPU workloads.",
+            "error_message": (
+                "GPU execution is not available on the Docker backend. "
+                "Use CPU lane instead."
+            ),
+            "suggested_fix": (
+                "Change the lane to 'cpu' or use the Modal backend for GPU workloads."
+            ),
         }, sys.stdout)
         sys.exit(0)
 

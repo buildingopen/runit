@@ -1,5 +1,6 @@
 # ABOUTME: RunIt app class with @app.action decorator for marking functions as RunIt actions.
-# ABOUTME: Syntactic sugar that makes intent explicit. Runner checks _runit_action attribute on functions.
+# ABOUTME: Syntactic sugar that makes intent explicit.
+# ABOUTME: Runner checks _runit_action attribute on functions.
 
 
 class App:
