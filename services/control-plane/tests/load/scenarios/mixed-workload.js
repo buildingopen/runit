@@ -97,6 +97,42 @@ function selectOperation() {
 // Store created project IDs for reuse
 const createdProjects = [];
 
+function createProject() {
+  const projectName = `load-test-${randomString(8)}`;
+  const payload = JSON.stringify({
+    name: projectName,
+    source_type: 'zip',
+    zip_data: MINIMAL_ZIP_BASE64,
+  });
+
+  const res = http.post(`${BASE_URL}/projects`, payload, {
+    headers: getHeaders(),
+    tags: { name: 'create_project', operation: 'create' },
+    timeout: '30s',
+  });
+
+  projectCreateLatency.add(res.timings.duration);
+
+  const passed = check(res, {
+    'project create status 201': (r) => r.status === 201,
+    'project create has id': (r) => {
+      try {
+        const body = JSON.parse(r.body);
+        if (body.project_id) {
+          createdProjects.push(body.project_id);
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    },
+  });
+
+  overallErrors.add(!passed);
+  return passed ? createdProjects[createdProjects.length - 1] : null;
+}
+
 export default function () {
   const operation = selectOperation();
   operationCounter.add(1);
@@ -207,48 +243,18 @@ function doProjectGet() {
 
 function doProjectCreate() {
   group('Project Create', function () {
-    const projectName = `load-test-${randomString(8)}`;
-
-    const payload = JSON.stringify({
-      name: projectName,
-      source_type: 'zip',
-      zip_data: MINIMAL_ZIP_BASE64,
-    });
-
-    const res = http.post(`${BASE_URL}/projects`, payload, {
-      headers: getHeaders(),
-      tags: { name: 'create_project', operation: 'create' },
-      timeout: '30s',
-    });
-
-    projectCreateLatency.add(res.timings.duration);
-
-    const passed = check(res, {
-      'project create status 201': (r) => r.status === 201,
-      'project create has id': (r) => {
-        try {
-          const body = JSON.parse(r.body);
-          if (body.project_id) {
-            createdProjects.push(body.project_id);
-            return true;
-          }
-          return false;
-        } catch {
-          return false;
-        }
-      },
-    });
-
-    overallErrors.add(!passed);
+    createProject();
   });
 }
 
 function doSecretsOperation() {
   group('Secrets Operation', function () {
-    // Use a known project ID
-    let projectId = 'test-project';
-    if (createdProjects.length > 0) {
-      projectId = createdProjects[randomIntBetween(0, createdProjects.length - 1)];
+    let projectId = createdProjects.length > 0
+      ? createdProjects[randomIntBetween(0, createdProjects.length - 1)]
+      : createProject();
+
+    if (!projectId) {
+      return;
     }
 
     // Randomly choose between list and create/delete
