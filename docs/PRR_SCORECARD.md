@@ -1,6 +1,6 @@
 # PRR Scorecard
 
-Use this scorecard to grade launch readiness with evidence.
+Use this scorecard to grade launch readiness with evidence, not opinion.
 
 ## Scoring Model (0-100)
 
@@ -13,6 +13,19 @@ Use this scorecard to grade launch readiness with evidence.
 | Growth Assets | 10 | Demo visuals, social preview, and launch copy are present |
 
 ## Evidence Checklist
+
+Before scoring, record the exact evidence set you are grading:
+
+| Field | Value |
+|-------|-------|
+| Branch or PR | |
+| Commit SHA | |
+| CI run URL (`ci.yml`) | |
+| Smoke/load run URL (`load-test.yml`) | |
+| Release readiness run URL (`release-readiness.yml`) | |
+| Security run URL (`security.yml`) | |
+| Local verification date | |
+| Reviewer | |
 
 ### Reliability (30)
 
@@ -27,6 +40,17 @@ Score guidance:
 - 11-20: partial confidence, gaps remain
 - 21-30: stable and blocking on core flows
 
+Evidence notes:
+
+| Check | Evidence link or command output | Status | Notes |
+|-------|---------------------------------|--------|-------|
+| TypeScript | | | |
+| Python Runner | | | |
+| Python SDK | | | |
+| Golden-path E2E | | | |
+| Load and smoke workflows | | | |
+| Reliability subtotal (/30) | | | |
+
 ### Developer Experience (25)
 
 - [ ] Quick Start (`docker run`) works from `README.md`
@@ -35,12 +59,33 @@ Score guidance:
 - [ ] `npm run verify` succeeds locally
 - [ ] First app can go live and run
 
+Evidence notes:
+
+| Check | Evidence link or command output | Status | Notes |
+|-------|---------------------------------|--------|-------|
+| Quick Start path | | | |
+| Port and URL defaults | | | |
+| Self-host path | | | |
+| `npm run verify` | | | |
+| First app flow | | | |
+| DevEx subtotal (/25) | | | |
+
 ### Documentation (20)
 
 - [ ] `README.md`, `docs/DEVELOPMENT_SETUP.md`, and `docs/TESTING_GUIDE.md` agree
 - [ ] No conflicting port/URL instructions
 - [ ] Fresh-machine checklist completed
 - [ ] Launch guides present (`LAUNCH_FIRST_APP.md`, `LAUNCH_KIT.md`)
+
+Evidence notes:
+
+| Check | Evidence link or command output | Status | Notes |
+|-------|---------------------------------|--------|-------|
+| Docs consistency | | | |
+| Port and URL consistency | | | |
+| Fresh-machine checklist | | | |
+| Launch guides present | | | |
+| Docs subtotal (/20) | | | |
 
 ### Security and Trust (15)
 
@@ -49,12 +94,49 @@ Score guidance:
 - [ ] Dependabot config exists (`.github/dependabot.yml`)
 - [ ] Secrets scanning active in CI
 
+Evidence notes:
+
+| Check | Evidence link or command output | Status | Notes |
+|-------|---------------------------------|--------|-------|
+| `SECURITY.md` current | | | |
+| Security workflow | | | |
+| Dependabot config | | | |
+| Secrets scanning | | | |
+| Security subtotal (/15) | | | |
+
 ### Growth Assets (10)
 
 - [ ] README has demo visuals above the fold
 - [ ] Social preview image configured in `apps/web/app/layout.tsx`
 - [ ] Launch copy is ready in `docs/LAUNCH_KIT.md`
 - [ ] Quick onboarding path is ready in `docs/LAUNCH_FIRST_APP.md`
+
+Evidence notes:
+
+| Check | Evidence link or command output | Status | Notes |
+|-------|---------------------------------|--------|-------|
+| README visuals | | | |
+| Social preview | | | |
+| Launch copy | | | |
+| Quick onboarding | | | |
+| Growth subtotal (/10) | | | |
+
+## Final Tally
+
+| Category | Score |
+|----------|-------|
+| Reliability | |
+| Developer Experience | |
+| Documentation | |
+| Security and Trust | |
+| Growth Assets | |
+| Total (/100) | |
+
+Use this summary to make the release call:
+
+- Outstanding P0 issues:
+- Residual P1 risks:
+- Recommended launch date:
 
 ## Runbook
 
