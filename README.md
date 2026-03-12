@@ -45,6 +45,22 @@ def greet(name: str) -> dict:
 
 Hit "Go Live." Share the link. That's it.
 
+## Clone and run locally
+
+```bash
+git clone https://github.com/buildingopen/runit
+cd runit
+npm run setup:local
+npm install
+docker-compose up --build
+```
+
+For manual local UI development:
+
+```bash
+npm run dev:local
+```
+
 ## Three Copy-Paste Apps
 
 - **Greeting app:** start with the snippet in Quick Start

@@ -28,6 +28,7 @@
 ```bash
 git clone https://github.com/buildingopen/runit.git
 cd runit
+npm run setup:local
 ```
 
 ### 2. Install Dependencies
@@ -46,6 +47,9 @@ pip install -e ".[dev]"
 ```
 
 ### 3. Environment Variables
+
+If you used `npm run setup:local`, `.env` is already created with a generated encryption key.
+You can still customize values manually as needed.
 
 Copy the example file and fill in your values:
 
