@@ -4,23 +4,25 @@ set -euo pipefail
 API_BASE_URL="${API_BASE_URL:-http://localhost:3001}"
 WEB_BASE_URL="${WEB_BASE_URL:-http://localhost:3000}"
 
+check_url() {
+  local label="$1"
+  local url="$2"
+
+  echo "${label}"
+  if ! curl --fail --silent --show-error "${url}" > /dev/null; then
+    echo "Smoke check failed for: ${url}" >&2
+    exit 1
+  fi
+}
+
 echo "Running RunIt smoke checks"
 echo "  Web: ${WEB_BASE_URL}"
 echo "  API: ${API_BASE_URL}"
 
-echo "1) API health"
-curl --fail --silent --show-error "${API_BASE_URL}/health" > /dev/null
-
-echo "2) API deep health"
-curl --fail --silent --show-error "${API_BASE_URL}/health/deep" > /dev/null
-
-echo "3) OpenAPI spec"
-curl --fail --silent --show-error "${API_BASE_URL}/v1/openapi.json" > /dev/null
-
-echo "4) API docs landing"
-curl --fail --silent --show-error "${API_BASE_URL}/docs" > /dev/null
-
-echo "5) Web root"
-curl --fail --silent --show-error "${WEB_BASE_URL}" > /dev/null
+check_url "1) API health" "${API_BASE_URL}/health"
+check_url "2) API deep health" "${API_BASE_URL}/health/deep"
+check_url "3) OpenAPI spec" "${API_BASE_URL}/v1/openapi.json"
+check_url "4) API docs landing" "${API_BASE_URL}/docs"
+check_url "5) Web root" "${WEB_BASE_URL}"
 
 echo "Smoke checks passed"

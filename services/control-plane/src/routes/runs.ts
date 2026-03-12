@@ -162,7 +162,7 @@ runs.post('/', async (c) => {
       params: body.params,
       json: body.json,
       headers: body.headers,
-      files: body.files?.map(f => ({
+      files: body.files?.map((f: { filename: string; data: string; content_type: string }) => ({
         name: f.filename,
         content: f.data,
         mime: f.content_type,

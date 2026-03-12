@@ -51,9 +51,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build shared workspace package
+        run: npm run build --workspace=packages/shared
+
       - name: Build control-plane
-        working-directory: services/control-plane
-        run: npm run build
+        run: npm run build --workspace=services/control-plane
 
       - name: Start control-plane service
         working-directory: services/control-plane
@@ -64,6 +66,7 @@ jobs:
           NODE_ENV: test
           PORT: 3001
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+          RUNIT_DATA_DIR: ${{ runner.temp }}/runit-smoke-data
 
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
@@ -102,9 +105,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build shared workspace package
+        run: npm run build --workspace=packages/shared
+
       - name: Build control-plane
-        working-directory: services/control-plane
-        run: npm run build
+        run: npm run build --workspace=services/control-plane
 
       - name: Start control-plane service
         if: github.event.inputs.base_url == ''
@@ -116,6 +121,7 @@ jobs:
           NODE_ENV: test
           PORT: 3001
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+          RUNIT_DATA_DIR: ${{ runner.temp }}/runit-load-data
 
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
