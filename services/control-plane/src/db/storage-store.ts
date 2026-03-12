@@ -8,8 +8,15 @@ import { join } from 'path';
 import { mkdirSync, writeFileSync, readFileSync, unlinkSync, existsSync, renameSync, readdirSync, statSync, chmodSync } from 'fs';
 import { rmSync } from 'fs';
 
+function getDefaultDataDir(): string {
+  if (process.env.NODE_ENV === 'test') {
+    return join(process.cwd(), '.runit-test-data');
+  }
+  return '/data';
+}
+
 function getDataDir(): string {
-  return process.env.RUNIT_DATA_DIR || '/data';
+  return process.env.RUNIT_DATA_DIR || getDefaultDataDir();
 }
 
 export interface StorageEntry {

@@ -2,10 +2,10 @@
 // ABOUTME: Runs the runit-runner image with payload JSON, captures stdout as result.
 
 import { spawn } from 'child_process';
+import { randomUUID } from 'crypto';
 import { writeFileSync, mkdirSync, rmSync, existsSync, chmodSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { randomUUID } from 'crypto';
 import { logger } from '../logger.js';
 import type { ComputeBackend, ExecutionRequest, ExecutionResult } from './types.js';
 
@@ -17,7 +17,16 @@ const DEFAULT_CPUS = process.env.RUNNER_CPUS || '1';
 const WORKSPACE_DIR = process.env.RUNNER_WORKSPACE_DIR || tmpdir();
 // Storage base directory for persistent project data. Must be a host-visible path
 // (same concern as RUNNER_WORKSPACE_DIR when control plane runs in Docker).
-const STORAGE_BASE_DIR = process.env.RUNNER_STORAGE_BASE_DIR || join(process.env.RUNIT_DATA_DIR || '/data', 'storage');
+function getDefaultDataDir(): string {
+  if (process.env.NODE_ENV === 'test') {
+    return join(process.cwd(), '.runit-test-data');
+  }
+  return '/data';
+}
+
+function getStorageBaseDir(): string {
+  return process.env.RUNNER_STORAGE_BASE_DIR || join(process.env.RUNIT_DATA_DIR || getDefaultDataDir(), 'storage');
+}
 
 export class DockerBackend implements ComputeBackend {
   async execute(request: ExecutionRequest): Promise<ExecutionResult> {
@@ -68,8 +77,9 @@ export class DockerBackend implements ComputeBackend {
       // Ensure storage + dep cache directories exist on host.
       // chmod 777: runner containers drop ALL capabilities (including DAC_OVERRIDE),
       // so the process inside can't write to dirs it doesn't own even as root.
-      const storageDir = join(STORAGE_BASE_DIR, projectId);
-      const depsCacheDir = join(STORAGE_BASE_DIR, '..', 'deps-cache', depsHash);
+      const storageBaseDir = getStorageBaseDir();
+      const storageDir = join(storageBaseDir, projectId);
+      const depsCacheDir = join(storageBaseDir, '..', 'deps-cache', depsHash);
       mkdirSync(storageDir, { recursive: true });
       chmodSync(storageDir, 0o777);
       mkdirSync(depsCacheDir, { recursive: true });

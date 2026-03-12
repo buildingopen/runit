@@ -2,15 +2,22 @@
 // ABOUTME: Creates tables on startup matching the Supabase schema. Used when Supabase is not configured.
 
 import Database from 'better-sqlite3';
-import { join } from 'path';
 import { mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
 import { logger } from '../lib/logger.js';
 
 let db: Database.Database | null = null;
 let currentDBPath: string | null = null;
 
+function getDefaultDataDir(): string {
+  if (process.env.NODE_ENV === 'test') {
+    return join(process.cwd(), '.runit-test-data');
+  }
+  return '/data';
+}
+
 function getDBDir(): string {
-  return process.env.RUNIT_DATA_DIR || '/data';
+  return process.env.RUNIT_DATA_DIR || getDefaultDataDir();
 }
 
 function getDBPath(): string {
