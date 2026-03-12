@@ -42,6 +42,7 @@
     "verify:runner": "cd services/runner && pytest tests/ -q --cov=src --cov-report=term-missing --cov-fail-under=77",
     "verify:sdk": "cd services/runner/sdk && PYTHONPATH=. pytest tests/ -q --cov=runit --cov-report=term-missing --cov-fail-under=77",
     "verify": "npm run lint && npm test && npm run build && npm run verify:ts-coverage && npm run verify:runner && npm run verify:sdk",
+    "smoke:golden": "./infra/scripts/smoke-golden-path.sh",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "cleanup": "tsx infra/scripts/retention-cleanup.ts",

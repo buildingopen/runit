@@ -27,6 +27,7 @@ A PR is considered healthy only when all CI jobs are green:
 - Python runner job
 - Python SDK job
 - Golden-path E2E job (blocking on pull requests and `main`)
+- Smoke checks for web/API startup contracts
 
 ## Coverage Floors
 

@@ -131,6 +131,12 @@ jobs:
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
           NEXT_PUBLIC_API_URL: http://localhost:3001
 
+      - name: Run smoke checks (web + api contracts)
+        run: npm run smoke:golden
+        env:
+          API_BASE_URL: http://localhost:3001
+          WEB_BASE_URL: http://localhost:3000
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: always()

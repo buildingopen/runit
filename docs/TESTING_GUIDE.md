@@ -32,6 +32,9 @@ Keep these defaults aligned with `README.md`, `Dockerfile`, and `docs/DEVELOPMEN
 # Full verification
 npm run verify
 
+# Startup contract smoke checks (web + api)
+npm run smoke:golden
+
 # Individual gates
 npm run lint
 npm run test
