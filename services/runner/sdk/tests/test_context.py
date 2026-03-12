@@ -1,12 +1,13 @@
 """Tests for context module."""
 
 import json
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import pytest
-from runit import context
 from runit.context import Context
+
+from runit import context
 
 
 @pytest.fixture
