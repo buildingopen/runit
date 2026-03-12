@@ -1,5 +1,6 @@
 import ipaddress
 import os
+import re
 import socket
 from urllib.parse import urlparse
 
@@ -19,7 +20,10 @@ def get_base_url() -> str:
     raw_url = os.getenv("SCRAPER_BASE_URL", "https://example.com")
     parsed = urlparse(raw_url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise HTTPException(status_code=500, detail="SCRAPER_BASE_URL must be a valid http or https URL")
+        raise HTTPException(
+            status_code=500,
+            detail="SCRAPER_BASE_URL must be a valid http or https URL",
+        )
 
     host = parsed.hostname.lower()
     if host == "localhost":
@@ -59,6 +63,13 @@ def normalize_path(path: str) -> str:
     cleaned = path.strip() or "/"
     if not cleaned.startswith("/"):
         raise HTTPException(status_code=400, detail="Path must start with /")
+    if cleaned.startswith("//") or ".." in cleaned:
+        raise HTTPException(status_code=400, detail="Path cannot contain // or ..")
+    if not re.fullmatch(r"/[A-Za-z0-9/_\-.]*", cleaned):
+        raise HTTPException(
+            status_code=400,
+            detail="Path may only contain letters, numbers, /, -, _, and .",
+        )
     return cleaned
 
 
