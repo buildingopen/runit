@@ -1,5 +1,5 @@
-from fastapi import FastAPI, UploadFile, File
 import pymupdf
+from fastapi import FastAPI, File, UploadFile
 
 app = FastAPI()
 

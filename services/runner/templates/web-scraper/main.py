@@ -13,9 +13,11 @@ class ScrapeRequest(BaseModel):
 @app.post("/scrape")
 async def scrape(request: ScrapeRequest):
     """Scrape a web page and extract title, text, and links."""
-    response = requests.get(request.url, timeout=15, headers={
-        "User-Agent": "RuntimeAI-Scraper/1.0"
-    })
+    response = requests.get(
+        request.url,
+        timeout=15,
+        headers={"User-Agent": "RuntimeAI-Scraper/1.0"},
+    )
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")

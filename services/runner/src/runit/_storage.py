@@ -39,7 +39,8 @@ class StorageClient:
     def _path(self, key):
         path = os.path.join(self._dir, key)
         real = os.path.realpath(path)
-        if not real.startswith(os.path.realpath(self._dir) + os.sep) and real != os.path.realpath(self._dir):
+        storage_dir = os.path.realpath(self._dir)
+        if not real.startswith(storage_dir + os.sep) and real != storage_dir:
             raise ValueError('Storage key resolves outside storage directory')
         return path
 

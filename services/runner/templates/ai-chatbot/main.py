@@ -1,7 +1,8 @@
 import os
+
 from fastapi import FastAPI
-from pydantic import BaseModel
 from google import genai
+from pydantic import BaseModel
 
 app = FastAPI()
 

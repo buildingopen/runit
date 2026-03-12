@@ -710,10 +710,10 @@ program
     });
 
     checks.push({
-      name: 'RUNIT_API_KEY set',
-      ok: Boolean(RUNIT_API_KEY),
-      detail: RUNIT_API_KEY ? 'present' : 'missing',
-      fix: 'Set it with: export RUNIT_API_KEY=your-key',
+      name: 'RUNIT_API_KEY set (optional)',
+      ok: true,
+      detail: RUNIT_API_KEY ? 'present' : 'not set',
+      fix: 'Set it with: export RUNIT_API_KEY=your-key if your server requires auth',
     });
 
     const dockerCli = hasDockerCli();

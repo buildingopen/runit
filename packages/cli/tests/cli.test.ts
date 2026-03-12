@@ -53,6 +53,7 @@ vi.mock('child_process', () => ({
 let logOutput: string[];
 let errorOutput: string[];
 let exitCode: number | undefined;
+const mockFetch = vi.fn();
 
 async function runCLI(args: string[]): Promise<void> {
   // Import the exported program and parse programmatically
@@ -97,9 +98,12 @@ beforeEach(() => {
   mockWriteFileSync.mockReset();
   mockMkdirSync.mockReset();
   mockExecSync.mockReset();
+  mockFetch.mockReset();
+  vi.stubGlobal('fetch', mockFetch);
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -588,7 +592,7 @@ describe('status command', () => {
 
 describe('doctor command', () => {
   it('passes when local setup checks are healthy', async () => {
-    mockClient.health.mockResolvedValue({ status: 'ok' });
+    mockFetch.mockResolvedValue({ ok: true, status: 200 });
     mockExecSync.mockImplementation((cmd: string) => {
       if (cmd.startsWith('docker --version')) return 'Docker version 25.0.0';
       if (cmd.startsWith('docker info')) return '25.0.0';
@@ -615,7 +619,7 @@ describe('doctor command', () => {
   });
 
   it('fails with actionable fixes when setup is broken', async () => {
-    mockClient.health.mockRejectedValue(new Error('ECONNREFUSED'));
+    mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
     mockExecSync.mockImplementation(() => {
       throw new Error('docker missing');
     });
