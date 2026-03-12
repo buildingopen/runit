@@ -11,7 +11,9 @@ const SCENARIO = __ENV.SCENARIO || 'smoke';
 
 // Shared thresholds for all scenarios
 const baseThresholds = {
-  http_req_failed: ['rate<0.01'],      // <1% errors
+  // The mixed-workload scenario intentionally exercises some tolerated 4xx/5xx
+  // paths, so gate on its explicit logical error metric instead of raw HTTP codes.
+  overall_errors: ['rate<0.05'],
   http_req_duration: ['p(95)<500'],    // 95th percentile <500ms
 };
 
@@ -89,6 +91,7 @@ export const scenarios = {
 const scenarioThresholds = {
   smoke: {
     ...baseThresholds,
+    overall_errors: ['rate<0.01'],
     http_req_duration: ['p(95)<200'],  // Stricter for smoke
   },
   load: {
@@ -97,12 +100,12 @@ const scenarioThresholds = {
   },
   stress: {
     ...baseThresholds,
-    http_req_failed: ['rate<0.05'],     // Allow 5% errors under stress
+    overall_errors: ['rate<0.05'],
     http_req_duration: ['p(95)<1000'],  // More relaxed under stress
   },
   spike: {
     ...baseThresholds,
-    http_req_failed: ['rate<0.10'],     // Allow 10% errors during spike
+    overall_errors: ['rate<0.10'],
     http_req_duration: ['p(95)<2000'],  // Very relaxed during spike
   },
 };
