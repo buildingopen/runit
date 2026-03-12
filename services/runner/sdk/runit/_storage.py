@@ -7,11 +7,11 @@ import os
 import re
 import tempfile
 
-KEY_PATTERN = re.compile(r'^[a-zA-Z0-9._-]+$')
+KEY_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
 MAX_KEY_LENGTH = 256
 MAX_VALUE_SIZE = 10 * 1024 * 1024  # 10MB per value
 DEFAULT_MAX_PROJECT_SIZE = 100 * 1024 * 1024  # 100MB per project
-USAGE_FILE = '.usage'
+USAGE_FILE = ".usage"
 
 
 class StorageClient:
@@ -22,29 +22,29 @@ class StorageClient:
     """
 
     def __init__(self):
-        self._dir = os.environ.get('RUNIT_STORAGE_DIR', '/storage')
+        self._dir = os.environ.get("RUNIT_STORAGE_DIR", "/storage")
         self._max_project_size = int(
-            os.environ.get('RUNIT_STORAGE_MAX_PROJECT_SIZE', str(DEFAULT_MAX_PROJECT_SIZE))
+            os.environ.get("RUNIT_STORAGE_MAX_PROJECT_SIZE", str(DEFAULT_MAX_PROJECT_SIZE))
         )
 
     def _validate_key(self, key):
         if not key or len(key) == 0:
-            raise ValueError('Key is required')
+            raise ValueError("Key is required")
         if len(key) > MAX_KEY_LENGTH:
-            raise ValueError(f'Key exceeds maximum length of {MAX_KEY_LENGTH} characters')
+            raise ValueError(f"Key exceeds maximum length of {MAX_KEY_LENGTH} characters")
         if not KEY_PATTERN.match(key):
             raise ValueError(
-                'Key must contain only alphanumeric characters, dots, underscores, and hyphens'
+                "Key must contain only alphanumeric characters, dots, underscores, and hyphens"
             )
-        if '..' in key or key.startswith('.') or key.endswith('.'):
-            raise ValueError('Key must not start/end with dots or contain consecutive dots')
+        if ".." in key or key.startswith(".") or key.endswith("."):
+            raise ValueError("Key must not start/end with dots or contain consecutive dots")
 
     def _path(self, key):
         path = os.path.join(self._dir, key)
         real = os.path.realpath(path)
         storage_dir = os.path.realpath(self._dir)
         if not real.startswith(storage_dir + os.sep) and real != storage_dir:
-            raise ValueError('Storage key resolves outside storage directory')
+            raise ValueError("Storage key resolves outside storage directory")
         return path
 
     def _ensure_dir(self):
@@ -56,7 +56,7 @@ class StorageClient:
         if not os.path.isdir(self._dir):
             return 0
         for name in os.listdir(self._dir):
-            if name == USAGE_FILE or name.endswith('.tmp'):
+            if name == USAGE_FILE or name.endswith(".tmp"):
                 continue
             fpath = os.path.join(self._dir, name)
             if os.path.isfile(fpath):
@@ -67,7 +67,7 @@ class StorageClient:
         """Write current usage to .usage file."""
         usage = self._compute_usage()
         usage_path = os.path.join(self._dir, USAGE_FILE)
-        with open(usage_path, 'w') as f:
+        with open(usage_path, "w") as f:
             f.write(str(usage))
         return usage
 
@@ -85,10 +85,10 @@ class StorageClient:
         self._ensure_dir()
 
         serialized = json.dumps(value)
-        size = len(serialized.encode('utf-8'))
+        size = len(serialized.encode("utf-8"))
 
         if size > MAX_VALUE_SIZE:
-            raise ValueError(f'Value size ({size} bytes) exceeds maximum of {MAX_VALUE_SIZE} bytes')
+            raise ValueError(f"Value size ({size} bytes) exceeds maximum of {MAX_VALUE_SIZE} bytes")
 
         # Check quota
         existing_size = 0
@@ -100,13 +100,13 @@ class StorageClient:
         projected = current_usage - existing_size + size
         if projected > self._max_project_size:
             raise ValueError(
-                f'Project storage quota exceeded ({projected} / {self._max_project_size} bytes)'
+                f"Project storage quota exceeded ({projected} / {self._max_project_size} bytes)"
             )
 
         # Atomic write: write to temp, then rename
-        fd, tmp_path = tempfile.mkstemp(dir=self._dir, suffix='.tmp')
+        fd, tmp_path = tempfile.mkstemp(dir=self._dir, suffix=".tmp")
         try:
-            with os.fdopen(fd, 'w') as f:
+            with os.fdopen(fd, "w") as f:
                 f.write(serialized)
             os.rename(tmp_path, existing_path)
         except Exception:
@@ -134,7 +134,7 @@ class StorageClient:
         if not os.path.isfile(path):
             return default
 
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             raw = f.read()
         return json.loads(raw)
 
@@ -177,7 +177,7 @@ class StorageClient:
             return []
         keys = []
         for name in sorted(os.listdir(self._dir)):
-            if name == USAGE_FILE or name.endswith('.tmp'):
+            if name == USAGE_FILE or name.endswith(".tmp"):
                 continue
             fpath = os.path.join(self._dir, name)
             if os.path.isfile(fpath):

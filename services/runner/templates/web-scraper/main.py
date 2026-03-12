@@ -32,7 +32,9 @@ async def scrape(request: ScrapeRequest):
         {"text": a.get_text(strip=True), "href": a.get("href", "")}
         for a in soup.find_all("a", href=True)
         if a.get("href", "").startswith("http")
-    ][:50]  # Limit to 50 links
+    ][
+        :50
+    ]  # Limit to 50 links
 
     return {
         "url": request.url,

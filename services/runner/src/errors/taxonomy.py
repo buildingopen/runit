@@ -49,8 +49,7 @@ ERROR_TAXONOMY = {
     "OPENAPI_GENERATION_FAILED": {
         "message": "Couldn't analyze the actions in your app.",
         "suggested_fix": (
-            "Make sure your app starts without errors. "
-            "Try running it locally first to check."
+            "Make sure your app starts without errors. " "Try running it locally first to check."
         ),
     },
     "ENDPOINT_NOT_FOUND": {

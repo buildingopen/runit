@@ -34,6 +34,7 @@ class App:
             @app.action(name="custom")
             def my_func(): ...
         """
+
         def decorator(f):
             f._runit_action = True
             f._runit_name = name or f.__name__
