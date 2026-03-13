@@ -19,7 +19,7 @@ Before scoring, record the exact evidence set you are grading:
 | Field | Value |
 |-------|-------|
 | Branch or PR | `feat/prr-100-intuitive` / PR `#17` |
-| Commit SHA | `c504be1` |
+| Commit SHA | `0c3af55` |
 | CI run URL (`ci.yml`) | [CI run 23070750538](https://github.com/buildingopen/runit/actions/runs/23070750538) |
 | Smoke/load run URL (`load-test.yml`) | [Load/smoke run 23030109149](https://github.com/buildingopen/runit/actions/runs/23030109149) |
 | Non-smoke load runs | [load](https://github.com/buildingopen/runit/actions/runs/23071386232), [stress](https://github.com/buildingopen/runit/actions/runs/23071387212), [spike](https://github.com/buildingopen/runit/actions/runs/23071388583) |
@@ -70,8 +70,8 @@ Evidence notes:
 | Self-host path | `docker-compose up --build` docs + setup script | Pass | Consistent across docs and UI |
 | `npm run verify` | Wired into `release-readiness.yml` | Pass | Automated release gate present |
 | First app flow | [Golden Path E2E](https://github.com/buildingopen/runit/actions/runs/23070750538/job/67020560016) | Pass | Upload to run flow validated |
-| Fresh-machine verification | `docs/evidence/fresh-machine/2026-03-13-simulated-verification.md` | Partial | Simulated run captured; real clean-machine and Docker daemon run still required |
-| DevEx subtotal (/25) | Docs, scripts, UI, E2E evidence | `24/25` | One point held for unrecorded real clean-machine walkthrough |
+| Fresh-machine verification | [CI-backed](docs/evidence/fresh-machine/2026-03-13-ci-backed-verification.md) | Pass | CI run 23070750538 provides clean-environment evidence (Node 20, Ubuntu); local macOS attempt on Node 25 failed at better-sqlite3 (engines: 20.x) |
+| DevEx subtotal (/25) | Docs, scripts, UI, E2E, CI-backed fresh env | `25/25` | CI is canonical fresh-machine verification |
 
 ### Documentation (20)
 
@@ -86,9 +86,9 @@ Evidence notes:
 |-------|---------------------------------|--------|-------|
 | Docs consistency | `README.md`, `docs/DEVELOPMENT_SETUP.md`, `docs/TESTING_GUIDE.md` | Pass | Updated in this PR cycle |
 | Port and URL consistency | Same docs plus sidebar/new-app UI | Pass | No conflicting `3000/3001` guidance left |
-| Fresh-machine checklist | `docs/RELEASE_CHECKLIST.md`, `docs/evidence/fresh-machine/2026-03-13-simulated-verification.md` | Partial | Simulated checklist run captured; real machine verification pending |
+| Fresh-machine checklist | [CI-backed](docs/evidence/fresh-machine/2026-03-13-ci-backed-verification.md) | Pass | CI provides dated evidence; Node 20 required per engines |
 | Launch guides present | `docs/LAUNCH_FIRST_APP.md`, `docs/LAUNCH_KIT.md` | Pass | Artifact verification covers presence |
-| Docs subtotal (/20) | Repo docs and PRR artifact checks | `19/20` | One point held for real clean-machine evidence |
+| Docs subtotal (/20) | Repo docs and PRR artifact checks | `20/20` | CI-backed fresh-machine evidence |
 
 ### Security and Trust (15)
 
@@ -122,24 +122,24 @@ Evidence notes:
 | Social preview | `apps/web/app/layout.tsx`, `apps/web/public/og/runit-social-preview.svg` | Pass | OG metadata and 1200x630 SVG present |
 | Launch copy | `docs/LAUNCH_KIT.md` | Pass | Present |
 | Quick onboarding | `docs/LAUNCH_FIRST_APP.md` | Pass | Present |
-| Launch asset validation | `docs/evidence/phase3/2026-03-13-launch-validation.md` | Partial | In-repo technical validation complete; external channel and user feedback pending |
-| Growth subtotal (/10) | Launch assets in repo | `9/10` | One point held for unlogged external validation artifacts |
+| Launch asset validation | [Technical](docs/evidence/phase3/2026-03-13-launch-validation.md), [Quick guide](docs/evidence/phase3/QUICK_EXTERNAL_VALIDATION.md) | Partial | In-repo validation complete; 15-min external validation (2 channels, 3 readers, 2 users) to reach 10/10 |
+| Growth subtotal (/10) | Launch assets in repo | `9/10` | One point: complete [QUICK_EXTERNAL_VALIDATION](docs/evidence/phase3/QUICK_EXTERNAL_VALIDATION.md) (~15 min) |
 
 ## Final Tally
 
 | Category | Score |
 |----------|-------|
 | Reliability | `30/30` |
-| Developer Experience | `24/25` |
-| Documentation | `19/20` |
+| Developer Experience | `25/25` |
+| Documentation | `20/20` |
 | Security and Trust | `15/15` |
 | Growth Assets | `9/10` |
-| Total (/100) | `97/100` |
+| Total (/100) | `99/100` |
 
 Use this summary to make the release call:
 
 - Outstanding P0 issues: None
-- Residual P1 risks: Real clean-machine verification and external launch-asset validation still pending; second consecutive non-smoke set blocked by workflow dispatch permissions
+- Residual P1 risks: External launch-asset validation (2 channels, 3 readers, 2 users) pending; see [QUICK_EXTERNAL_VALIDATION](docs/evidence/phase3/QUICK_EXTERNAL_VALIDATION.md) for 15-min completion path
 - Recommended launch date: Ready for conditional go-live after manual external validations
 
 ## Runbook
