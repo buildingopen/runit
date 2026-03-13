@@ -78,7 +78,9 @@ oneClickDeploy.post('/', async (c) => {
     code_bundle = injectRunitYaml(code_bundle, body.config);
   }
 
-  const version_hash = createHash('sha256').update(code_bundle).digest('hex').substring(0, 12);
+  // Compute a deterministic hash from normalized ZIP content, not raw ZIP bytes.
+  // Raw ZIP bytes can differ across equivalent bundles due to metadata like timestamps.
+  const version_hash = computeDeterministicVersionHash(code_bundle);
 
   // Check if a project with this name already exists for this user (redeploy)
   const existingProjects = await projectsStore.listProjects(owner_id);
@@ -267,6 +269,34 @@ function injectRunitYaml(zipBase64: string, config: RunitConfig): string {
   const zip = new AdmZip(Buffer.from(zipBase64, 'base64'));
   zip.addFile('runit.yaml', Buffer.from(YAML.stringify(config), 'utf-8'));
   return zip.toBuffer().toString('base64');
+}
+
+/**
+ * Compute a stable content hash for a base64 ZIP bundle.
+ * Hash input is normalized as:
+ *   <entry-name>\n<entry-bytes>\n
+ * over all non-directory entries sorted by entry name.
+ */
+function computeDeterministicVersionHash(zipBase64: string): string {
+  try {
+    const zip = new AdmZip(Buffer.from(zipBase64, 'base64'));
+    const entries = zip
+      .getEntries()
+      .filter((entry) => !entry.isDirectory)
+      .sort((a, b) => a.entryName.localeCompare(b.entryName));
+
+    const hasher = createHash('sha256');
+    for (const entry of entries) {
+      hasher.update(entry.entryName, 'utf-8');
+      hasher.update('\n', 'utf-8');
+      hasher.update(entry.getData());
+      hasher.update('\n', 'utf-8');
+    }
+    return hasher.digest('hex').substring(0, 12);
+  } catch {
+    // Fallback to raw bundle hashing for malformed bundles
+    return createHash('sha256').update(zipBase64).digest('hex').substring(0, 12);
+  }
 }
 
 export default oneClickDeploy;

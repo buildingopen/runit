@@ -43,6 +43,7 @@
     "verify:sdk": "cd services/runner/sdk && PYTHONPATH=. pytest tests/ -q --cov=runit --cov-report=term-missing --cov-fail-under=77",
     "verify": "npm run lint && npm test && npm run build && npm run verify:ts-coverage && npm run verify:runner && npm run verify:sdk",
     "smoke:golden": "./infra/scripts/smoke-golden-path.sh",
+    "prr:status": "./infra/scripts/prr-status.sh",
     "verify:prr-artifacts": "./infra/scripts/verify-prr-artifacts.sh",
     "setup:local": "./infra/scripts/setup-local.sh",
     "dev:local": "NEXT_PUBLIC_API_URL=http://localhost:3001 npm run dev --workspace=apps/web -- -p 3000",
