@@ -47,13 +47,14 @@ test.describe('Golden Path', () => {
     await page.goto('/');
     await waitForPageReady(page);
 
-    // Should see either the app list or empty state
-    const content = await page.textContent('body');
+    // Root can be either the marketing homepage or the signed-in app dashboard.
+    const content = (await page.textContent('body'))?.toLowerCase() || '';
     const hasExpectedContent =
-      content?.includes('Your Apps') ||
-      content?.includes('Create') ||
-      content?.includes('new app') ||
-      content?.includes('apps');
+      content.includes('your apps') ||
+      content.includes('create an app') ||
+      content.includes('new app') ||
+      content.includes('go live for free') ||
+      content.includes('we make it live');
 
     expect(hasExpectedContent).toBeTruthy();
   });

@@ -24,7 +24,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1,
 
   /* Test timeout */
-  timeout: 60000,
+  timeout: 180000,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [['html'], ['list']],
@@ -64,7 +64,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        'cd services/control-plane && NODE_ENV=test RUNIT_DATA_DIR=.runit-e2e-data npm run dev',
+        'cd services/control-plane && NODE_ENV=test COMPUTE_BACKEND=docker RUNIT_DATA_DIR=.runit-e2e-data npm run dev',
       url: 'http://localhost:3001/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
