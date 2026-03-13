@@ -80,7 +80,8 @@ oneClickDeploy.post('/', async (c) => {
 
   // Compute a deterministic hash from normalized ZIP content, not raw ZIP bytes.
   // Raw ZIP bytes can differ across equivalent bundles due to metadata like timestamps.
-  const version_hash = computeDeterministicVersionHash(code_bundle);
+  const baseVersionHash = computeDeterministicVersionHash(code_bundle);
+  let version_hash = baseVersionHash;
 
   // Check if a project with this name already exists for this user (redeploy)
   const existingProjects = await projectsStore.listProjects(owner_id);
@@ -113,6 +114,14 @@ oneClickDeploy.post('/', async (c) => {
       }, 403);
     }
     project = newProject;
+  }
+
+  // Keep deterministic hashes for first occurrence, but avoid unique constraint
+  // collisions when the same project deploys identical content repeatedly.
+  const existingVersions = await projectsStore.listVersions(project.id);
+  const duplicateCount = existingVersions.filter((v) => v.version_hash === baseVersionHash).length;
+  if (duplicateCount > 0) {
+    version_hash = `${baseVersionHash}-${duplicateCount + 1}`;
   }
 
   // Extract OpenAPI (handles both FastAPI and auto-wrapping)
