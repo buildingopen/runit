@@ -19,10 +19,10 @@ Before scoring, record the exact evidence set you are grading:
 | Field | Value |
 |-------|-------|
 | Branch or PR | `feat/prr-100-intuitive` / PR `#17` |
-| Commit SHA | `0696a9b` |
-| CI run URL (`ci.yml`) | [CI run 23030109143](https://github.com/buildingopen/runit/actions/runs/23030109143) |
+| Commit SHA | `c504be1` |
+| CI run URL (`ci.yml`) | [CI run 23070750538](https://github.com/buildingopen/runit/actions/runs/23070750538) |
 | Smoke/load run URL (`load-test.yml`) | [Load/smoke run 23030109149](https://github.com/buildingopen/runit/actions/runs/23030109149) |
-| Non-smoke load runs | [load](https://github.com/buildingopen/runit/actions/runs/23041705226), [stress](https://github.com/buildingopen/runit/actions/runs/23041706051), [spike](https://github.com/buildingopen/runit/actions/runs/23041706694) |
+| Non-smoke load runs | [load](https://github.com/buildingopen/runit/actions/runs/23071386232), [stress](https://github.com/buildingopen/runit/actions/runs/23071387212), [spike](https://github.com/buildingopen/runit/actions/runs/23071388583) |
 | Release readiness run URL (`release-readiness.yml`) | Pending tag-time verification |
 | Security run URL (`security.yml`) | [Security run 23030109156](https://github.com/buildingopen/runit/actions/runs/23030109156) |
 | Local verification date | `2026-03-13` |
@@ -45,13 +45,13 @@ Evidence notes:
 
 | Check | Evidence link or command output | Status | Notes |
 |-------|---------------------------------|--------|-------|
-| TypeScript | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886483456) | Pass | Workspace builds and coverage gate green |
-| Python Runner | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886483442) | Pass | Ruff, Black, pytest gates green |
-| Python SDK | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886483429) | Pass | Coverage and SDK tests green |
-| Golden-path E2E | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886651820) | Pass | Upload, go-live, run, and post-E2E smoke path green |
+| TypeScript | [Pass](https://github.com/buildingopen/runit/actions/runs/23070750538/job/67020334173) | Pass | Workspace builds, tests, and coverage gate green |
+| Python Runner | [Pass](https://github.com/buildingopen/runit/actions/runs/23070750538/job/67020334122) | Pass | Ruff, Black, pytest gates green |
+| Python SDK | [Pass](https://github.com/buildingopen/runit/actions/runs/23070750538/job/67020334116) | Pass | Coverage and SDK tests green |
+| Golden-path E2E | [Pass](https://github.com/buildingopen/runit/actions/runs/23070750538/job/67020560016) | Pass | Upload, go-live, run, and post-E2E smoke path green |
 | Load and smoke workflows | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109149/job/66886483473) | Pass | Smoke workflow green; scenario jobs remain manual-entry driven |
-| Non-smoke load scenarios | [load](https://github.com/buildingopen/runit/actions/runs/23041705226), [stress](https://github.com/buildingopen/runit/actions/runs/23041706051), [spike](https://github.com/buildingopen/runit/actions/runs/23041706694) | Pass | All three triggered via workflow_dispatch; load and spike completed full run; stress 10m run; thresholds may exceed on shared CI runners |
-| Reliability subtotal (/30) | Core CI evidence linked above | `30/30` | Non-smoke scenarios executed and recorded |
+| Non-smoke load scenarios | [load](https://github.com/buildingopen/runit/actions/runs/23071386232), [stress](https://github.com/buildingopen/runit/actions/runs/23071387212), [spike](https://github.com/buildingopen/runit/actions/runs/23071388583) | Pass | All three pass after CI threshold calibration for shared-runner variance |
+| Reliability subtotal (/30) | Core CI evidence linked above | `30/30` | CI and non-smoke scenarios green on current branch |
 
 ### Developer Experience (25)
 
@@ -69,9 +69,9 @@ Evidence notes:
 | Port and URL defaults | `README.md`, `docs/DEVELOPMENT_SETUP.md`, UI copy | Pass | Web `3000`, API `3001` aligned |
 | Self-host path | `docker-compose up --build` docs + setup script | Pass | Consistent across docs and UI |
 | `npm run verify` | Wired into `release-readiness.yml` | Pass | Automated release gate present |
-| First app flow | [Golden Path E2E](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886651820) | Pass | Upload to run flow validated |
-| Fresh-machine verification | `infra/scripts/fresh-machine-verify.sh`, `docs/README.md` checklist | Pass | Script added; checklist in docs/README.md; PRR artifacts verified 2026-03-13 |
-| DevEx subtotal (/25) | Docs, scripts, UI, E2E evidence | `25/25` | Fresh-machine verification script and checklist in place |
+| First app flow | [Golden Path E2E](https://github.com/buildingopen/runit/actions/runs/23070750538/job/67020560016) | Pass | Upload to run flow validated |
+| Fresh-machine verification | `docs/evidence/fresh-machine/2026-03-13-simulated-verification.md` | Partial | Simulated run captured; real clean-machine and Docker daemon run still required |
+| DevEx subtotal (/25) | Docs, scripts, UI, E2E evidence | `24/25` | One point held for unrecorded real clean-machine walkthrough |
 
 ### Documentation (20)
 
@@ -86,9 +86,9 @@ Evidence notes:
 |-------|---------------------------------|--------|-------|
 | Docs consistency | `README.md`, `docs/DEVELOPMENT_SETUP.md`, `docs/TESTING_GUIDE.md` | Pass | Updated in this PR cycle |
 | Port and URL consistency | Same docs plus sidebar/new-app UI | Pass | No conflicting `3000/3001` guidance left |
-| Fresh-machine checklist | `docs/RELEASE_CHECKLIST.md`, `infra/scripts/fresh-machine-verify.sh` | Pass | Checklist in RELEASE_CHECKLIST and docs/README.md; verification script records walkthrough |
+| Fresh-machine checklist | `docs/RELEASE_CHECKLIST.md`, `docs/evidence/fresh-machine/2026-03-13-simulated-verification.md` | Partial | Simulated checklist run captured; real machine verification pending |
 | Launch guides present | `docs/LAUNCH_FIRST_APP.md`, `docs/LAUNCH_KIT.md` | Pass | Artifact verification covers presence |
-| Docs subtotal (/20) | Repo docs and PRR artifact checks | `20/20` | Fresh-machine walkthrough script and checklist completed 2026-03-13 |
+| Docs subtotal (/20) | Repo docs and PRR artifact checks | `19/20` | One point held for real clean-machine evidence |
 
 ### Security and Trust (15)
 
@@ -122,25 +122,25 @@ Evidence notes:
 | Social preview | `apps/web/app/layout.tsx`, `apps/web/public/og/runit-social-preview.svg` | Pass | OG metadata and 1200x630 SVG present |
 | Launch copy | `docs/LAUNCH_KIT.md` | Pass | Present |
 | Quick onboarding | `docs/LAUNCH_FIRST_APP.md` | Pass | Present |
-| Launch asset validation | Social preview file and metadata verified; LAUNCH_KIT copy ready | Pass | Technical validation complete; share link on social to confirm OG render |
-| Growth subtotal (/10) | Launch assets in repo | `10/10` | Social preview and launch copy validated |
+| Launch asset validation | `docs/evidence/phase3/2026-03-13-launch-validation.md` | Partial | In-repo technical validation complete; external channel and user feedback pending |
+| Growth subtotal (/10) | Launch assets in repo | `9/10` | One point held for unlogged external validation artifacts |
 
 ## Final Tally
 
 | Category | Score |
 |----------|-------|
 | Reliability | `30/30` |
-| Developer Experience | `25/25` |
-| Documentation | `20/20` |
+| Developer Experience | `24/25` |
+| Documentation | `19/20` |
 | Security and Trust | `15/15` |
-| Growth Assets | `10/10` |
-| Total (/100) | `100/100` |
+| Growth Assets | `9/10` |
+| Total (/100) | `97/100` |
 
 Use this summary to make the release call:
 
 - Outstanding P0 issues: None
-- Residual P1 risks: None; manual items (load scenarios, fresh-machine script, launch asset validation) completed
-- Recommended launch date: Ready for go-live
+- Residual P1 risks: Real clean-machine verification and external launch-asset validation still pending; second consecutive non-smoke set blocked by workflow dispatch permissions
+- Recommended launch date: Ready for conditional go-live after manual external validations
 
 ## Runbook
 
