@@ -18,14 +18,14 @@ Before scoring, record the exact evidence set you are grading:
 
 | Field | Value |
 |-------|-------|
-| Branch or PR | |
-| Commit SHA | |
-| CI run URL (`ci.yml`) | |
-| Smoke/load run URL (`load-test.yml`) | |
-| Release readiness run URL (`release-readiness.yml`) | |
-| Security run URL (`security.yml`) | |
-| Local verification date | |
-| Reviewer | |
+| Branch or PR | `feat/prr-100-intuitive` / PR `#17` |
+| Commit SHA | `b53344d` |
+| CI run URL (`ci.yml`) | [CI run 23030109143](https://github.com/buildingopen/runit/actions/runs/23030109143) |
+| Smoke/load run URL (`load-test.yml`) | [Load/smoke run 23030109149](https://github.com/buildingopen/runit/actions/runs/23030109149) |
+| Release readiness run URL (`release-readiness.yml`) | Pending tag-time verification |
+| Security run URL (`security.yml`) | [Security run 23030109156](https://github.com/buildingopen/runit/actions/runs/23030109156) |
+| Local verification date | `2026-03-12` |
+| Reviewer | Cursor agent |
 
 ### Reliability (30)
 
@@ -44,12 +44,12 @@ Evidence notes:
 
 | Check | Evidence link or command output | Status | Notes |
 |-------|---------------------------------|--------|-------|
-| TypeScript | | | |
-| Python Runner | | | |
-| Python SDK | | | |
-| Golden-path E2E | | | |
-| Load and smoke workflows | | | |
-| Reliability subtotal (/30) | | | |
+| TypeScript | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886483456) | Pass | Workspace builds and coverage gate green |
+| Python Runner | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886483442) | Pass | Ruff, Black, pytest gates green |
+| Python SDK | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886483429) | Pass | Coverage and SDK tests green |
+| Golden-path E2E | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886651820) | Pass | Upload, go-live, run, and post-E2E smoke path green |
+| Load and smoke workflows | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109149/job/66886483473) | Pass | Smoke workflow green; scenario jobs remain manual-entry driven |
+| Reliability subtotal (/30) | Core CI evidence linked above | `29/30` | One point held for manual non-smoke load scenarios not rerun in this PR |
 
 ### Developer Experience (25)
 
@@ -63,12 +63,12 @@ Evidence notes:
 
 | Check | Evidence link or command output | Status | Notes |
 |-------|---------------------------------|--------|-------|
-| Quick Start path | | | |
-| Port and URL defaults | | | |
-| Self-host path | | | |
-| `npm run verify` | | | |
-| First app flow | | | |
-| DevEx subtotal (/25) | | | |
+| Quick Start path | `README.md`, `infra/scripts/setup-local.sh` | Pass | Two-path onboarding documented |
+| Port and URL defaults | `README.md`, `docs/DEVELOPMENT_SETUP.md`, UI copy | Pass | Web `3000`, API `3001` aligned |
+| Self-host path | `docker-compose up --build` docs + setup script | Pass | Consistent across docs and UI |
+| `npm run verify` | Wired into `release-readiness.yml` | Pass | Automated release gate present |
+| First app flow | [Golden Path E2E](https://github.com/buildingopen/runit/actions/runs/23030109143/job/66886651820) | Pass | Upload to run flow validated |
+| DevEx subtotal (/25) | Docs, scripts, UI, E2E evidence | `24/25` | One point held for fresh-machine verification still best confirmed manually |
 
 ### Documentation (20)
 
@@ -81,11 +81,11 @@ Evidence notes:
 
 | Check | Evidence link or command output | Status | Notes |
 |-------|---------------------------------|--------|-------|
-| Docs consistency | | | |
-| Port and URL consistency | | | |
-| Fresh-machine checklist | | | |
-| Launch guides present | | | |
-| Docs subtotal (/20) | | | |
+| Docs consistency | `README.md`, `docs/DEVELOPMENT_SETUP.md`, `docs/TESTING_GUIDE.md` | Pass | Updated in this PR cycle |
+| Port and URL consistency | Same docs plus sidebar/new-app UI | Pass | No conflicting `3000/3001` guidance left |
+| Fresh-machine checklist | `docs/RELEASE_CHECKLIST.md` | Partial | Checklist exists; still a human release action |
+| Launch guides present | `docs/LAUNCH_FIRST_APP.md`, `docs/LAUNCH_KIT.md` | Pass | Artifact verification covers presence |
+| Docs subtotal (/20) | Repo docs and PRR artifact checks | `19/20` | One point held for unrecorded human fresh-machine walkthrough |
 
 ### Security and Trust (15)
 
@@ -98,11 +98,11 @@ Evidence notes:
 
 | Check | Evidence link or command output | Status | Notes |
 |-------|---------------------------------|--------|-------|
-| `SECURITY.md` current | | | |
-| Security workflow | | | |
-| Dependabot config | | | |
-| Secrets scanning | | | |
-| Security subtotal (/15) | | | |
+| `SECURITY.md` current | `SECURITY.md` in repo | Pass | Present and current |
+| Security workflow | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109156) | Pass | CodeQL analyses green |
+| Dependabot config | `.github/dependabot.yml` | Pass | Present |
+| Secrets scanning | [Pass](https://github.com/buildingopen/runit/actions/runs/23030109156/job/66886483454) | Pass | Secrets scan green |
+| Security subtotal (/15) | Security workflow + repo policy | `15/15` | SSRF alert cleared in template code |
 
 ### Growth Assets (10)
 
@@ -115,28 +115,28 @@ Evidence notes:
 
 | Check | Evidence link or command output | Status | Notes |
 |-------|---------------------------------|--------|-------|
-| README visuals | | | |
-| Social preview | | | |
-| Launch copy | | | |
-| Quick onboarding | | | |
-| Growth subtotal (/10) | | | |
+| README visuals | `README.md` | Pass | Demo and launch framing above the fold |
+| Social preview | `apps/web/app/layout.tsx` | Pass | Configured |
+| Launch copy | `docs/LAUNCH_KIT.md` | Pass | Present |
+| Quick onboarding | `docs/LAUNCH_FIRST_APP.md` | Pass | Present |
+| Growth subtotal (/10) | Launch assets in repo | `9/10` | One point held for real-world launch asset validation outside CI |
 
 ## Final Tally
 
 | Category | Score |
 |----------|-------|
-| Reliability | |
-| Developer Experience | |
-| Documentation | |
-| Security and Trust | |
-| Growth Assets | |
-| Total (/100) | |
+| Reliability | `29/30` |
+| Developer Experience | `24/25` |
+| Documentation | `19/20` |
+| Security and Trust | `15/15` |
+| Growth Assets | `9/10` |
+| Total (/100) | `96/100` |
 
 Use this summary to make the release call:
 
-- Outstanding P0 issues:
-- Residual P1 risks:
-- Recommended launch date:
+- Outstanding P0 issues: None
+- Residual P1 risks: Manual fresh-machine verification and non-smoke load scenario reruns should still be recorded before a public launch push
+- Recommended launch date: Ready when release checklist owner signs off manual items
 
 ## Runbook
 
