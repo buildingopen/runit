@@ -17,6 +17,8 @@ This checklist defines go/no-go criteria before tagging a release.
 - [ ] Web UI can upload sample app, go live, and execute one run
 - [ ] Share link can be created and opened
 
+Run `./infra/scripts/fresh-machine-verify.sh` for a guided checklist. See `docs/README.md` Fresh-Machine Validation Checklist.
+
 ### Documentation and Assets
 
 - [ ] `README.md` reflects current commands and runtime defaults
