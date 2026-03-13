@@ -134,6 +134,21 @@ jobs:
           MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
           NEXT_PUBLIC_API_URL: http://localhost:3001
 
+      - name: Start local stack for smoke checks
+        run: |
+          (cd services/control-plane && NODE_ENV=test COMPUTE_BACKEND=docker RUNIT_DATA_DIR="${{ runner.temp }}/runit-e2e-data" npm run dev > /tmp/runit-control-plane.log 2>&1 & echo $! > /tmp/runit-control-plane.pid)
+          (cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:3001 npm run dev -- -p 3000 > /tmp/runit-web.log 2>&1 & echo $! > /tmp/runit-web.pid)
+
+          for url in http://localhost:3001/health http://localhost:3000; do
+            for attempt in {1..60}; do
+              if curl --silent --fail "$url" > /dev/null; then
+                break
+              fi
+              sleep 2
+            done
+            curl --silent --fail "$url" > /dev/null
+          done
+
       - name: Run smoke checks (web + api contracts)
         run: npm run smoke:golden
         env:
