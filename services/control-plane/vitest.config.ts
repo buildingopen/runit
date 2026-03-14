@@ -9,6 +9,7 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
       OTEL_TRACING_ENABLED: 'false',
+      RUNIT_DATA_DIR: '/tmp/runit-test-data',
     },
     silent: 'passed-only',
     globals: false,
