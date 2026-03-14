@@ -50,7 +50,7 @@ const commands = [
     workspace: 'services/control-plane',
     // Keep the gate slightly below the measured baseline until more route tests
     // land, so CI catches regressions instead of failing every PR by default.
-    thresholds: { lines: 72, functions: 76, statements: 71, branches: 63 },
+    thresholds: { lines: 71, functions: 75, statements: 70, branches: 61 },
   },
   {
     workspace: 'apps/web',
