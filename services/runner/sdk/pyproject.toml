@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "runit"
 version = "0.1.0"
-description = "SDK for building apps on Runtime"
+description = "SDK for building apps on RunIt"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-keywords = ["fastapi", "runit", "sdk", "runtime", "serverless"]
+keywords = ["fastapi", "runit", "sdk", "api", "deployment"]
 
 [project.optional-dependencies]
 dataframe = [

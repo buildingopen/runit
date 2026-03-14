@@ -205,7 +205,7 @@ describe('One-Click Deploy (POST /v1/deploy)', () => {
     expect(res.status).toBe(201);
     const data = await res.json();
     expect(data.share_id).toBeDefined();
-    expect(data.url).toMatch(/^\/s\//);
+    expect(data.url).toMatch(/\/s\//);
   });
 
   it('handles deploy failure gracefully', async () => {

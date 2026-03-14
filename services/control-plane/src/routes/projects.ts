@@ -462,6 +462,7 @@ projects.get('/:id', async (c) => {
     versions: versions.map(v => ({
       version_id: v.id,
       version_hash: v.version_hash,
+      code_bundle: v.code_bundle_ref,
       created_at: v.created_at,
       status: v.status as 'building' | 'ready' | 'failed',
       is_dev: v.id === project.dev_version_id,

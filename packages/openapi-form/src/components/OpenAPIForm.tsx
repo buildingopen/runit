@@ -18,6 +18,7 @@ import { generateExampleJson } from '../utils/example-generator';
 export function OpenAPIForm({
   schema,
   onSubmit,
+  onChange,
   isSubmitting = false,
   initialValues = {},
   submitLabel = 'Run',
@@ -31,10 +32,18 @@ export function OpenAPIForm({
   );
   const [jsonError, setJsonError] = useState<string | null>(null);
 
-  const { formData, updateField, validate, isValid: _isValid } = useFormState({
+  const { formData, updateField: rawUpdateField, validate, isValid: _isValid } = useFormState({
     schema,
     initialValues,
   });
+
+  // Wrap updateField to notify parent of changes
+  const updateField = (name: string, value: unknown) => {
+    rawUpdateField(name, value);
+    if (onChange) {
+      onChange({ ...formData, [name]: value });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

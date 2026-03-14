@@ -1,11 +1,11 @@
 # Default owners for everything
-* @federicodeponte
+* @buildingopen
 
 # Web app
-/apps/web/ @federicodeponte
+/apps/web/ @buildingopen
 
 # Control plane
-/services/control-plane/ @federicodeponte
+/services/control-plane/ @buildingopen
 
 # Runner
-/services/runner/ @federicodeponte
+/services/runner/ @buildingopen

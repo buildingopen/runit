@@ -127,7 +127,7 @@ def generate_invoice(client: str, amount: float) -> dict:
 
     // Share link created
     expect(data.share_id).toBeDefined();
-    expect(data.url).toMatch(/^\/s\//);
+    expect(data.url).toMatch(/\/s\//);
 
     // Verify project persisted in SQLite
     const project = await projectsStore.getProject(data.project_id);

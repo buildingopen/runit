@@ -91,7 +91,7 @@ const ENV_VARS: EnvVar[] = [
   { name: 'STREAM_TOKEN_SECRET', required: cloudOnly(), description: 'Signing key for SSE stream tokens (cloud mode only)' },
   { name: 'METRICS_TOKEN', required: cloudOnly(), description: 'Bearer token for /metrics endpoint (cloud mode only)' },
   { name: 'REDIS_URL', required: 'optional', description: 'Redis URL for distributed rate limiting (optional)' },
-  { name: 'FRONTEND_URL', required: 'optional', description: 'Frontend URL for Stripe checkout redirects (e.g. https://your-app.com)' },
+  { name: 'FRONTEND_URL', required: 'optional', description: 'Public base URL for share links and redirects (e.g. https://your-app.com). Defaults to http://localhost:3000.' },
   { name: 'STRIPE_SECRET_KEY', required: 'optional', description: 'Stripe API secret key (required for billing)' },
   { name: 'STRIPE_WEBHOOK_SECRET', required: 'optional', description: 'Stripe webhook signing secret' },
   { name: 'STRIPE_PRO_PRICE_ID', required: 'optional', description: 'Stripe price ID for Pro tier' },
@@ -162,6 +162,16 @@ export function validateEnv(): void {
  */
 export function isProduction(): boolean {
   return process.env.NODE_ENV === 'production';
+}
+
+/**
+ * Get the public frontend URL for constructing share links and redirects.
+ * Reads FRONTEND_URL env var, defaults to http://localhost:3000.
+ * Always returns a URL without trailing slash.
+ */
+export function getFrontendUrl(): string {
+  const url = process.env.FRONTEND_URL || 'http://localhost:3000';
+  return url.replace(/\/+$/, '');
 }
 
 /**

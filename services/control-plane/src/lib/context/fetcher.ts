@@ -132,7 +132,7 @@ export async function fetchContextFromURL(url: string, name: string): Promise<Fe
     const response = await fetch(fetchUrl.toString(), {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'ExecutionLayer/1.0 (+https://runit.dev/bot)',
+        'User-Agent': 'RunIt/1.0 (+https://runit.dev/bot)',
         'Host': originalHostname,
       },
       redirect: 'error',  // Block redirects to prevent SSRF via DNS rebinding

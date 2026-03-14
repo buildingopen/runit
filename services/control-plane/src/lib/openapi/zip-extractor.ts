@@ -344,7 +344,7 @@ if not all_endpoints:
                 with open(wrapper_path, 'w') as f:
                     f.write(wrapper_code)
 
-                # Build endpoints from functions
+                # Build endpoints from functions (include params for schema)
                 for func in functions:
                     ep_path = f'/{func["name"]}'
                     all_endpoints.append({
@@ -352,6 +352,7 @@ if not all_endpoints:
                         'path': ep_path,
                         'summary': func.get('summary', ''),
                         'function': f'{func["name"]}_endpoint',
+                        'params': func.get('params', []),
                     })
 
                 detected_entrypoint = '_runit_wrapper:app'
@@ -385,6 +386,7 @@ if not all_endpoints:
                             'path': ep_path,
                             'summary': func.get('summary', ''),
                             'function': f'{func["name"]}_endpoint',
+                            'params': func.get('params', []),
                         })
 
                     detected_entrypoint = '_runit_wrapper:app'
@@ -425,10 +427,33 @@ if all_endpoints:
     for ep in all_endpoints:
         if ep['path'] not in ast_openapi['paths']:
             ast_openapi['paths'][ep['path']] = {}
-        ast_openapi['paths'][ep['path']][ep['method'].lower()] = {
+        operation = {
             "summary": ep.get('summary', ''),
             "operationId": ep.get('function', '')
         }
+        # Include requestBody schema from function params (auto-wrapped endpoints)
+        params = ep.get('params', [])
+        if params:
+            properties = {}
+            required = []
+            for p in params:
+                properties[p['name']] = dict(p.get('schema', {'type': 'string'}))
+                properties[p['name']]['title'] = p['name'].replace('_', ' ').title()
+                if p.get('required', True):
+                    required.append(p['name'])
+            operation['requestBody'] = {
+                'required': True,
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            'type': 'object',
+                            'properties': properties,
+                            'required': required if required else None
+                        }
+                    }
+                }
+            }
+        ast_openapi['paths'][ep['path']][ep['method'].lower()] = operation
     ast_openapi["x_entrypoint"] = detected_entrypoint
     ast_openapi["x_detected_env_vars"] = list(detected_env_vars)
     ast_openapi["x_extraction_method"] = "auto_wrap" if auto_wrapped else "ast"

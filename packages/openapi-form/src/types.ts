@@ -31,6 +31,7 @@ export interface FileUpload {
 export interface OpenAPIFormProps {
   schema: OpenAPISchema;
   onSubmit: (data: Record<string, unknown>) => void;
+  onChange?: (data: Record<string, unknown>) => void;
   isSubmitting?: boolean;
   initialValues?: Record<string, unknown>;
   submitLabel?: string;

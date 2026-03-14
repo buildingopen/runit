@@ -37,7 +37,7 @@ out/
 *.env
 
 # Secrets (CRITICAL - NEVER COMMIT)
-executionlayer.toml
+runit.toml
 *.pem
 *.key
 *.crt

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiClient, type Project, type ProjectStatus } from '../../lib/api/client';
 import { getProjectEmoji } from '../../lib/utils';
+import { toast } from 'sonner';
+import { SkeletonCard } from '../../components/ui/skeleton';
 
 export default function HomePage() {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -57,6 +59,7 @@ export default function HomePage() {
       await apiClient.deleteProject(projectId);
       setProjects(projects.filter(p => p.project_id !== projectId));
       setDeleteConfirm(null);
+      toast.success('App deleted');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete app');
       setDeleteConfirm(null);
@@ -121,19 +124,19 @@ export default function HomePage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <div className="flex items-center gap-3 text-[var(--text-tertiary)]">
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span className="text-[13px]">Loading...</span>
-            </div>
+          <div className="flex flex-col gap-2 py-4">
+            <SkeletonCard className="rounded-xl" />
+            <SkeletonCard className="rounded-xl" />
+            <SkeletonCard className="rounded-xl" />
           </div>
         ) : projects.length === 0 ? (
           /* Empty State */
           <div className="text-center py-16">
-            <div className="text-5xl mb-4 opacity-50">📦</div>
+            <div className="w-12 h-12 mx-auto mb-4 text-[var(--text-tertiary)] opacity-50">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
             <h2 className="text-[18px] font-semibold text-[var(--text-primary)] mb-2">No apps yet</h2>
             <p className="text-[14px] text-[var(--text-secondary)] mb-6">
               Import your Python code and go live in seconds

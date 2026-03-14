@@ -30,9 +30,9 @@ Monorepo with:
 - `packages/ui/` - Shared React components
 - `apps/web/` - Next.js web app (landing, paste code, run, share pages)
 
-## Two-Repo Strategy
-- **OSS repo** (`buildingopen/runit`, public): Self-hosted, SQLite, Docker sandbox, API-key auth
-- **Cloud repo** (`federicodeponte/runit-cloud`, private): Imports @runit/control-plane, adds Supabase auth, Stripe billing, quotas
+## Deployment Modes
+- **OSS (self-hosted)**: SQLite, Docker sandbox, API-key auth
+- **Cloud**: Imports `createApp()` from control-plane, adds Supabase auth, Stripe billing, quotas
 
 ## Key Commands
 - Build all: `npm run build`

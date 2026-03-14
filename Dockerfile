@@ -24,7 +24,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache docker-cli su-exec
+RUN apk add --no-cache docker-cli su-exec python3
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 controlplane && \
@@ -54,18 +54,16 @@ RUN chown -R controlplane:nodejs /app
 COPY --from=builder /app/services/control-plane/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 3000
-EXPOSE 3001
+EXPOSE 3000 3001
 
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV COMPUTE_BACKEND=docker
 ENV RUNIT_MODE=oss
 ENV RUNIT_DATA_DIR=/data
-ENV HOSTNAME=0.0.0.0
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/health || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["sh", "-c", "HOSTNAME=0.0.0.0 PORT=3000 node web/apps/web/server.js & HOSTNAME=0.0.0.0 PORT=3001 node services/control-plane/dist/main.js"]
+CMD ["sh", "-c", "PORT=3001 node services/control-plane/dist/main.js & HOSTNAME=0.0.0.0 PORT=3000 node web/apps/web/server.js"]

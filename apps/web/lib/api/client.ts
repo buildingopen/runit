@@ -2,11 +2,12 @@
  * API Client for RunIt Control Plane
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-if (!API_BASE_URL && typeof window !== 'undefined') {
-  console.error('NEXT_PUBLIC_API_URL is not configured');
-}
+// When NEXT_PUBLIC_API_URL is not set (all-in-one Docker mode),
+// auto-detect the API on port 3001 of the same host.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:3001`
+    : 'http://127.0.0.1:3001');
 
 /**
  * Get the API key for authenticating requests.
@@ -67,13 +68,10 @@ class APIClient {
   private baseURL: string;
 
   constructor(baseURL?: string) {
-    this.baseURL = baseURL || API_BASE_URL || '';
+    this.baseURL = baseURL ?? API_BASE_URL;
   }
 
   async request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
-    if (!this.baseURL) {
-      throw new Error('Unable to connect — the service is not configured yet.');
-    }
 
     // Use versioned API prefix for all resource paths
     const versionedPath = path.startsWith('/v1/') || path === '/health' || path === '/' ? path : `/v1${path}`;
@@ -228,6 +226,7 @@ class APIClient {
         http_status: number;
         content_type: string;
         json?: any;
+        logs?: string;
         artifacts: Array<{
           name: string;
           size: number;
@@ -347,6 +346,37 @@ class APIClient {
     return { status: 'ok' };
   }
 
+  // List secrets for a project (returns key names only, not values)
+  async listSecrets(projectId: string) {
+    return this.request<{
+      secrets: Array<{
+        key: string;
+        created_at: string;
+      }>;
+    }>(`/projects/${projectId}/secrets`);
+  }
+
+  // Delete a secret
+  async deleteSecret(projectId: string, key: string) {
+    return this.request<{ status: string }>(`/projects/${projectId}/secrets/${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // List versions for a project
+  async listVersions(projectId: string) {
+    return this.request<{
+      versions: ProjectVersion[];
+    }>(`/projects/${projectId}/versions`);
+  }
+
+  // Rollback to a specific version
+  async rollbackVersion(projectId: string, versionId: string) {
+    return this.request<{ status: string }>(`/projects/${projectId}/versions/${versionId}/rollback`, {
+      method: 'POST',
+    });
+  }
+
   // Start deployment
   async startDeploy(projectId: string) {
     return this.request<{
@@ -430,10 +460,7 @@ class APIClient {
 
   // Create EventSource for deploy streaming using scoped stream token
   async createDeployStream(projectId: string): Promise<EventSource> {
-    if (!this.baseURL) {
-      throw new Error('Unable to connect — the service is not configured yet.');
-    }
-    // Get scoped stream token (short-lived, project-specific — not the full session JWT)
+    // Get scoped stream token (short-lived, project-specific, not the full session JWT)
     const { token } = await this.getDeployStreamToken(projectId);
     const url = `${this.baseURL}/v1/projects/${projectId}/deploy/stream?token=${encodeURIComponent(token)}`;
     return new EventSource(url);

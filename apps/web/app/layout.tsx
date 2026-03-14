@@ -8,6 +8,7 @@ import { Sidebar } from '../components/layout/Sidebar';
 import { MainContent } from '../components/layout/MainContent';
 import { AuthProvider } from '../components/providers/AuthProvider';
 import { QueryProvider } from '../components/providers/QueryProvider';
+import { ToastProvider } from '../components/providers/ToastProvider';
 
 export const metadata: Metadata = {
   title: 'RunIt - AI writes code. RunIt makes it real.',
@@ -58,6 +59,7 @@ export default function RootLayout({
           <AuthProvider>
             <Sidebar />
             <MainContent>{children}</MainContent>
+            <ToastProvider />
           </AuthProvider>
         </QueryProvider>
       </body>

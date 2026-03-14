@@ -9,6 +9,7 @@ import { getProject } from './projects.js';
 import { getAuthContext } from '../middleware/auth.js';
 import * as shareLinksStore from '../db/share-links-store.js';
 import * as projectsStore from '../db/projects-store.js';
+import { getFrontendUrl } from '../lib/env.js';
 
 // Project-scoped share routes (mounted at /projects)
 const projectShare = new Hono();
@@ -61,7 +62,7 @@ projectShare.post('/:id/share', async (c) => {
 
   return c.json({
     share_id: shareLink.id,
-    share_url: `/s/${shareLink.id}`,
+    share_url: `${getFrontendUrl()}/s/${shareLink.id}`,
     target_type: shareLink.target_type,
     target_ref: shareLink.target_ref,
     created_at: shareLink.created_at,

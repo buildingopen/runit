@@ -7,6 +7,7 @@ import * as billingStore from '../db/billing-store.js';
 import * as projectsStore from '../db/projects-store.js';
 import { getTierLimits, type Tier } from '../config/tiers.js';
 import { logger } from '../lib/logger.js';
+import { getFrontendUrl } from '../lib/env.js';
 
 const billing = new Hono();
 
@@ -104,7 +105,7 @@ billing.post('/checkout', async (c) => {
   }
 
   // Always use configured FRONTEND_URL, never accept user-supplied redirect URLs (open redirect risk)
-  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+  const baseUrl = getFrontendUrl();
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
@@ -137,7 +138,7 @@ billing.post('/portal', async (c) => {
     return c.json({ error: 'No billing account found' }, 404);
   }
 
-  const returnUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+  const returnUrl = getFrontendUrl();
   const session = await stripe.billingPortal.sessions.create({
     customer: sub.stripe_customer_id,
     return_url: `${returnUrl}/settings/billing`,

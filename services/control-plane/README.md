@@ -83,4 +83,4 @@ const app = createApp({
 });
 ```
 
-See the `runit-cloud` repo for a complete cloud implementation.
+See the cloud deployment documentation for a complete implementation example.

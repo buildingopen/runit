@@ -6,7 +6,7 @@
 
 RunIt uses **SQLite** for self-hosted deployments. Data is stored in a local file with zero external dependencies.
 
-For cloud deployments (`runit-cloud`), the same store interfaces connect to Supabase PostgreSQL instead.
+For cloud deployments, the same store interfaces connect to Supabase PostgreSQL instead.
 
 ## Data Model
 
@@ -86,7 +86,7 @@ SQLite is the default. The database file is created automatically on first run. 
 
 ## Cloud Mode (Supabase)
 
-Cloud deployments use Supabase PostgreSQL with Row Level Security. See the `runit-cloud` repo for migrations and RLS policies.
+Cloud deployments use Supabase PostgreSQL with Row Level Security. Cloud-specific migrations and RLS policies are maintained separately.
 
 Required env vars for cloud mode:
 - `SUPABASE_URL`

@@ -3,23 +3,27 @@
 
 'use client';
 
-import { useState, use, useEffect, useRef } from 'react';
+import { useState, use, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { OpenAPIFormThemed } from '@/components/OpenAPIFormThemed';
 import { AutoMappedOutput } from '@/components/run-page/AutoMappedOutput';
 import { EndpointSelector } from '@/components/run-page/EndpointSelector';
+import { RunHistory } from '@/components/run-page/RunHistory';
+import { LogsViewer } from '@/components/run-page/LogsViewer';
 import {
   useProject,
   useEndpoints,
   useEndpointSchema,
   useCreateRun,
   useRunStatus,
+  useRunsList,
 } from '@/lib/hooks/useProject';
 import { apiClient } from '@/lib/api/client';
 import { getProjectEmoji } from '@/lib/utils';
 import { trackRunExecuted, trackShareLinkCreated } from '@/lib/analytics';
+import { toast } from 'sonner';
 
 type RunPageState = 'pre-run' | 'running' | 'post-run';
 
@@ -51,6 +55,8 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   const [redeployStep, setRedeployStep] = useState<string | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [outputTab, setOutputTab] = useState<'output' | 'logs'>('output');
 
   // Fetch project details
   const { data: project, isLoading: projectLoading, error: projectError } = useProject(projectId);
@@ -66,6 +72,9 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
       router.push(`/p/${projectId}/deploying`);
     }
   }, [project, projectId, router]);
+
+  // Track form data from OpenAPIForm without causing re-renders
+  const formDataRef = useRef<Record<string, unknown>>({});
 
   // Refs for EventSource cleanup
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -161,6 +170,9 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
   // Fetch current run status (auto-polling)
   const { data: currentRunData } = useRunStatus(currentRunId);
 
+  // Fetch run history
+  const { data: runsData, isLoading: runsLoading } = useRunsList(projectId, 20);
+
   // Execute run mutation
   const executeRun = useCreateRun();
 
@@ -186,7 +198,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
     }
   }, [currentRunData?.status]);
 
-  const handleSubmit = async (formData: Record<string, unknown>) => {
+  const handleSubmit = useCallback(async (formData: Record<string, unknown>) => {
     if (!selectedEndpointId || !versionId) return;
 
     setPageState('running');
@@ -207,7 +219,25 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
     } catch {
       setPageState('pre-run');
     }
-  };
+  }, [selectedEndpointId, versionId, projectId, executeRun]);
+
+  // Cmd/Ctrl+Enter keyboard shortcut to run
+  // Use refs to always have latest values without re-registering the listener
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+  const pageStateRef = useRef(pageState);
+  pageStateRef.current = pageState;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && pageStateRef.current !== 'running') {
+        e.preventDefault();
+        handleSubmitRef.current(formDataRef.current);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const handleRunAgain = () => {
     setPageState('pre-run');
@@ -220,6 +250,13 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
     if (!currentRunData?.result?.json) return;
     const text = JSON.stringify(currentRunData.result.json, null, 2);
     navigator.clipboard.writeText(text);
+    toast.success('Copied');
+  };
+
+  const handleSelectRun = (runId: string) => {
+    setCurrentRunId(runId);
+    setPageState('post-run');
+    setOutputTab('output');
   };
 
   // Format endpoint name for display
@@ -227,14 +264,27 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
     ? selectedEndpoint.summary || `${selectedEndpoint.method} ${selectedEndpoint.path}`
     : 'Loading...';
 
-  // Loading state
+  // Loading state (skeleton)
   if (projectLoading) {
     return (
-      <div className="h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-2 border-[var(--border-secondary)] border-t-[var(--accent)] rounded-full animate-spin" />
-          <span className="text-sm text-[var(--text-secondary)]">Loading...</span>
-        </div>
+      <div className="h-screen bg-[var(--bg-primary)] flex flex-col">
+        <header className="h-16 bg-[var(--bg-secondary)] border-b border-[var(--border)] flex items-center px-6 gap-3.5 flex-shrink-0">
+          <div className="w-9 h-9 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+          <div className="w-8 h-8 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-32 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+            <div className="h-3 w-24 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+          </div>
+        </header>
+        <main className="flex-1 flex flex-col md:flex-row min-h-0">
+          <div className="w-full md:w-1/2 bg-[var(--bg-secondary)] border-r border-[var(--border)] p-7 space-y-4">
+            <div className="h-4 w-16 bg-[var(--bg-tertiary)] rounded animate-pulse" />
+            <div className="h-12 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+            <div className="h-12 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+            <div className="h-12 bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+          </div>
+          <div className="flex-1 bg-[var(--bg-secondary)]" />
+        </main>
       </div>
     );
   }
@@ -318,6 +368,16 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
           </svg>
           {shareLoading ? 'Creating...' : shareCopied ? 'Link copied!' : 'Share'}
         </button>
+        <Link
+          href={`/p/${projectId}/settings`}
+          className="w-9 h-9 flex items-center justify-center bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all flex-shrink-0"
+          title="Settings"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </Link>
       </header>
 
       {/* Main Content */}
@@ -358,6 +418,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
               <OpenAPIFormThemed
                 schema={schemaData.schema}
                 onSubmit={handleSubmit}
+                onChange={(data) => { formDataRef.current = data; }}
                 isSubmitting={executeRun.isPending}
                 submitLabel=""
                 loadingLabel=""
@@ -374,7 +435,7 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
           <div className="px-7 py-5">
             {pageState === 'pre-run' && (
               <button
-                onClick={() => handleSubmit({})}
+                onClick={() => handleSubmit(formDataRef.current)}
                 disabled={executeRun.isPending}
                 className="w-full py-3.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--bg-primary)] text-[15px] font-semibold rounded-[10px] flex items-center justify-center gap-2 transition-colors"
               >
@@ -405,61 +466,122 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
               </button>
             )}
           </div>
+
+          {/* Run History (collapsible) */}
+          {runsData?.runs && runsData.runs.length > 0 && (
+            <div className="border-t border-[var(--border)]">
+              <button
+                onClick={() => setHistoryOpen(!historyOpen)}
+                className="w-full px-7 py-3 flex items-center justify-between text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors"
+              >
+                <span>Recent Runs ({runsData.runs.length})</span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={`transition-transform ${historyOpen ? 'rotate-180' : ''}`}
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              {historyOpen && (
+                <div className="px-5 pb-4 max-h-[200px] overflow-y-auto">
+                  <RunHistory
+                    runs={runsData.runs}
+                    selectedRunId={currentRunId}
+                    onSelectRun={handleSelectRun}
+                    isLoading={runsLoading}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Output Panel (50%) */}
         <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-secondary)]">
           {/* Output Header */}
-          <div className="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between flex-shrink-0">
-            {/* Status */}
-            <div className="flex items-center gap-2">
-              {pageState === 'pre-run' && (
-                <span className="text-[13px] text-[var(--text-tertiary)]">
-                  Waiting for input
-                </span>
-              )}
-              {pageState === 'running' && (
-                <span className="text-[13px] text-[var(--text-secondary)]">
-                  Running...
-                </span>
-              )}
-              {pageState === 'post-run' && currentRunData && (
-                <>
-                  <span className={`flex items-center gap-1.5 text-[13px] font-medium ${
-                    currentRunData.status === 'success' ? 'text-[var(--success)]' : 'text-[var(--error)]'
-                  }`}>
-                    {currentRunData.status === 'success' ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
-                        <polyline points="22 4 12 14.01 9 11.01"/>
-                      </svg>
-                    ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M15 9l-6 6M9 9l6 6"/>
-                      </svg>
-                    )}
-                    {currentRunData.status === 'success' ? 'Success' : 'Error'}
+          <div className="border-b border-[var(--border)] flex-shrink-0">
+            <div className="px-5 py-3.5 flex items-center justify-between">
+              {/* Status */}
+              <div className="flex items-center gap-2">
+                {pageState === 'pre-run' && (
+                  <span className="text-[13px] text-[var(--text-tertiary)]">
+                    Waiting for input
                   </span>
-                  <span className="text-[12px] text-[var(--text-tertiary)]">
-                    {((currentRunData.duration_ms || 0)).toFixed(0)}ms
+                )}
+                {pageState === 'running' && (
+                  <span className="text-[13px] text-[var(--text-secondary)]">
+                    Running...
                   </span>
-                </>
+                )}
+                {pageState === 'post-run' && currentRunData && (
+                  <>
+                    <span className={`flex items-center gap-1.5 text-[13px] font-medium ${
+                      currentRunData.status === 'success' ? 'text-[var(--success)]' : 'text-[var(--error)]'
+                    }`}>
+                      {currentRunData.status === 'success' ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+                          <polyline points="22 4 12 14.01 9 11.01"/>
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10"/>
+                          <path d="M15 9l-6 6M9 9l6 6"/>
+                        </svg>
+                      )}
+                      {currentRunData.status === 'success' ? 'Success' : 'Error'}
+                    </span>
+                    <span className="text-[12px] text-[var(--text-tertiary)]">
+                      {((currentRunData.duration_ms || 0)).toFixed(0)}ms
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Copy */}
+              {pageState === 'post-run' && outputTab === 'output' && (
+                <button
+                  onClick={handleCopyAll}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-md text-[12px] text-[var(--text-secondary)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                  </svg>
+                  Copy
+                </button>
               )}
             </div>
 
-            {/* Copy */}
+            {/* Output/Logs tab bar */}
             {pageState === 'post-run' && (
-              <button
-                onClick={handleCopyAll}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-md text-[12px] text-[var(--text-secondary)] hover:bg-[var(--accent)] hover:border-[var(--accent)] hover:text-[var(--bg-primary)] transition-all"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2"/>
-                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-                </svg>
-                Copy
-              </button>
+              <div className="flex gap-0 px-5">
+                <button
+                  onClick={() => setOutputTab('output')}
+                  className={`px-3 pb-2 text-[12px] font-medium border-b-2 transition-colors ${
+                    outputTab === 'output'
+                      ? 'border-[var(--accent)] text-[var(--text-primary)]'
+                      : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                  }`}
+                >
+                  Output
+                </button>
+                <button
+                  onClick={() => setOutputTab('logs')}
+                  className={`px-3 pb-2 text-[12px] font-medium border-b-2 transition-colors ${
+                    outputTab === 'logs'
+                      ? 'border-[var(--accent)] text-[var(--text-primary)]'
+                      : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                  }`}
+                >
+                  Logs
+                </button>
+              </div>
             )}
           </div>
 
@@ -481,8 +603,8 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
               </div>
             )}
 
-            {/* Post-run: Results */}
-            {pageState === 'post-run' && currentRunData?.result && (
+            {/* Post-run: Results (Output tab) */}
+            {pageState === 'post-run' && outputTab === 'output' && currentRunData?.result && (
               <>
                 {currentRunData.result.json ? (
                   <AutoMappedOutput data={currentRunData.result.json} />
@@ -502,6 +624,11 @@ function RunPage({ projectId, endpointParam }: { projectId: string; endpointPara
                   </div>
                 )}
               </>
+            )}
+
+            {/* Post-run: Logs tab */}
+            {pageState === 'post-run' && outputTab === 'logs' && (
+              <LogsViewer logs={currentRunData?.result?.logs} />
             )}
           </div>
         </div>

@@ -98,6 +98,82 @@ export function useRunsList(projectId: string | null, limit?: number) {
 }
 
 /**
+ * Fetch secrets for a project
+ */
+export function useSecrets(projectId: string | null) {
+  return useQuery({
+    queryKey: ['secrets', projectId],
+    queryFn: () => apiClient.listSecrets(projectId!),
+    enabled: !!projectId,
+  });
+}
+
+/**
+ * Create a secret (mutation)
+ */
+export function useCreateSecret() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { projectId: string; key: string; value: string }) =>
+      apiClient.setSecrets(data.projectId, [{ key: data.key, value: data.value }]),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['secrets', variables.projectId],
+      });
+    },
+  });
+}
+
+/**
+ * Delete a secret (mutation)
+ */
+export function useDeleteSecret() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { projectId: string; key: string }) =>
+      apiClient.deleteSecret(data.projectId, data.key),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['secrets', variables.projectId],
+      });
+    },
+  });
+}
+
+/**
+ * Fetch versions for a project
+ */
+export function useVersions(projectId: string | null) {
+  return useQuery({
+    queryKey: ['versions', projectId],
+    queryFn: () => apiClient.listVersions(projectId!),
+    enabled: !!projectId,
+  });
+}
+
+/**
+ * Rollback to a version (mutation)
+ */
+export function useRollback() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { projectId: string; versionId: string }) =>
+      apiClient.rollbackVersion(data.projectId, data.versionId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['versions', variables.projectId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['project', variables.projectId],
+      });
+    },
+  });
+}
+
+/**
  * Fetch share links for a project
  */
 export function useShareLinks(projectId: string | null) {

@@ -16,6 +16,8 @@
 
 import * as deployState from './deploy-state.js';
 import * as projectsStore from '../db/projects-store.js';
+import * as shareLinksStore from '../db/share-links-store.js';
+import { getFrontendUrl } from './env.js';
 
 /**
  * Validate that the code bundle is valid base64 and contains expected structure.
@@ -165,13 +167,33 @@ async function executeDeploySteps(
     `${version.endpoints.length} endpoint(s) ready.`
   );
 
-  // Step 5: Mark project as live
+  // Step 5: Create share link and build permanent URL
+  let runtimeUrl: string | null = null;
+  if (version.endpoints.length > 0) {
+    try {
+      // Get project to find owner
+      const project = await projectsStore.getProject(projectId);
+      if (project) {
+        const shareLink = await shareLinksStore.createShareLink({
+          project_id: projectId,
+          target_type: 'endpoint_template',
+          target_ref: version.endpoints[0].id,
+          created_by: project.owner_id,
+        });
+        runtimeUrl = `${getFrontendUrl()}/s/${shareLink.id}`;
+      }
+    } catch (err) {
+      console.warn('Failed to create share link during deploy:', err);
+    }
+  }
+
+  // Step 6: Mark project as live with permanent URL
   await projectsStore.updateProjectStatus(projectId, 'live', {
     deployed_at: new Date().toISOString(),
     deploy_error: null,
-    runtime_url: null, // Runs use shared Modal functions, no per-project URL
+    runtime_url: runtimeUrl,
   });
 
   deployState.completeDeploy(projectId);
-  console.log(`Deployment complete for project ${projectId} (${version.endpoints.length} endpoints)`);
+  console.log(`Deployment complete for project ${projectId} (${version.endpoints.length} endpoints)${runtimeUrl ? ` -> ${runtimeUrl}` : ''}`);
 }

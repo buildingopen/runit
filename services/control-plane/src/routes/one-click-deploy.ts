@@ -15,6 +15,7 @@ import { getTierLimits } from '../config/tiers.js';
 import { runDeployment } from '../lib/deploy-bridge.js';
 import * as deployState from '../lib/deploy-state.js';
 import { logger } from '../lib/logger.js';
+import { getFrontendUrl } from '../lib/env.js';
 import type { RunitConfig } from '../lib/runit-yaml.js';
 
 const oneClickDeploy = new Hono();
@@ -209,7 +210,7 @@ oneClickDeploy.post('/', async (c) => {
         created_by: owner_id,
       });
       share_id = shareLink.id;
-      share_url = `/s/${shareLink.id}`;
+      share_url = `${getFrontendUrl()}/s/${shareLink.id}`;
     } catch (err) {
       logger.warn('Failed to create share link', { error: String(err) });
     }
