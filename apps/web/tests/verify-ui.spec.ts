@@ -6,10 +6,10 @@ test('Marketing page renders with correct content', async ({ page }) => {
 
   await page.screenshot({ path: '/tmp/ui-verification-browsertest.png', fullPage: true });
 
-  // Verify nav bar with Runtime branding
+  // Verify nav bar with RunIt branding
   const nav = page.locator('nav');
   await expect(nav).toBeVisible();
-  await expect(nav.locator('text=Runtime')).toBeVisible();
+  await expect(nav.locator('text=RunIt')).toBeVisible();
 
   // Verify hero headline
   const hero = page.locator('h1');

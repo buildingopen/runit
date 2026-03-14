@@ -1,5 +1,5 @@
 # RunIt - Self-hosted Python API platform
-# Usage: docker build -t runit . && docker run -p 3000:3000 -p 3001:3001 runit
+# Usage: docker build -t runit . && docker run -p 3000:3000 -p 3001:3001 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/runit-workspaces:/tmp/runit-workspaces -v /tmp/runit-storage:/tmp/runit-storage runit
 #
 # For docker-compose (builds runner image too):
 #   docker-compose up --build
@@ -61,6 +61,8 @@ ENV PORT=3001
 ENV COMPUTE_BACKEND=docker
 ENV RUNIT_MODE=oss
 ENV RUNIT_DATA_DIR=/data
+ENV RUNNER_WORKSPACE_DIR=/tmp/runit-workspaces
+ENV RUNNER_STORAGE_BASE_DIR=/tmp/runit-storage
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3001/health || exit 1

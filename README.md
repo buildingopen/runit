@@ -27,6 +27,9 @@ Auto-generated UI from type hints. Shareable link. Built-in storage. Self-hosted
 docker run \
   -p 3000:3000 \
   -p 3001:3001 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tmp/runit-workspaces:/tmp/runit-workspaces \
+  -v /tmp/runit-storage:/tmp/runit-storage \
   -e NEXT_PUBLIC_API_URL=http://localhost:3001 \
   -e MASTER_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
   ghcr.io/buildingopen/runit
@@ -124,7 +127,7 @@ docker-compose up --build
 That starts the control plane API on `localhost:3001` with SQLite and Docker sandboxing.
 For the all-in-one web + API container, use the Quick Start command above.
 
-### Runtime defaults
+### Defaults
 
 - Web UI: `http://localhost:3000`
 - Control plane API: `http://localhost:3001`

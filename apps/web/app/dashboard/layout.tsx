@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Your Apps - Runtime',
+  title: 'Your Apps - RunIt',
 };
 
 export default function DashboardLayout({

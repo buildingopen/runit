@@ -11,9 +11,9 @@ test('Production UI loads and shows correct UI', async ({ page }) => {
   const title = await page.locator('h1').textContent();
   expect(title).toContain('You built it with AI');
 
-  // Nav bar has Runtime branding
+  // Nav bar has RunIt branding
   const nav = page.locator('nav');
-  await expect(nav.locator('text=Runtime')).toBeVisible();
+  await expect(nav.locator('text=RunIt')).toBeVisible();
 
   // Has a round status indicator (dot in the hero badge)
   const hasStatusIndicator = await page.locator('.rounded-full').count() > 0;

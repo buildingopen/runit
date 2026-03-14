@@ -153,7 +153,7 @@ async function executeDeploySteps(
   }
   // Docker backend: no credentials needed, just needs runit-runner image
 
-  deployState.updateDeployProgress(projectId, 'starting', 75, 'Runtime available.');
+  deployState.updateDeployProgress(projectId, 'starting', 75, 'Runner available.');
 
   // Step 4: Verify endpoints exist
   deployState.updateDeployProgress(projectId, 'health_check', 85, 'Verifying endpoints...');

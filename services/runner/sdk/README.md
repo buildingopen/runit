@@ -1,10 +1,10 @@
-# Runtime SDK
+# RunIt SDK
 
-Simple utilities for building FastAPI apps on Runtime.
+Simple utilities for building FastAPI apps on RunIt.
 
 ## Installation
 
-The SDK is automatically available in the Runtime runtime. For local development:
+The SDK is automatically available in the RunIt runtime. For local development:
 
 ```bash
 pip install -e .

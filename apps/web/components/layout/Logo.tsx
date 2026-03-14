@@ -1,5 +1,5 @@
 /**
- * Runtime Brand Logo
+ * RunIt Brand Logo
  */
 
 import Link from 'next/link';
@@ -17,7 +17,7 @@ export function Logo({ showTagline = true }: LogoProps) {
         </svg>
       </div>
       <div>
-        <h1 className="text-xl font-bold text-[var(--text-primary)]">Runtime</h1>
+        <h1 className="text-xl font-bold text-[var(--text-primary)]">RunIt</h1>
         {showTagline && (
           <p className="text-xs text-[var(--text-tertiary)]">Turn code into apps</p>
         )}
