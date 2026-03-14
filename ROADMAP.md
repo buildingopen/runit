@@ -19,7 +19,7 @@ RunIt is functional and self-hostable via Docker. The core flow works: paste Pyt
 ## Planned
 
 ### Developer Experience
-- [ ] `pip install runit` (publish SDK to PyPI)
+- [x] `pip install runit-sdk` (published to PyPI)
 - [ ] `runit serve` CLI command (local dev with hot reload)
 - [x] Pre-built Docker image on GHCR
 - [ ] One-click deploy buttons (Railway, Render, Fly.io)

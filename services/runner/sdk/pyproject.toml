@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "runit"
+name = "runit-sdk"
 version = "0.1.0"
 description = "SDK for building apps on RunIt"
 readme = "README.md"

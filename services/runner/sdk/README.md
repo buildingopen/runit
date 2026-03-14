@@ -10,10 +10,10 @@ The SDK is automatically available in the RunIt runtime. For local development:
 pip install -e .
 ```
 
-Or install from PyPI (when published):
+Or install from PyPI:
 
 ```bash
-pip install runit
+pip install runit-sdk
 ```
 
 ## Quick Start

@@ -79,7 +79,7 @@ jobs:
       id-token: write
     environment:
       name: pypi
-      url: https://pypi.org/p/runit
+      url: https://pypi.org/p/runit-sdk
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -163,7 +163,7 @@ jobs:
 
             **Python SDK**
             ```bash
-            pip install runit
+            pip install runit-sdk
             ```
 
             **Docker (self-hosted)**

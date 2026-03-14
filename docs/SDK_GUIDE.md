@@ -14,7 +14,7 @@ pip install -e .
 Or (once published):
 
 ```bash
-pip install runit
+pip install runit-sdk
 ```
 
 ## Quick Start

@@ -51,7 +51,7 @@ echo ""
 # Step 5: PyPI trusted publisher
 echo "Step 5: PyPI trusted publishing..."
 echo "Go to https://pypi.org/manage/account/publishing/ and add:"
-echo "  PyPI Project Name: runit"
+echo "  PyPI Project Name: runit-sdk"
 echo "  Owner: buildingopen"
 echo "  Repository: runit"
 echo "  Workflow: publish.yml"
