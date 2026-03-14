@@ -15,7 +15,7 @@ import type {
   CreateProjectResponse,
   ListProjectsResponse,
   GetProjectResponse
-} from '@runit/shared';
+} from '@buildingopen/shared';
 import { extractOpenAPIFromZip } from '../lib/openapi/zip-extractor.js';
 import {
   validateProjectName,

@@ -85,8 +85,8 @@ RunIt is a well-architected platform for turning AI-generated Python code into l
 - **Python tests:** `pytest` not in PATH in default environment; `verify:runner` and `verify:sdk` fail. CI may use a different setup.
 
 ### Build
-- Full `npm run build` can fail if `@runit/shared` is not built first (turbo dependency ordering). Sequential build of shared then control-plane succeeds.
-- `@runit/ui` outputs warning: "no output files found for task" (turbo.json outputs key).
+- Full `npm run build` can fail if `@buildingopen/shared` is not built first (turbo dependency ordering). Sequential build of shared then control-plane succeeds.
+- `@buildingopen/ui` outputs warning: "no output files found for task" (turbo.json outputs key).
 
 ### Recommendation
 1. Add `RUNIT_DATA_DIR` to `services/control-plane/package.json` test script:  
@@ -142,7 +142,7 @@ RunIt is a well-architected platform for turning AI-generated Python code into l
 | P0 | ~~Set `RUNIT_DATA_DIR` in control-plane test script or vitest config for CI~~ DONE |
 | P0 | Run `npm audit fix` and validate |
 | P1 | Fix one-click-deploy test isolation (ensure mocks/DB don't conflict in parallel) |
-| P1 | Fix turbo build order or outputs for @runit/ui |
+| P1 | Fix turbo build order or outputs for @buildingopen/ui |
 | P2 | Document pytest requirement for `verify:runner` and `verify:sdk` |
 | P2 | Add explicit loading states for deploy and run flows |
 

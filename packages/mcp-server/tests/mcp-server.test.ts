@@ -1,5 +1,5 @@
 // ABOUTME: Tests for the RunIt MCP server tool handlers.
-// ABOUTME: Mocks @runit/client and MCP SDK to capture tool registrations and test handler logic directly.
+// ABOUTME: Mocks @buildingopen/client and MCP SDK to capture tool registrations and test handler logic directly.
 
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 
@@ -48,7 +48,7 @@ const mockClient = {
   deleteContext: vi.fn(),
 };
 
-vi.mock('@runit/client', () => {
+vi.mock('@buildingopen/client', () => {
   class MockRunitClient {
     constructor() {
       return mockClient;

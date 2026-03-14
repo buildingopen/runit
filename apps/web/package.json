@@ -1,5 +1,5 @@
 {
-  "name": "@runit/web",
+  "name": "@buildingopen/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -15,9 +15,9 @@
     "@next/swc-darwin-arm64": "^15.5.4",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/context-async-hooks": "^2.5.0",
-    "@runit/openapi-form": "*",
-    "@runit/shared": "*",
-    "@runit/ui": "*",
+    "@buildingopen/openapi-form": "*",
+    "@buildingopen/shared": "*",
+    "@buildingopen/ui": "*",
     "@tanstack/react-query": "^5.0.0",
     "fflate": "0.8.2",
     "hono": "^4.12.4",

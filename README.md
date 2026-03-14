@@ -193,7 +193,7 @@ storage.delete("config")
 <summary><strong>CLI</strong></summary>
 
 ```bash
-npm install -g @runit/cli
+npm install -g @buildingopen/cli
 
 # Deploy a Python file
 runit deploy my-app.py --name "My App"
@@ -222,7 +222,7 @@ runit share create <endpoint_id>
 <summary><strong>MCP Server (for AI agents)</strong></summary>
 
 ```bash
-npm install -g @runit/mcp-server
+npm install -g @buildingopen/mcp-server
 ```
 
 Gives AI agents (Claude, Cursor, etc.) tools to deploy code, run actions, and manage storage.

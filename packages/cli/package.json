@@ -1,5 +1,5 @@
 {
-  "name": "@runit/cli",
+  "name": "@buildingopen/cli",
   "version": "0.1.0",
   "description": "Deploy Python functions as live web apps",
   "type": "module",
@@ -13,7 +13,7 @@
     "test": "vitest --run"
   },
   "dependencies": {
-    "@runit/client": "0.1.0",
+    "@buildingopen/client": "0.1.0",
     "commander": "^13.1.0"
   },
   "devDependencies": {

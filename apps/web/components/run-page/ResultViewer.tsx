@@ -4,7 +4,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { RunResult } from '@runit/shared';
+import type { RunResult } from '@buildingopen/shared';
 import { AutoMappedOutput } from './AutoMappedOutput';
 import { ResultPanelHeader } from './ResultPanelHeader';
 

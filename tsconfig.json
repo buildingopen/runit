@@ -21,8 +21,8 @@
       "@/db": ["./src/db"],
       "@/db/*": ["./src/db/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@runit/shared": ["./packages/shared/src"],
-      "@runit/ui": ["./packages/ui/src"]
+      "@buildingopen/shared": ["./packages/shared/src"],
+      "@buildingopen/ui": ["./packages/ui/src"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "packages/**/*.tsx", "services/**/*.ts", "services/**/*.tsx"],

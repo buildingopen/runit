@@ -1,20 +1,20 @@
-# @runit/shared
+# @buildingopen/shared
 
 Shared types, contracts, and schemas used across RunIt packages.
 
 ## Exports
 
-- `@runit/shared` — Main exports
-- `@runit/shared/contracts` — API request/response contracts
-- `@runit/shared/types` — TypeScript type definitions
-- `@runit/shared/schemas` — Zod validation schemas
+- `@buildingopen/shared` — Main exports
+- `@buildingopen/shared/contracts` — API request/response contracts
+- `@buildingopen/shared/types` — TypeScript type definitions
+- `@buildingopen/shared/schemas` — Zod validation schemas
 
 ## Usage
 
 ```typescript
-import { ProjectContract, RunContract } from '@runit/shared/contracts';
-import { Project, Run, Endpoint } from '@runit/shared/types';
-import { projectSchema, runSchema } from '@runit/shared/schemas';
+import { ProjectContract, RunContract } from '@buildingopen/shared/contracts';
+import { Project, Run, Endpoint } from '@buildingopen/shared/types';
+import { projectSchema, runSchema } from '@buildingopen/shared/schemas';
 ```
 
 ## Development

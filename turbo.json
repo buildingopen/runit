@@ -1,10 +1,10 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "@runit/control-plane#build": {
+    "@buildingopen/control-plane#build": {
       "outputs": ["dist/**"]
     },
-    "@runit/ui#build": {
+    "@buildingopen/ui#build": {
       "outputs": ["dist/**"]
     },
     "build": {

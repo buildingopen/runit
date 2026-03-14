@@ -1,5 +1,5 @@
 /**
- * @runit/shared
+ * @buildingopen/shared
  *
  * Shared types, contracts, and schemas for RunIt.
  * Single source of truth to prevent shape drift.

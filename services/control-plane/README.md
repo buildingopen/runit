@@ -74,7 +74,7 @@ src/
 The control plane exports `createApp()` for cloud deployments to extend:
 
 ```typescript
-import { createApp } from '@runit/control-plane';
+import { createApp } from '@buildingopen/control-plane';
 
 const app = createApp({
   authMiddleware: customAuth,

@@ -3,7 +3,7 @@
  * ABOUTME: Extracts metadata from URLs using static HTML parsing
  */
 
-import { FetchContextResponse } from '@runit/shared/contracts';
+import { FetchContextResponse } from '@buildingopen/shared/contracts';
 import { lookup } from 'node:dns/promises';
 import { isIPv4 } from 'node:net';
 

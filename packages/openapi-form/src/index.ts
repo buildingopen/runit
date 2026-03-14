@@ -1,7 +1,7 @@
-// ABOUTME: Barrel export for the @runit/openapi-form package.
+// ABOUTME: Barrel export for the @buildingopen/openapi-form package.
 // ABOUTME: Exports form components, hooks, schema utilities, example generators, and types for OpenAPI-driven forms.
 /**
- * @runit/openapi-form
+ * @buildingopen/openapi-form
  *
  * OpenAPI-driven form generation for RunIt.
  * Renders forms from OpenAPI schemas with automatic field rendering,

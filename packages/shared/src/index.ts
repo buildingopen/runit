@@ -1,7 +1,7 @@
-// ABOUTME: Entry point for @runit/shared, the monorepo's single source of truth.
+// ABOUTME: Entry point for @buildingopen/shared, the monorepo's single source of truth.
 // ABOUTME: Re-exports all contracts, types, and Zod schemas to prevent shape drift across services.
 /**
- * @runit/shared
+ * @buildingopen/shared
  *
  * Shared types, contracts, and schemas for RunIt.
  * Single source of truth to prevent shape drift.

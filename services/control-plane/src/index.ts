@@ -1,4 +1,4 @@
-// ABOUTME: Library entry point for @runit/control-plane package.
+// ABOUTME: Library entry point for @buildingopen/control-plane package.
 // ABOUTME: Exports createApp() factory and key types so cloud-plane can import and extend.
 
 export { createApp, type AppConfig, type MiddlewareHandler } from './app.js';

@@ -7,9 +7,9 @@ const nextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: path.join(__dirname, '../..'),
   transpilePackages: [
-    '@runit/shared',
-    '@runit/ui',
-    '@runit/openapi-form',
+    '@buildingopen/shared',
+    '@buildingopen/ui',
+    '@buildingopen/openapi-form',
   ],
   async redirects() {
     return [

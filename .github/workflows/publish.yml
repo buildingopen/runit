@@ -46,23 +46,23 @@ jobs:
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npx turbo run build --filter=@runit/client --filter=@runit/cli --filter=@runit/mcp-server
+      - run: npx turbo run build --filter=@buildingopen/client --filter=@buildingopen/cli --filter=@buildingopen/mcp-server
 
-      - name: Publish @runit/client
+      - name: Publish @buildingopen/client
         if: ${{ !inputs.dry_run }}
         run: npm publish --provenance --access public
         working-directory: packages/client
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @runit/cli
+      - name: Publish @buildingopen/cli
         if: ${{ !inputs.dry_run }}
         run: npm publish --provenance --access public
         working-directory: packages/cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish @runit/mcp-server
+      - name: Publish @buildingopen/mcp-server
         if: ${{ !inputs.dry_run }}
         run: npm publish --provenance --access public
         working-directory: packages/mcp-server
@@ -148,17 +148,17 @@ jobs:
 
             **npm (client SDK)**
             ```bash
-            npm install @runit/client
+            npm install @buildingopen/client
             ```
 
             **npm (CLI)**
             ```bash
-            npm install -g @runit/cli
+            npm install -g @buildingopen/cli
             ```
 
             **npm (MCP server for AI agents)**
             ```bash
-            npm install -g @runit/mcp-server
+            npm install -g @buildingopen/mcp-server
             ```
 
             **Python SDK**

@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import type {
   ListEndpointsResponse,
   GetEndpointSchemaResponse
-} from '@runit/shared';
+} from '@buildingopen/shared';
 import { getProject } from './projects.js';
 import { getAuthContext } from '../middleware/auth.js';
 import { resolveSchemaRefs, type OpenAPISpec } from '../utils/schema-resolver.js';

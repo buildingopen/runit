@@ -17,7 +17,7 @@ COPY . .
 # Install and build
 RUN npm ci
 ENV NEXT_PUBLIC_API_URL=""
-RUN npx turbo run build --filter=@runit/control-plane --filter=@runit/web
+RUN npx turbo run build --filter=@buildingopen/control-plane --filter=@buildingopen/web
 
 # Stage 2: Production image
 FROM node:20-alpine

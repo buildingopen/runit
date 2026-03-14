@@ -1,5 +1,5 @@
 {
-  "name": "@runit/control-plane",
+  "name": "@buildingopen/control-plane",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -39,7 +39,7 @@
     "@opentelemetry/auto-instrumentations-node": "^0.69.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.211.0",
     "@opentelemetry/sdk-node": "^0.211.0",
-    "@runit/shared": "*",
+    "@buildingopen/shared": "*",
     "@sentry/node": "^10.38.0",
     "@supabase/supabase-js": "^2.38.0",
     "@types/opossum": "^8.1.9",

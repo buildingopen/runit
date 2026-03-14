@@ -5,7 +5,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { RunitClient } from '@runit/client';
+import { RunitClient } from '@buildingopen/client';
 
 const RUNIT_URL = process.env.RUNIT_URL || 'http://localhost:3001';
 const RUNIT_API_KEY = process.env.RUNIT_API_KEY || '';

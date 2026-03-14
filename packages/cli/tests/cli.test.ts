@@ -27,7 +27,7 @@ const mockWriteFileSync = vi.fn();
 const mockMkdirSync = vi.fn();
 const mockExecSync = vi.fn();
 
-vi.mock('@runit/client', () => ({
+vi.mock('@buildingopen/client', () => ({
   RunitClient: vi.fn().mockImplementation(function () {
     return mockClient;
   }),

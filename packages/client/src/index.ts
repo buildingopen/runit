@@ -1,4 +1,4 @@
-// ABOUTME: HTTP client for the RunIt control plane API. Shared by @runit/cli and @runit/mcp-server.
+// ABOUTME: HTTP client for the RunIt control plane API. Shared by @buildingopen/cli and @buildingopen/mcp-server.
 // ABOUTME: Handles auth (Bearer token), base URL, and typed responses for all API endpoints.
 
 export interface RunitConfig {

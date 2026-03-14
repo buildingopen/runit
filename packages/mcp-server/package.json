@@ -1,5 +1,5 @@
 {
-  "name": "@runit/mcp-server",
+  "name": "@buildingopen/mcp-server",
   "version": "0.1.0",
   "description": "MCP server for RunIt, lets AI agents deploy and run apps",
   "type": "module",
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@runit/client": "0.1.0",
+    "@buildingopen/client": "0.1.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {

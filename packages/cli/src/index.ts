@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // ABOUTME: RunIt CLI entry point. Commands: deploy, list, logs, delete, open, etc.
-// ABOUTME: Connects to RUNIT_URL with RUNIT_API_KEY. Binary: npx @runit/cli or npx runit.
+// ABOUTME: Connects to RUNIT_URL with RUNIT_API_KEY. Binary: npx @buildingopen/cli or npx runit.
 
 import { Command } from 'commander';
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { basename, resolve, join } from 'path';
 import { fileURLToPath } from 'url';
 import { exec, execSync } from 'child_process';
-import { RunitClient } from '@runit/client';
+import { RunitClient } from '@buildingopen/client';
 
 const RUNIT_URL = process.env.RUNIT_URL || 'http://localhost:3001';
 const RUNIT_API_KEY = process.env.RUNIT_API_KEY || '';

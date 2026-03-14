@@ -1,5 +1,5 @@
 {
-  "name": "@runit/client",
+  "name": "@buildingopen/client",
   "version": "0.1.0",
   "description": "JavaScript client for RunIt",
   "type": "module",

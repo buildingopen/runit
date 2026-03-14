@@ -1,5 +1,5 @@
 {
-  "name": "@runit/openapi-form",
+  "name": "@buildingopen/openapi-form",
   "version": "0.1.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,8 +10,8 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@runit/shared": "*",
-    "@runit/ui": "*",
+    "@buildingopen/shared": "*",
+    "@buildingopen/ui": "*",
     "hono": "^4.12.4",
     "next": "15.5.12",
     "react": "^19.0.0",

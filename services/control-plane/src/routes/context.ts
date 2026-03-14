@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import { fetchContextFromURL } from '../lib/context/fetcher.js';
 import type {
   FetchContextRequest,
-} from '@runit/shared/contracts';
+} from '@buildingopen/shared/contracts';
 import { CONTEXT_MAX_SIZE_BYTES, PROJECT_CONTEXT_MAX_TOTAL_BYTES } from '../config/constants.js';
 import * as contextsStore from '../db/contexts-store.js';
 import { verifyProjectOwnership } from '../middleware/verify-ownership.js';

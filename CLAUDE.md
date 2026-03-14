@@ -36,7 +36,7 @@ Monorepo with:
 
 ## Key Commands
 - Build all: `npm run build`
-- Build control plane: `npx turbo run build --filter=@runit/control-plane`
+- Build control plane: `npx turbo run build --filter=@buildingopen/control-plane`
 - Test control plane: `npm test --workspace=services/control-plane`
 - Control plane dev: `cd services/control-plane && npm run dev`
 - Web app: `cd apps/web && npm run dev`

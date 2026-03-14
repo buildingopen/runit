@@ -110,7 +110,7 @@ Share links provide **public access** to specific endpoints without authenticati
 The control plane exports a `createApp()` factory that cloud deployments can extend:
 
 ```typescript
-import { createApp } from '@runit/control-plane';
+import { createApp } from '@buildingopen/control-plane';
 
 // OSS mode (default)
 const app = createApp();

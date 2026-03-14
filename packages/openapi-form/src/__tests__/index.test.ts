@@ -1,5 +1,5 @@
 /**
- * @runit/openapi-form tests
+ * @buildingopen/openapi-form tests
  */
 
 import { describe, it, expect } from 'vitest';

@@ -10,7 +10,7 @@ import type {
   CreateRunRequest,
   CreateRunResponse,
   GetRunStatusResponse,
-} from '@runit/shared';
+} from '@buildingopen/shared';
 import { getComputeBackend } from '../lib/compute/index.js';
 import { getDecryptedSecretsForRun } from './secrets.js';
 import { encryptSecretsBundle } from '../encryption/kms.js';

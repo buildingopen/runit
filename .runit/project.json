@@ -1,0 +1,19 @@
+{
+  "project_id": "838e8be4-fe17-4abf-b9e4-417697f01132",
+  "name": "cli-test",
+  "slug": "cli-test-838e8be4",
+  "deployed_at": "2026-03-14T14:49:52.862Z",
+  "actions": [
+    {
+      "method": "POST",
+      "path": "/greet",
+      "summary": ""
+    },
+    {
+      "method": "POST",
+      "path": "/add",
+      "summary": ""
+    }
+  ],
+  "base_url": "http://localhost:3001"
+}

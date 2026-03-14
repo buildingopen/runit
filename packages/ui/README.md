@@ -1,4 +1,4 @@
-# @runit/ui
+# @buildingopen/ui
 
 React component library for RunIt.
 
@@ -12,13 +12,13 @@ React component library for RunIt.
 ## Installation
 
 ```bash
-npm install @runit/ui
+npm install @buildingopen/ui
 ```
 
 ## Usage
 
 ```tsx
-import { Button, Card, Input } from '@runit/ui';
+import { Button, Card, Input } from '@buildingopen/ui';
 
 function MyComponent() {
   return (
