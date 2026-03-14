@@ -20,5 +20,14 @@
   "files": [
     "dist"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buildingopen/runit",
+    "directory": "packages/client"
+  },
+  "homepage": "https://github.com/buildingopen/runit#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }

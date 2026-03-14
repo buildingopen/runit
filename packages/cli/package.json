@@ -13,7 +13,7 @@
     "test": "vitest --run"
   },
   "dependencies": {
-    "@runit/client": "*",
+    "@runit/client": "0.1.0",
     "commander": "^13.1.0"
   },
   "devDependencies": {
@@ -31,5 +31,14 @@
     "deploy",
     "python"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buildingopen/runit",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/buildingopen/runit#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }

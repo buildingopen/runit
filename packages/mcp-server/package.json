@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@runit/client": "*",
+    "@runit/client": "0.1.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
@@ -33,5 +33,14 @@
     "python",
     "ai-agent"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buildingopen/runit",
+    "directory": "packages/mcp-server"
+  },
+  "homepage": "https://github.com/buildingopen/runit#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }

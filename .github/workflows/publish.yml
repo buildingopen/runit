@@ -1,0 +1,172 @@
+name: Publish Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip actual publish)'
+        type: boolean
+        default: false
+
+jobs:
+  # Run release gates first
+  gates:
+    name: Release Gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - run: npm run verify
+        env:
+          NODE_ENV: test
+          MASTER_ENCRYPTION_KEY: dGVzdC1tYXN0ZXIta2V5LTMyLWJ5dGVzLWxvbmch
+          RUNIT_DATA_DIR: ${{ runner.temp }}/runit-data
+
+  # Publish npm packages to npmjs.com
+  publish-npm:
+    name: Publish npm
+    needs: gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci
+      - run: npx turbo run build --filter=@runit/client --filter=@runit/cli --filter=@runit/mcp-server
+
+      - name: Publish @runit/client
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --provenance --access public
+        working-directory: packages/client
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @runit/cli
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --provenance --access public
+        working-directory: packages/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @runit/mcp-server
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --provenance --access public
+        working-directory: packages/mcp-server
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Publish Python SDK to PyPI
+  publish-pypi:
+    name: Publish PyPI
+    needs: gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: pypi
+      url: https://pypi.org/p/runit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build package
+        run: |
+          pip install build
+          cd services/runner/sdk
+          python -m build
+      - name: Publish to PyPI
+        if: ${{ !inputs.dry_run }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: services/runner/sdk/dist/
+
+  # Build and push Docker image
+  publish-docker:
+    name: Publish Docker
+    needs: gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract version from tag
+        id: version
+        run: echo "tag=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+      - name: Build and push
+        if: ${{ !inputs.dry_run }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Create GitHub Release
+  create-release:
+    name: GitHub Release
+    needs: [publish-npm, publish-pypi, publish-docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## Install
+
+            **npm (client SDK)**
+            ```bash
+            npm install @runit/client
+            ```
+
+            **npm (CLI)**
+            ```bash
+            npm install -g @runit/cli
+            ```
+
+            **npm (MCP server for AI agents)**
+            ```bash
+            npm install -g @runit/mcp-server
+            ```
+
+            **Python SDK**
+            ```bash
+            pip install runit
+            ```
+
+            **Docker (self-hosted)**
+            ```bash
+            docker pull ghcr.io/buildingopen/runit:${{ github.ref_name }}
+            ```
